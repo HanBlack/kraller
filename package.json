@@ -1,0 +1,37 @@
+{
+  "name": "kraller",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "opera:update": "python scripts/opera_fetch_convert.py",
+    "wind:update": "python scripts/fetch_wind.py",
+    "formation:update": "python scripts/fetch_formation.py",
+    "data:update": "python scripts/update_data.py",
+    "data:watch": "python scripts/watch_data.py",
+    "data:verify": "python scripts/verify_data.py",
+    "data:calibrate": "python scripts/calibrate_nowcast.py"
+  },
+  "dependencies": {
+    "maplibre-gl": "^5.24.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@types/geojson": "^7946.0.16",
+    "@types/node": "^24.13.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "oxlint": "^1.71.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.1.1",
+    "vitest": "^3.2.7"
+  }
+}

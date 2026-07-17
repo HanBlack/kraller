@@ -1,0 +1,5 @@
+requests>=2.32.0
+numpy>=2.2.0
+h5py>=3.11.0
+scikit-image>=0.25.0
+pyproj>=3.7.0

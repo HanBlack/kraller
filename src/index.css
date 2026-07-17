@@ -1,0 +1,39 @@
+:root {
+  --bg: #0c1218;
+  --panel: rgba(14, 22, 30, 0.92);
+  --panel-border: rgba(180, 200, 220, 0.14);
+  --text: #e8eef4;
+  --muted: #8a9aab;
+  --accent: #e8a54b;
+  --accent-soft: rgba(232, 165, 75, 0.16);
+  --danger: #e85d4b;
+  --ok: #4bb89a;
+  --pin: #ff6b3d;
+  --font: "Outfit", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+button,
+input {
+  font: inherit;
+  touch-action: manipulation;
+}

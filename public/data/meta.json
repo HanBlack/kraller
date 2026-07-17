@@ -1,0 +1,24 @@
+{
+  "updatedAt": "2026-07-17T07:11:41Z",
+  "operaTime": "2026-07-17T07:05:00Z",
+  "opera": true,
+  "wind": true,
+  "formation": true,
+  "sources": {
+    "opera": {
+      "ok": true,
+      "updatedAt": "2026-07-17T07:11:41Z",
+      "error": null
+    },
+    "wind": {
+      "ok": true,
+      "updatedAt": "2026-07-17T07:11:41Z",
+      "error": null
+    },
+    "formation": {
+      "ok": true,
+      "updatedAt": "2026-07-17T07:11:41Z",
+      "error": null
+    }
+  }
+}
