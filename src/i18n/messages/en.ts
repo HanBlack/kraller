@@ -50,10 +50,10 @@ export const en = {
     agoMin: " · {min} min ago",
     operaFrame: "OPERA frame",
     frameAge: " · age {min} min",
-    stale: "Data is stale — run {cmd} or reload the page.",
-    warn: "Some data is aging — auto-refresh in dev, otherwise {cmd}.",
+    stale: "Data is stale — production refreshes automatically within ~5 min.",
+    warn: "Some data is aging — server refresh runs every ~5 min.",
     staleHint:
-      "The app loads files from the server. Fresh radar is fetched by the server script (data:watch), not the browser.",
+      "The app loads files from the server. Radar is updated by GitHub Actions, not the browser.",
     cmd: "npm run data:watch",
     radar: "Radar",
     wind: "Wind",
