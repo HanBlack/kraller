@@ -218,19 +218,6 @@ type Props = {
   onSelect: (storm: SelectedStorm | null) => void;
   onWindSource?: (real: boolean) => void;
   onFormationSource?: (real: boolean) => void;
-  onDataMeta?: (meta: {
-    lastUpdated: string | null;
-    operaTime: string | null;
-    loading: boolean;
-    booting: boolean;
-    windReal: boolean;
-    formationReal: boolean;
-    sources: {
-      opera?: { ok: boolean; updatedAt?: string | null; error?: string | null };
-      wind?: { ok: boolean; updatedAt?: string | null; error?: string | null };
-      formation?: { ok: boolean; updatedAt?: string | null; error?: string | null };
-    } | null;
-  }) => void;
   onThreatAlerts?: (threats: ThreatBannerItem[]) => void;
   onHistoryRadarTime?: (time: string | null) => void;
   onFormationStats?: (stats: { count: number; linkCount: number }) => void;
@@ -1277,7 +1264,6 @@ export function MapView({
   onSelect,
   onWindSource,
   onFormationSource,
-  onDataMeta,
   onThreatAlerts,
   onHistoryRadarTime,
   onFormationStats,
@@ -1305,12 +1291,7 @@ export function MapView({
     formationZones,
     formationReal,
     formationScoredPoints,
-    lastUpdated,
-    operaTime,
-    dataSources,
     radarHistory,
-    booting: dataBooting,
-    loading: dataLoading,
   } = useStormDataContext();
   const [historicalRadar, setHistoricalRadar] = useState<FeatureCollection | null>(
     null,
@@ -1322,7 +1303,6 @@ export function MapView({
   const onSelectRef = useRef(onSelect);
   const onWindSourceRef = useRef(onWindSource);
   const onFormationSourceRef = useRef(onFormationSource);
-  const onDataMetaRef = useRef(onDataMeta);
   const onThreatAlertsRef = useRef(onThreatAlerts);
   const onHistoryRadarTimeRef = useRef(onHistoryRadarTime);
   const onFormationStatsRef = useRef(onFormationStats);
@@ -1335,7 +1315,6 @@ export function MapView({
   onSelectRef.current = onSelect;
   onWindSourceRef.current = onWindSource;
   onFormationSourceRef.current = onFormationSource;
-  onDataMetaRef.current = onDataMeta;
   onThreatAlertsRef.current = onThreatAlerts;
   onHistoryRadarTimeRef.current = onHistoryRadarTime;
   onFormationStatsRef.current = onFormationStats;
@@ -1345,26 +1324,6 @@ export function MapView({
   windLowRef.current = windLow;
   windUpperRef.current = windUpper;
   windRealRef.current = windReal;
-
-  useEffect(() => {
-    onDataMetaRef.current?.({
-      lastUpdated,
-      operaTime,
-      loading: dataLoading,
-      booting: dataBooting,
-      windReal,
-      formationReal,
-      sources: dataSources,
-    });
-  }, [
-    lastUpdated,
-    operaTime,
-    dataLoading,
-    dataBooting,
-    windReal,
-    formationReal,
-    dataSources,
-  ]);
 
   useEffect(() => {
     if (!radarHistory || timeOffsetMinutes >= 0) {

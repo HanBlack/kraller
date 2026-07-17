@@ -174,18 +174,10 @@ function RadarLifecycleDetail({
 
 
 
-  const [openIds, setOpenIds] = useState<Set<LifecycleStepId>>(
-
-    () => new Set(["birth", "factors", "intensify", "demise"]),
-
-  );
-
-
+  const [openIds, setOpenIds] = useState<Set<LifecycleStepId>>(() => new Set());
 
   useEffect(() => {
-
-    setOpenIds(new Set(["birth", "factors", "intensify", "demise"]));
-
+    setOpenIds(new Set());
   }, [cellKey]);
 
 
