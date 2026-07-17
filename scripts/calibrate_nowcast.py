@@ -22,9 +22,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 MAX_TRUSTED_TRACK_KMH = 70
-FAST_TRACK_KMH = 40
-MAX_WIND_CONFLICT_DEG = 85
-SOFT_WIND_CONFLICT_DEG = 50
+FAST_TRACK_KMH = 32
+MAX_WIND_CONFLICT_DEG = 55
+SOFT_WIND_CONFLICT_DEG = 28
+MAX_SEGMENT_JITTER_DEG = 40
 MIN_ZONE_SCORE = 32
 FORMATION_HIT_KM = 35
 ETA_ARRIVAL_KM = 6
@@ -91,21 +92,33 @@ def pct_under(vals: list[float], thresh: float) -> float | None:
 
 
 def recent_radar_motion(hist: list[dict]) -> tuple[float, float] | None:
-    """heading, speed from last 2–3 points."""
+    """heading, speed from last 2–3 points; require segment agreement."""
     if len(hist) < 2:
         return None
     recent = hist[-3:] if len(hist) >= 3 else hist
-    a, b = recent[0], recent[-1]
-    dt_min = max(
-        1.0,
-        (parse_opera_time(b["time"]) - parse_opera_time(a["time"])).total_seconds() / 60.0,
-    )
-    dist = haversine_km(a["peakLat"], a["peakLon"], b["peakLat"], b["peakLon"])
-    speed = (dist / dt_min) * 60.0
-    if not math.isfinite(speed) or speed < 5 or speed > MAX_TRUSTED_TRACK_KMH:
-        return None
-    hdg = bearing_deg(a["peakLat"], a["peakLon"], b["peakLat"], b["peakLon"])
-    return hdg, speed
+
+    def seg(a: dict, b: dict) -> tuple[float, float] | None:
+        dt_min = max(
+            1.0,
+            (parse_opera_time(b["time"]) - parse_opera_time(a["time"])).total_seconds()
+            / 60.0,
+        )
+        dist = haversine_km(a["peakLat"], a["peakLon"], b["peakLat"], b["peakLon"])
+        speed = (dist / dt_min) * 60.0
+        if not math.isfinite(speed) or speed < 5 or speed > MAX_TRUSTED_TRACK_KMH:
+            return None
+        hdg = bearing_deg(a["peakLat"], a["peakLon"], b["peakLat"], b["peakLon"])
+        return hdg, speed
+
+    if len(recent) >= 3:
+        s1 = seg(recent[0], recent[1])
+        s2 = seg(recent[1], recent[2])
+        if not s1 or not s2:
+            return None
+        if angle_diff_deg(s1[0], s2[0]) > MAX_SEGMENT_JITTER_DEG:
+            return None
+
+    return seg(recent[0], recent[-1])
 
 
 def resolve_motion(
@@ -115,7 +128,7 @@ def resolve_motion(
     wind_hdg: float | None,
     wind_spd: float | None,
 ) -> tuple[float, float, str]:
-    """Zjednodušená kopie stormTrackRules.resolveCellMotion (Python)."""
+    """Kopie stormTrackRules.resolveCellMotion — vítr je priorita."""
     from_hist = recent_radar_motion(hist_prefix)
     radar_h = from_hist[0] if from_hist else fallback_hdg
     radar_s = from_hist[1] if from_hist else fallback_spd
@@ -134,19 +147,28 @@ def resolve_motion(
         return steer_h, steer_s, "wind-fallback"
 
     diff = angle_diff_deg(radar_h, steer_h)
-    if diff > MAX_WIND_CONFLICT_DEG and radar_s >= FAST_TRACK_KMH:
+    if diff > MAX_WIND_CONFLICT_DEG:
+        return steer_h, steer_s, "wind-fallback"
+    if diff > SOFT_WIND_CONFLICT_DEG and radar_s >= FAST_TRACK_KMH:
         return steer_h, steer_s, "wind-fallback"
     if diff > SOFT_WIND_CONFLICT_DEG:
-        # soft blend 40% wind
+        # blend s převahou větru
         r1, r2 = math.radians(radar_h), math.radians(steer_h)
-        u = 0.6 * math.sin(r1) * radar_s + 0.4 * math.sin(r2) * steer_s
-        v = 0.6 * math.cos(r1) * radar_s + 0.4 * math.cos(r2) * steer_s
+        u = 0.35 * math.sin(r1) * radar_s + 0.65 * math.sin(r2) * steer_s
+        v = 0.35 * math.cos(r1) * radar_s + 0.65 * math.cos(r2) * steer_s
         return (
             (math.degrees(math.atan2(u, v)) + 360) % 360,
             math.hypot(u, v),
-            "radar-blend",
+            "wind-fallback",
         )
-    return radar_h, radar_s, "radar-track"
+    r1, r2 = math.radians(radar_h), math.radians(steer_h)
+    u = 0.75 * math.sin(r1) * radar_s + 0.25 * math.sin(r2) * steer_s
+    v = 0.75 * math.cos(r1) * radar_s + 0.25 * math.cos(r2) * steer_s
+    return (
+        (math.degrees(math.atan2(u, v)) + 360) % 360,
+        math.hypot(u, v),
+        "radar-track",
+    )
 
 
 def sample_wind_steer(lon: float, lat: float, wind: dict | None) -> tuple[float, float] | None:

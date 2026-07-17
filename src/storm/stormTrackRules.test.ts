@@ -99,7 +99,7 @@ describe("resolveCellMotion — divoké stopy", () => {
     expect(m.speedKmh).toBeGreaterThan(5);
   });
 
-  it("konflikt rychlého radaru s větrem → steering", () => {
+  it("konflikt radaru s větrem → steering", () => {
     const m = resolveCellMotion(
       {
         peak: [16, 50.4],
@@ -114,6 +114,22 @@ describe("resolveCellMotion — divoké stopy", () => {
       windNE,
     );
     // historie jde zhruba na jih — konflikt s NE větrem
+    expect(m.source).toBe("wind-fallback");
+  });
+
+  it("zigzag historie → vítr (nestabilní peak)", () => {
+    const m = resolveCellMotion(
+      {
+        peak: [16.1, 50.4],
+        history: [
+          { peak: [16.0, 50.4], minutesFromBirth: 0 },
+          { peak: [16.08, 50.48], minutesFromBirth: 5 },
+          { peak: [16.1, 50.35], minutesFromBirth: 10 },
+        ],
+      },
+      windNE,
+      windNE,
+    );
     expect(m.source).toBe("wind-fallback");
   });
 
