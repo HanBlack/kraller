@@ -5,8 +5,6 @@ name: Publish site
 on:
   push:
     branches: [main, master]
-  schedule:
-    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -14,10 +12,10 @@ permissions:
   pages: write
   id-token: write
 
-# Novější běh přeruší starý — žádná fronta „waiting for #7“.
+# Push může přerušit starý deploy; plánovaná obnova dat běží v refresh-data.yml.
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
   publish:

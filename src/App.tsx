@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "./i18n";
 import { AddressPanel } from "./components/AddressPanel";
-import { DataStatus } from "./components/DataStatus";
+import { CollapsibleSection } from "./components/CollapsibleSection";
+import { LanguageToggle } from "./components/LanguageToggle";
 import { LayerToggle } from "./components/LayerToggle";
 import { LocationWatch } from "./components/LocationWatch";
 import { MapLegend } from "./components/MapLegend";
@@ -55,27 +56,6 @@ export default function App() {
   const [timeOffsetMinutes, setTimeOffsetMinutes] = useState(0);
   const [historyRadarTime, setHistoryRadarTime] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
-  const [dataMeta, setDataMeta] = useState<{
-    lastUpdated: string | null;
-    operaTime: string | null;
-    loading: boolean;
-    booting: boolean;
-    windReal: boolean;
-    formationReal: boolean;
-    sources: {
-      opera?: { ok: boolean; updatedAt?: string | null; error?: string | null };
-      wind?: { ok: boolean; updatedAt?: string | null; error?: string | null };
-      formation?: { ok: boolean; updatedAt?: string | null; error?: string | null };
-    } | null;
-  }>({
-    lastUpdated: null,
-    operaTime: null,
-    loading: false,
-    booting: true,
-    windReal: false,
-    formationReal: false,
-    sources: null,
-  });
   const [threats, setThreats] = useState<ThreatBannerItem[]>([]);
   const [formationStats, setFormationStats] = useState({
     count: 0,
@@ -84,7 +64,7 @@ export default function App() {
   const [formationPoints, setFormationPoints] = useState<ScoredFormationPoint[]>(
     [],
   );
-  const [controlsOpen, setControlsOpen] = useState(true);
+  const [controlsOpen, setControlsOpen] = useState(false);
 
   useEffect(() => {
     if (!booting) return;
@@ -96,13 +76,6 @@ export default function App() {
     const id = window.setTimeout(() => setMapReady(true), MAP_READY_TIMEOUT_MS);
     return () => window.clearTimeout(id);
   }, [booting, mapReady]);
-
-  /** Na mobilu po výběru lokace sbal panel — víc mapy. */
-  useEffect(() => {
-    if (!location) return;
-    const mq = window.matchMedia("(max-width: 900px)");
-    if (mq.matches) setControlsOpen(false);
-  }, [location?.lat, location?.lon]);
 
   useEffect(() => {
     if (selected) setControlsOpen(true);
@@ -140,7 +113,6 @@ export default function App() {
           onSelect={setSelected}
           onWindSource={setWindReal}
           onFormationSource={setFormationReal}
-          onDataMeta={setDataMeta}
           onThreatAlerts={setThreats}
           onHistoryRadarTime={setHistoryRadarTime}
           onFormationStats={setFormationStats}
@@ -187,43 +159,48 @@ export default function App() {
                 {controlsOpen ? "▾" : "▴"}
               </span>
             </button>
+            <LanguageToggle compact />
           </div>
           <div id="sidebar-body" className="sidebar-body">
-            <AddressPanel location={location} onLocated={setLocation} />
+            <AddressPanel
+              compact
+              location={location}
+              onLocated={setLocation}
+            />
             {location && (
-              <LocationWatch
-                location={location}
-                threats={threats}
-                onSelectThreat={selectThreat}
-              />
+              <CollapsibleSection
+                title={t("sections.watch")}
+                forceOpen={threats.length > 0}
+                badge={threats.length > 0 ? threats.length : null}
+              >
+                <LocationWatch
+                  location={location}
+                  threats={threats}
+                  onSelectThreat={selectThreat}
+                />
+              </CollapsibleSection>
             )}
-            <DataStatus
-              lastUpdated={dataMeta.lastUpdated}
-              operaTime={dataMeta.operaTime}
-              loading={dataMeta.loading}
-              sources={dataMeta.sources}
-              windReal={dataMeta.windReal}
-              formationReal={dataMeta.formationReal}
-            />
-            <LayerToggle
-              showFormation={showFormation}
-              showProgress={showProgress}
-              showRadar={showRadar}
-              windMode={windMode}
-              timeOffsetMinutes={timeOffsetMinutes}
-              historyRadarTime={historyRadarTime}
-              onToggleFormation={() => {
-                setShowFormation((v) => !v);
-                setSelected(null);
-              }}
-              onToggleProgress={() => {
-                setShowProgress((v) => !v);
-                setSelected(null);
-              }}
-              onToggleRadar={() => setShowRadar((v) => !v)}
-              onWindMode={setWindMode}
-              onTimeOffsetMinutes={setTimeOffsetMinutes}
-            />
+            <CollapsibleSection title={t("sections.layers")}>
+              <LayerToggle
+                showFormation={showFormation}
+                showProgress={showProgress}
+                showRadar={showRadar}
+                windMode={windMode}
+                timeOffsetMinutes={timeOffsetMinutes}
+                historyRadarTime={historyRadarTime}
+                onToggleFormation={() => {
+                  setShowFormation((v) => !v);
+                  setSelected(null);
+                }}
+                onToggleProgress={() => {
+                  setShowProgress((v) => !v);
+                  setSelected(null);
+                }}
+                onToggleRadar={() => setShowRadar((v) => !v)}
+                onWindMode={setWindMode}
+                onTimeOffsetMinutes={setTimeOffsetMinutes}
+              />
+            </CollapsibleSection>
             {selected && (
               <StormDetail
                 selected={selected}
