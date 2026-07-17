@@ -4,8 +4,10 @@ import { loadStormData } from "./loadStormData";
 import { requestServerDataRefresh } from "./refreshServerData";
 import type { FormationZone } from "../storm/demo";
 
-/** Při bootu akceptuj data starší než 25 min (po pokusu o obnovu). */
+/** Při bootu v dev akceptuj data starší než 25 min (po pokusu o obnovu). */
 export const BOOT_MAX_DATA_AGE_MS = 25 * 60 * 1000;
+/** Na produkci (GitHub Pages) stačí soubory z deploye — GH Actions je obnoví. */
+export const PROD_BOOT_MAX_DATA_AGE_MS = 6 * 60 * 60 * 1000;
 const BOOT_POLL_MS = 2500;
 const BOOT_MAX_POLLS = 8;
 
@@ -28,11 +30,16 @@ function isSourceFresh(
  * Jsou data dostatečně čerstvá?
  * Stránka jen čte public/data — nevolá OPERA/Open-Meteo sama.
  */
-export function isBootDataReady(data: StormDataBundle): boolean {
-  if (dataAgeMs(data.metaUpdatedAt) > BOOT_MAX_DATA_AGE_MS) return false;
-  if (!isSourceFresh(data.dataSources?.opera, BOOT_MAX_DATA_AGE_MS)) return false;
-  if (!isSourceFresh(data.dataSources?.wind, BOOT_MAX_DATA_AGE_MS)) return false;
-  if (!isSourceFresh(data.dataSources?.formation, BOOT_MAX_DATA_AGE_MS)) {
+export function isBootDataReady(
+  data: StormDataBundle,
+  maxAgeMs = import.meta.env.DEV
+    ? BOOT_MAX_DATA_AGE_MS
+    : PROD_BOOT_MAX_DATA_AGE_MS,
+): boolean {
+  if (dataAgeMs(data.metaUpdatedAt) > maxAgeMs) return false;
+  if (!isSourceFresh(data.dataSources?.opera, maxAgeMs)) return false;
+  if (!isSourceFresh(data.dataSources?.wind, maxAgeMs)) return false;
+  if (!isSourceFresh(data.dataSources?.formation, maxAgeMs)) {
     return false;
   }
   if (!data.windReal) return false;
@@ -62,12 +69,13 @@ export async function loadStormDataForBoot(
   let last = await loadStormData(Date.now(), fallbackFormation);
   if (isBootDataReady(last)) return last;
 
-  if (import.meta.env.DEV) {
-    onPhase?.("fetch");
-    await requestServerDataRefresh();
-    last = await loadStormData(Date.now(), fallbackFormation);
-    if (isBootDataReady(last)) return last;
-  }
+  // Produkce: statické soubory z deploye — nečekat na „fresh“ polling.
+  if (!import.meta.env.DEV) return last;
+
+  onPhase?.("fetch");
+  await requestServerDataRefresh();
+  last = await loadStormData(Date.now(), fallbackFormation);
+  if (isBootDataReady(last)) return last;
 
   for (let attempt = 0; attempt < BOOT_MAX_POLLS; attempt++) {
     onPhase?.("poll");
