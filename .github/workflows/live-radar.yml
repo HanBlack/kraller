@@ -1,13 +1,13 @@
-# Samoudržující smyčka: stáhne radar → deploy → za ~3 min spustí sebe znovu.
-# Používá workflow_dispatch přes GITHUB_TOKEN (GitHub to povoluje, na rozdíl od push/workflow_run).
+# Rychlá smyčka: radar → deploy → hned další běh (bez fronty a bez 3min spánku).
+# cancel-in-progress: true = nový běh zruší starý, žádné Pending fronty.
 
 name: Live radar
 
 on:
   workflow_dispatch:
+  # Záloha kdyby se smyčka přerušila (ne každých 5 min — to dělá frontu)
   schedule:
-    - cron: "2/5 * * * *"
-  # Kickstart po každém Publish site (push kódu)
+    - cron: "7,37 * * * *"
   workflow_run:
     workflows: ["Publish site"]
     types: [completed]
@@ -20,7 +20,7 @@ permissions:
 
 concurrency:
   group: live-radar
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   update:
@@ -29,7 +29,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
 
@@ -90,11 +90,11 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Queue next refresh in 3 minutes
+      # Hned další běh — žádný sleep (ten dělal frontu Pending vs In progress).
+      - name: Queue next refresh now
+        if: success()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Next Live radar run in 180s…"
-          sleep 180
           gh workflow run live-radar.yml --ref main
-          echo "Queued next Live radar run."
+          echo "Next Live radar queued (no wait)."
