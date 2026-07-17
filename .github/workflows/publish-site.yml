@@ -75,3 +75,14 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      # GitHub cron u některých rep neběží — volitelná smyčka každých ~5 min přes PAT.
+      # Repo → Settings → Secrets → WORKFLOW_PAT (fine-grained, Actions read/write).
+      - name: Queue next radar refresh
+        if: success() && secrets.WORKFLOW_PAT != ''
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_PAT }}
+        run: |
+          echo "Další obnova za ~5 min…"
+          sleep 300
+          gh workflow run publish-site.yml -f full_update=false --repo "${{ github.repository }}"
