@@ -18,7 +18,7 @@ export const cs = {
     agoMin: "před {min} min",
     radar: "Radar · {time}",
     radarAge: " ({min} min)",
-    stale: "Čekáme na nová data ze serveru",
+    stale: "Čekáme na nová data ze serveru (~5 min)",
     titleDetail: "Poslední synchronizace {time}",
   },
   lang: {

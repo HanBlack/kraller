@@ -22,10 +22,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from write_meta import write_meta  # noqa: E402
 
-STEPS = [
+FULL_STEPS = [
     ("opera", "OPERA", [sys.executable, "scripts/opera_fetch_convert.py"]),
     ("formation", "vznik", [sys.executable, "scripts/fetch_formation.py"]),
     ("wind", "vítr", [sys.executable, "scripts/fetch_wind.py"]),
+]
+
+# Rychlá obnova na produkci — jen radar, méně framů pro tracking.
+RADAR_ONLY_STEPS = [
+    (
+        "opera",
+        "OPERA",
+        [sys.executable, "scripts/opera_fetch_convert.py", "--frames", "8"],
+    ),
 ]
 
 
@@ -44,14 +53,19 @@ def run_step(key: str, label: str, cmd: list[str]) -> dict:
         return {"ok": False, "error": str(e)}
 
 
-def run_update() -> bool:
+def run_update(*, radar_only: bool = False) -> bool:
     stamp = datetime.now(timezone.utc).strftime("%H:%M:%S UTC")
-    print(f"\n[{stamp}] Aktualizuji storm data…", flush=True)
+    mode = "radar" if radar_only else "full"
+    print(f"\n[{stamp}] Aktualizuji storm data ({mode})…", flush=True)
     results: dict[str, dict] = {}
-    for key, label, cmd in STEPS:
+    steps = RADAR_ONLY_STEPS if radar_only else FULL_STEPS
+    for key, label, cmd in steps:
         results[key] = run_step(key, label, cmd)
 
     write_meta(results)
+
+    if radar_only:
+        return bool(results.get("opera", {}).get("ok"))
 
     # Guardy zrod/trajektorie — neblokuje update, ale hned ukáže regrese
     print("  -> verify tracks/birth", flush=True)
@@ -86,8 +100,13 @@ def run_update() -> bool:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Aktualizace radarových dat (částečný OK)")
-    parser.parse_args()
-    ok = run_update()
+    parser.add_argument(
+        "--radar-only",
+        action="store_true",
+        help="Jen OPERA radar (rychlejší obnova na produkci)",
+    )
+    args = parser.parse_args()
+    ok = run_update(radar_only=args.radar_only)
     return 0 if ok else 1
 
 
