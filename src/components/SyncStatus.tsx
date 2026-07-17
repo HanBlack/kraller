@@ -47,8 +47,8 @@ export function SyncStatus() {
   const radarAge = operaTime ? ageMinutes(operaTime, now) : null;
   const stale = age != null && age >= 10;
   const warn = !stale && age != null && age >= 6;
-  const radarStale = radarAge != null && radarAge >= 12;
-  const radarWarn = !radarStale && radarAge != null && radarAge >= 8;
+  const radarStale = radarAge != null && radarAge >= 10;
+  const radarWarn = !radarStale && radarAge != null && radarAge >= 6;
 
   const when =
     loading && !lastUpdated
