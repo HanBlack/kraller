@@ -1,32 +1,35 @@
-# Stáhne radar → build → deploy. Spouští Live radar pulse.
+# Samoudržující smyčka: stáhne radar → deploy → za ~3 min spustí sebe znovu.
+# Používá workflow_dispatch přes GITHUB_TOKEN (GitHub to povoluje, na rozdíl od push/workflow_run).
 
-name: Live radar update
+name: Live radar
 
 on:
-  workflow_run:
-    workflows: ["Live radar pulse", "Publish site"]
-    types: [completed]
+  workflow_dispatch:
   schedule:
     - cron: "2/5 * * * *"
-  workflow_dispatch:
+  # Kickstart po každém Publish site (push kódu)
+  workflow_run:
+    workflows: ["Publish site"]
+    types: [completed]
 
 permissions:
+  actions: write
   contents: read
   pages: write
   id-token: write
 
 concurrency:
-  group: live-radar-update
+  group: live-radar
   cancel-in-progress: false
 
 jobs:
   update:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -66,3 +69,12 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Queue next refresh in 3 minutes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Next Live radar run in 180s…"
+          sleep 180
+          gh workflow run live-radar.yml --ref main
+          echo "Queued next Live radar run."
