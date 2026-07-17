@@ -128,47 +128,23 @@ def resolve_motion(
     wind_hdg: float | None,
     wind_spd: float | None,
 ) -> tuple[float, float, str]:
-    """Kopie stormTrackRules.resolveCellMotion — vítr je priorita."""
+    """Směr vždy z větru; radar jen na rychlost při shodě směru."""
     from_hist = recent_radar_motion(hist_prefix)
     radar_h = from_hist[0] if from_hist else fallback_hdg
     radar_s = from_hist[1] if from_hist else fallback_spd
     steer_h = wind_hdg if wind_hdg is not None else 90.0
     steer_s = wind_spd if wind_spd is not None else 28.0
 
-    if radar_s is not None and radar_s > MAX_TRUSTED_TRACK_KMH:
-        return steer_h, steer_s, "wind-fallback"
-
     has_radar = (
         radar_h is not None
         and radar_s is not None
         and 5 <= radar_s <= MAX_TRUSTED_TRACK_KMH
+        and angle_diff_deg(radar_h, steer_h) <= SOFT_WIND_CONFLICT_DEG
     )
-    if not has_radar:
-        return steer_h, steer_s, "wind-fallback"
-
-    diff = angle_diff_deg(radar_h, steer_h)
-    if diff > MAX_WIND_CONFLICT_DEG:
-        return steer_h, steer_s, "wind-fallback"
-    if diff > SOFT_WIND_CONFLICT_DEG and radar_s >= FAST_TRACK_KMH:
-        return steer_h, steer_s, "wind-fallback"
-    if diff > SOFT_WIND_CONFLICT_DEG:
-        # blend s převahou větru
-        r1, r2 = math.radians(radar_h), math.radians(steer_h)
-        u = 0.35 * math.sin(r1) * radar_s + 0.65 * math.sin(r2) * steer_s
-        v = 0.35 * math.cos(r1) * radar_s + 0.65 * math.cos(r2) * steer_s
-        return (
-            (math.degrees(math.atan2(u, v)) + 360) % 360,
-            math.hypot(u, v),
-            "wind-fallback",
-        )
-    r1, r2 = math.radians(radar_h), math.radians(steer_h)
-    u = 0.75 * math.sin(r1) * radar_s + 0.25 * math.sin(r2) * steer_s
-    v = 0.75 * math.cos(r1) * radar_s + 0.25 * math.cos(r2) * steer_s
-    return (
-        (math.degrees(math.atan2(u, v)) + 360) % 360,
-        math.hypot(u, v),
-        "radar-track",
-    )
+    if has_radar:
+        speed = min(58.0, max(8.0, 0.7 * radar_s + 0.3 * steer_s))
+        return steer_h, speed, "radar-track"
+    return steer_h, steer_s, "wind-fallback"
 
 
 def sample_wind_steer(lon: float, lat: float, wind: dict | None) -> tuple[float, float] | None:

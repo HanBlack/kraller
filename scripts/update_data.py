@@ -28,12 +28,17 @@ FULL_STEPS = [
     ("wind", "vítr", [sys.executable, "scripts/fetch_wind.py"]),
 ]
 
-# Rychlá obnova na produkci — jen radar, méně framů pro tracking.
+# Rychlá obnova na produkci — radar + vítr (směr šipek).
 RADAR_ONLY_STEPS = [
     (
         "opera",
         "OPERA",
         [sys.executable, "scripts/opera_fetch_convert.py", "--frames", "8"],
+    ),
+    (
+        "wind",
+        "vítr",
+        [sys.executable, "scripts/fetch_wind.py", "--force"],
     ),
 ]
 

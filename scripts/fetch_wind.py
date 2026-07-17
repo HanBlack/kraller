@@ -31,8 +31,8 @@ BATCH_SIZE = 48
 BATCH_PAUSE_S = 3.0
 FORMATION_GRID = os.path.join("public", "data", "formation", "grid.json")
 WIND_LOW = os.path.join("public", "data", "wind", "low.json")
-WIND_MAX_AGE_MIN = 90
-FORMATION_FOR_WIND_MAX_AGE_MIN = 360
+WIND_MAX_AGE_MIN = 45
+FORMATION_FOR_WIND_MAX_AGE_MIN = 120
 
 
 def lat_lons() -> tuple[list[float], list[float]]:
