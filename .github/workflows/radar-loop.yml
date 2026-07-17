@@ -17,10 +17,7 @@ concurrency:
 
 jobs:
   refresh:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' &&
-        github.event.workflow_run.conclusion == 'success')
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -46,7 +43,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Wait before next fetch
-        if: github.event_name == 'workflow_run'
+        if: ${{ github.event_name == 'workflow_run' }}
         run: sleep 120
 
       - name: Fetch OPERA radar
