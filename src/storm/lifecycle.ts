@@ -12,6 +12,7 @@ import type { RadarProgressFeature } from "./radarCells";
 import type { EnvironmentSignals } from "./types";
 import { dewpointCOr } from "./types";
 import { distanceKm } from "../lib/geo";
+import { stormConfig } from "./config";
 
 export type LifecycleStepId =
   | "birth"
@@ -198,6 +199,20 @@ export function explainNoIntensify(
   return { headline, reasons: reasons.slice(0, 4) };
 }
 
+/** Odhad poklesu dBZ/min z historie echa (záporné = slábnutí). */
+function decayDbzPerMin(feature: RadarProgressFeature): number | null {
+  const hist = feature.history;
+  if (!hist || hist.length < 2) return null;
+  const sorted = [...hist].sort(
+    (a, b) => a.minutesFromBirth - b.minutesFromBirth,
+  );
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  const dt = last.minutesFromBirth - first.minutesFromBirth;
+  if (dt < 8) return null;
+  return (last.maxDbz - first.maxDbz) / dt;
+}
+
 /** Proč buňka zanikne / zeslábne. */
 export function explainDemiseWhy(
   feature: RadarProgressFeature,
@@ -212,6 +227,17 @@ export function explainDemiseWhy(
     8;
   const dbz = feature.maxDbz;
   const reasons: string[] = [];
+  const decayPerMin = decayDbzPerMin(feature);
+
+  if (decayPerMin != null && decayPerMin < -0.15) {
+    reasons.push(
+      `echo už slábne (~${Math.abs(decayPerMin * 15).toFixed(0)} dBZ / 15 min)`,
+    );
+  }
+
+  if (feature.growthDbz <= -2) {
+    reasons.push("echo v posledních snímcích klesá");
+  }
 
   if (shear < 6) {
     reasons.push(
@@ -269,20 +295,43 @@ export function estimateDemise(
     feature.birthEnv?.environment.shear0to6Ms ??
     8;
   const dbz = feature.maxDbz;
+  const decayPerMin = decayDbzPerMin(feature);
+  const targetDbz = 30;
 
-  let lifeMin: number;
-  if (dbz >= 50) lifeMin = 55;
-  else if (dbz >= 45) lifeMin = 45;
-  else if (dbz >= 40) lifeMin = 35;
-  else lifeMin = 25;
+  let lifeMin: number | null = null;
 
-  if (shear >= 15) lifeMin += 20;
-  else if (shear >= 12) lifeMin += 12;
-  else if (shear >= 8) lifeMin += 5;
-  else if (shear < 6) lifeMin -= 10;
+  if (decayPerMin != null && decayPerMin < -0.15) {
+    const toTarget = (dbz - targetDbz) / Math.abs(decayPerMin);
+    lifeMin = Math.round(toTarget);
+  }
+
+  if (lifeMin == null) {
+    const decayPer15 = stormConfig.intensification.decayDbzPer15Min;
+    if (feature.growthDbz <= -2) {
+      lifeMin = Math.round(((dbz - targetDbz) / decayPer15) * 15);
+    } else if (feature.phase === "mature" || feature.phase === "moving") {
+      if (dbz >= 50) lifeMin = 40;
+      else if (dbz >= 45) lifeMin = 32;
+      else if (dbz >= 40) lifeMin = 25;
+      else lifeMin = 18;
+    } else if (dbz >= 50) {
+      lifeMin = 55;
+    } else if (dbz >= 45) {
+      lifeMin = 45;
+    } else if (dbz >= 40) {
+      lifeMin = 35;
+    } else {
+      lifeMin = 25;
+    }
+  }
+
+  if (shear >= 15) lifeMin += 15;
+  else if (shear >= 12) lifeMin += 10;
+  else if (shear >= 8) lifeMin += 4;
+  else if (shear < 6) lifeMin -= 8;
 
   if (feature.phase === "birth" || feature.phase === "growing") {
-    lifeMin += 8;
+    lifeMin += 6;
   }
 
   if (intens?.timeline?.length) {
@@ -295,11 +344,11 @@ export function estimateDemise(
   }
 
   if (intens?.willIntensify && intens.enterEtaMin != null) {
-    const boost = Math.max(0, (intens.peakExpectedDbz ?? dbz) - dbz) * 1.2;
-    lifeMin = Math.max(lifeMin, intens.enterEtaMin + 20 + boost);
+    const boost = Math.max(0, (intens.peakExpectedDbz ?? dbz) - dbz) * 0.8;
+    lifeMin = Math.max(lifeMin, intens.enterEtaMin + 15 + boost);
   }
 
-  lifeMin = Math.round(Math.max(12, Math.min(90, lifeMin)));
+  lifeMin = Math.round(Math.max(10, Math.min(75, lifeMin)));
 
   const [lon, lat] = destinationPoint(
     feature.peak[1],
