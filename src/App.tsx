@@ -11,6 +11,7 @@ import {
   StormDetail,
   type SelectedStorm,
 } from "./components/StormDetail";
+import { SyncStatus } from "./components/SyncStatus";
 import {
   useStormDataContext,
   type BootPhase,
@@ -131,6 +132,9 @@ export default function App() {
           formationReal={formationReal}
           formationCount={formationStats.count}
         />
+      )}
+      {ready && (
+        <SyncStatus />
       )}
       {ready && (
         <aside
