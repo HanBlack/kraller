@@ -1,4 +1,4 @@
-# Push kódu + každých 5 min obnova radaru → build → GitHub Pages
+# Deploy na GitHub Pages. Data z běžící smyčky radar-loop.yml (push public/data).
 
 name: Publish site
 
@@ -6,7 +6,6 @@ on:
   push:
     branches: [main, master]
   schedule:
-    # UTC, každých 5 min (GitHub minimum), mimo :00 kvůli zpožděním
     - cron: "2/5 * * * *"
   workflow_dispatch:
     inputs:
@@ -44,6 +43,7 @@ jobs:
           python-version: "3.12"
 
       - name: Cache OPERA HDF5
+        if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore: refresh radar data')
         uses: actions/cache@v4
         with:
           path: .cache/opera
@@ -52,9 +52,14 @@ jobs:
             opera-h5-
 
       - name: Install Python deps
+        if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore: refresh radar data')
         run: pip install -r requirements.txt
 
-      - name: Fetch storm data
+      - name: Fetch storm data (code push / manual)
+        if: >-
+          github.event_name == 'workflow_dispatch' ||
+          github.event_name == 'schedule' ||
+          (github.event_name == 'push' && !startsWith(github.event.head_commit.message, 'chore: refresh radar data'))
         run: |
           if [ "${{ github.event_name }}" = "push" ] || [ "${{ inputs.full_update }}" = "true" ]; then
             npm run data:update
@@ -75,14 +80,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
-      # GitHub cron u některých rep neběží — volitelná smyčka každých ~5 min přes PAT.
-      # Repo → Settings → Secrets → WORKFLOW_PAT (fine-grained, Actions read/write).
-      - name: Queue next radar refresh
-        if: success() && secrets.WORKFLOW_PAT != ''
-        env:
-          GH_TOKEN: ${{ secrets.WORKFLOW_PAT }}
-        run: |
-          echo "Další obnova za ~5 min…"
-          sleep 300
-          gh workflow run publish-site.yml -f full_update=false --repo "${{ github.repository }}"
