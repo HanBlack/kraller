@@ -1,4 +1,4 @@
-# Deploy po pushi kódu. Obnova radaru běží v live-radar-update.yml.
+# Deploy po pushi kódu. Obnova radaru: live-radar.yml (samo-smyčka).
 
 name: Publish site
 
@@ -10,7 +10,7 @@ on:
       full_update:
         description: "Stáhnout i vítr a vznik (pomalejší)"
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: read
