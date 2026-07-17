@@ -1516,6 +1516,13 @@ export function MapView({
     const selectLockUntilRef = { current: 0 };
     const selectStorm = (storm: SelectedStorm) => {
       selectLockUntilRef.current = performance.now() + 900;
+      if (storm.kind === "radar") {
+        const sid = String(storm.feature.id);
+        const live =
+          radarRef.current.find((f) => String(f.id) === sid) ?? storm.feature;
+        onSelectRef.current({ kind: "radar", feature: live });
+        return;
+      }
       onSelectRef.current(storm);
     };
 
@@ -1550,56 +1557,7 @@ export function MapView({
         return bestD <= maxKm ? best : null;
       };
 
-      // 1) Hit na vykreslené buňce / jádru (i v +min)
-      const cellLayerIds = [
-        CELL_FILL,
-        CELL_LINE,
-        ACT_CORE,
-        ACT_HALO,
-        ACT_LABEL,
-        BIRTH_MARK,
-        INTENS_MARK,
-      ].filter((id) => map.getLayer(id));
-      const cellHits = map.queryRenderedFeatures(e.point, {
-        layers: cellLayerIds,
-      });
-      for (const hit of cellHits) {
-        const rawId = (hit.properties?.id ?? hit.properties?.cellId) as
-          | string
-          | number
-          | undefined;
-        const byId = pickRadarById(rawId);
-        if (byId) {
-          selectStorm({ kind: "radar", feature: byId });
-          return;
-        }
-        const active = activeRef.current.find(
-          (f) => String(f.storm.id) === String(rawId),
-        );
-        if (active) {
-          selectStorm({ kind: "active", feature: active });
-          return;
-        }
-      }
-
-      // 2) Nejbližší buňka u kliku (podle pozice v čase posuvníku)
-      const nearCell = pickNearestRadar(forecastRef.current > 0 ? 45 : 38);
-      if (nearCell) {
-        selectStorm({ kind: "radar", feature: nearCell });
-        return;
-      }
-
-      const layerIds = [
-        FORM_FILL,
-        FORM_CENTER,
-        RADAR_FILL,
-        RADAR_LINE,
-        RADAR_PEAK,
-      ].filter((id) => map.getLayer(id));
-
-      const hits = map.queryRenderedFeatures(e.point, { layers: layerIds });
-
-      for (const hit of hits) {
+      const resolveHit = (hit: maplibregl.MapGeoJSONFeature) => {
         const layerId = hit.layer.id;
         const rawId = (hit.properties?.id ?? hit.properties?.cellId) as
           | string
@@ -1610,38 +1568,69 @@ export function MapView({
           const feature = formationRef.current.find(
             (f) => String(f.zone.id) === String(rawId),
           );
-          if (feature) {
-            selectStorm({ kind: "formation", feature });
-            return;
-          }
+          if (feature) return { kind: "formation" as const, feature };
         }
 
-        // OPERA echo → nejbližší trackovaná buňka (stejná oblast)
+        const byId = pickRadarById(rawId);
+        if (byId) return { kind: "radar" as const, feature: byId };
+
+        const active = activeRef.current.find(
+          (f) => String(f.storm.id) === String(rawId),
+        );
+        if (active) return { kind: "active" as const, feature: active };
+
+        return null;
+      };
+
+      const clickableLayerIds = [
+        CELL_FILL,
+        CELL_LINE,
+        ACT_CORE,
+        ACT_HALO,
+        ACT_LABEL,
+        BIRTH_MARK,
+        INTENS_FILL,
+        INTENS_LINE,
+        INTENS_MARK,
+        INTENS_HALO,
+        TRACK_LINE,
+        ARROW_LAYER,
+        FORM_FILL,
+        FORM_CENTER,
+        RADAR_FILL,
+        RADAR_LINE,
+        RADAR_PEAK,
+      ].filter((id) => map.getLayer(id));
+
+      const hits = map.queryRenderedFeatures(e.point, {
+        layers: clickableLayerIds,
+      });
+
+      for (const hit of hits) {
+        const layerId = hit.layer.id;
+        const resolved = resolveHit(hit);
+        if (resolved) {
+          selectStorm(resolved);
+          return;
+        }
+
         if (
           layerId === RADAR_FILL ||
           layerId === RADAR_LINE ||
           layerId === RADAR_PEAK
         ) {
-          const linked = pickNearestRadar(55);
+          const linked = pickNearestRadar(22);
           if (linked) {
             selectStorm({ kind: "radar", feature: linked });
             return;
           }
         }
+      }
 
-        const byId = pickRadarById(rawId);
-        if (byId) {
-          selectStorm({ kind: "radar", feature: byId });
-          return;
-        }
-
-        const active = activeRef.current.find(
-          (f) => String(f.storm.id) === String(rawId),
-        );
-        if (active) {
-          selectStorm({ kind: "active", feature: active });
-          return;
-        }
+      const nearCell = pickNearestRadar(forecastRef.current > 0 ? 28 : 22);
+      if (nearCell) {
+        selectStorm({ kind: "radar", feature: nearCell });
+        return;
       }
 
       if (locked) return;
@@ -1939,6 +1928,15 @@ export function MapView({
     formationScoredPoints,
     showProgress,
   ]);
+
+  useEffect(() => {
+    if (selected?.kind !== "radar") return;
+    const live = radarProgressEnriched.find(
+      (f) => f.id === selected.feature.id,
+    );
+    if (!live || live === selected.feature) return;
+    onSelectRef.current({ kind: "radar", feature: live });
+  }, [radarProgressEnriched, selected]);
 
   const selectedKey =
     selected == null

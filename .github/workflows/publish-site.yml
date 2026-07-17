@@ -1,5 +1,4 @@
-# Deploy na GitHub Pages (push kódu / plán / ručně).
-# Po dokončení spustí Refresh live radar → střídavá smyčka obnovy.
+# Deploy na GitHub Pages. Obnova dat: radar-loop.yml → git push → tento workflow.
 
 name: Publish site
 
@@ -14,9 +13,6 @@ on:
         description: "Stáhnout i vítr a vznik (pomalejší)"
         type: boolean
         default: false
-  workflow_run:
-    workflows: ["Refresh live radar"]
-    types: [completed]
 
 permissions:
   contents: read
@@ -25,16 +21,10 @@ permissions:
 
 concurrency:
   group: kraller-publish
-  cancel-in-progress: ${{ github.event_name == 'push' }}
+  cancel-in-progress: false
 
 jobs:
   publish:
-    if: >-
-      github.event_name == 'push' ||
-      github.event_name == 'schedule' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' &&
-        github.event.workflow_run.conclusion == 'success')
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -53,6 +43,7 @@ jobs:
           python-version: "3.12"
 
       - name: Cache OPERA HDF5
+        if: github.event_name != 'push' || !contains(github.event.head_commit.message, 'chore: refresh radar data')
         uses: actions/cache@v4
         with:
           path: .cache/opera
@@ -61,13 +52,17 @@ jobs:
             opera-h5-
 
       - name: Install Python deps
+        if: github.event_name != 'push' || !contains(github.event.head_commit.message, 'chore: refresh radar data')
         run: pip install -r requirements.txt
 
       - name: Fetch storm data
+        if: >-
+          github.event_name == 'workflow_dispatch' ||
+          github.event_name == 'schedule' ||
+          (github.event_name == 'push' &&
+            contains(github.event.head_commit.message, 'chore: refresh radar data') == false)
         run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
-            npm run data:update
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.full_update }}" = "true" ]; then
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ inputs.full_update }}" = "true" ]; then
             npm run data:update
           else
             npm run data:radar

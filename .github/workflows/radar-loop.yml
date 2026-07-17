@@ -1,6 +1,6 @@
-# Po každém deployi počká → stáhne radar → deploy. Spouští Publish site znovu (střídavá smyčka).
+# Po deployi: stáhne radar → commit → push spustí Publish site znovu (udržitelná smyčka).
 
-name: Refresh live radar
+name: Radar refresh loop
 
 on:
   workflow_run:
@@ -9,12 +9,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
-  group: kraller-refresh
+  group: radar-refresh-loop
   cancel-in-progress: false
 
 jobs:
@@ -23,22 +21,14 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'workflow_run' &&
         github.event.workflow_run.conclusion == 'success')
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-
-      - name: Wait before next fetch
-        if: github.event_name == 'workflow_run'
-        run: sleep 120
 
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
 
       - uses: actions/setup-python@v5
         with:
@@ -55,19 +45,23 @@ jobs:
       - name: Install Python deps
         run: pip install -r requirements.txt
 
+      - name: Wait before next fetch
+        if: github.event_name == 'workflow_run'
+        run: sleep 120
+
       - name: Fetch OPERA radar
         run: npm run data:radar
 
-      - name: Build site
+      - name: Commit and push updated data
         run: |
-          npm ci
-          npm run build
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist/
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data
+          if git diff --staged --quiet; then
+            echo "Radar frame unchanged — bumping meta timestamp to keep loop alive."
+            python scripts/touch_meta.py
+            git add public/data/meta.json
+          fi
+          git diff --staged --quiet && echo "Nothing to commit." && exit 0
+          git commit -m "chore: refresh radar data"
+          git push
