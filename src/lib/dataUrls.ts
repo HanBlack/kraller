@@ -1,5 +1,5 @@
-/** Interval obnovy dat na produkci (5 min). */
-export const DATA_REFRESH_MS = 5 * 60 * 1000;
+/** Interval obnovy dat na produkci (2 min — soubory na serveru se mění ~každých 5 min). */
+export const DATA_REFRESH_MS = 2 * 60 * 1000;
 
 const BASE = (import.meta.env.BASE_URL ?? "/").replace(/\/?$/, "/");
 

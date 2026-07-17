@@ -1,20 +1,27 @@
-# Jeden pipeline: push kódu + každých 5 min obnova dat → build → GitHub Pages
+# Push kódu + každých 5 min obnova radaru → build → GitHub Pages
 
 name: Publish site
 
 on:
   push:
     branches: [main, master]
+  schedule:
+    # UTC, každých 5 min (GitHub minimum), mimo :00 kvůli zpožděním
+    - cron: "2/5 * * * *"
   workflow_dispatch:
+    inputs:
+      full_update:
+        description: "Stáhnout i vítr a vznik (pomalejší)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Push může přerušit starý deploy; plánovaná obnova dat běží v refresh-data.yml.
 concurrency:
-  group: pages
+  group: kraller-publish
   cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
@@ -23,7 +30,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
 
@@ -36,11 +43,24 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Cache OPERA HDF5
+        uses: actions/cache@v4
+        with:
+          path: .cache/opera
+          key: opera-h5-${{ github.run_id }}
+          restore-keys: |
+            opera-h5-
+
       - name: Install Python deps
         run: pip install -r requirements.txt
 
-      - name: Fetch OPERA, wind, formation
-        run: npm run data:update
+      - name: Fetch storm data
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ inputs.full_update }}" = "true" ]; then
+            npm run data:update
+          else
+            npm run data:radar
+          fi
 
       - name: Build site
         run: |

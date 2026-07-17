@@ -45,8 +45,10 @@ export function SyncStatus() {
 
   const age = lastUpdated ? ageMinutes(lastUpdated, now) : null;
   const radarAge = operaTime ? ageMinutes(operaTime, now) : null;
-  const stale = age != null && age >= 20;
-  const warn = !stale && age != null && age >= 10;
+  const stale = age != null && age >= 10;
+  const warn = !stale && age != null && age >= 6;
+  const radarStale = radarAge != null && radarAge >= 12;
+  const radarWarn = !radarStale && radarAge != null && radarAge >= 8;
 
   const when =
     loading && !lastUpdated
@@ -65,9 +67,9 @@ export function SyncStatus() {
 
   return (
     <div
-      className={`sync-status${stale ? " is-stale" : warn ? " is-warn" : ""}${
-        loading ? " is-loading" : ""
-      }`}
+      className={`sync-status${
+        stale || radarStale ? " is-stale" : warn || radarWarn ? " is-warn" : ""
+      }${loading ? " is-loading" : ""}`}
       role="status"
       aria-live="polite"
       title={title}

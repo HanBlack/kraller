@@ -20,7 +20,7 @@ export const en = {
     agoMin: "{min} min ago",
     radar: "Radar · {time}",
     radarAge: " ({min} min)",
-    stale: "Waiting for fresh data from server",
+    stale: "Waiting for fresh server data (~5 min)",
     titleDetail: "Last sync {time}",
   },
   lang: {

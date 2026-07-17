@@ -14,6 +14,7 @@
     "wind:update": "python scripts/fetch_wind.py",
     "formation:update": "python scripts/fetch_formation.py",
     "data:update": "python scripts/update_data.py",
+    "data:radar": "python scripts/update_data.py --radar-only",
     "data:watch": "python scripts/watch_data.py",
     "data:verify": "python scripts/verify_data.py",
     "data:calibrate": "python scripts/calibrate_nowcast.py"
