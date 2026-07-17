@@ -136,8 +136,8 @@ export function stormSteeringMotion(
   let u = 0;
   let v = 0;
   if (wL && wL.speed >= 0.4 && wU && wU.speed >= 0.4) {
-    u = 0.35 * wL.u + 0.65 * wU.u;
-    v = 0.35 * wL.v + 0.65 * wU.v;
+    u = 0.25 * wL.u + 0.75 * wU.u;
+    v = 0.25 * wL.v + 0.75 * wU.v;
   } else if (wU && wU.speed >= 0.4) {
     u = wU.u;
     v = wU.v;
@@ -162,8 +162,8 @@ export function blendSteeringGrid(low: WindGrid, upper: WindGrid): WindGrid {
   const u = new Float32Array(n);
   const v = new Float32Array(n);
   for (let i = 0; i < n; i++) {
-    u[i] = 0.35 * low.u[i] + 0.65 * upper.u[i];
-    v[i] = 0.35 * low.v[i] + 0.65 * upper.v[i];
+    u[i] = 0.25 * low.u[i] + 0.75 * upper.u[i];
+    v[i] = 0.25 * low.v[i] + 0.75 * upper.v[i];
   }
   return {
     west: low.west,
