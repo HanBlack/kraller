@@ -1,12 +1,12 @@
-# Rychlá smyčka: stáhne radar → push do Gitu (bez build/Pages).
-# Prohlížeč čte data z raw.githubusercontent.com → latence ~1–2 min místo ~5–10.
+# Stáhne radar → push do Gitu. Prohlížeč čte raw.githubusercontent.com.
+# Důležité: cancel-in-progress: false — jinak se běhy ruší uprostřed a data zestárnou.
 
 name: Live radar
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "7,37 * * * *"
+    - cron: "12,42 * * * *"
   workflow_run:
     workflows: ["Publish site"]
     types: [completed]
@@ -17,13 +17,14 @@ permissions:
 
 concurrency:
   group: live-radar
-  cancel-in-progress: true
+  # false = nechat běžící job doběhnout (push dat). true rušilo job → data stála hodiny.
+  cancel-in-progress: false
 
 jobs:
   update:
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -80,11 +81,12 @@ jobs:
             git push
           fi
 
+      # Další běh až PO úspěšném pushi — žádný overlap se spánkem.
       - name: Queue next refresh
         if: success()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Krátká pauza ať OPERA stihne nový snímek (~5 min), ale bez fronty běhů
-          sleep 90
+          sleep 120
           gh workflow run live-radar.yml --ref main
+          echo "Next Live radar queued."
