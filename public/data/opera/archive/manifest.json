@@ -114,8 +114,38 @@
       "index": 18,
       "time": "20260717070500",
       "path": "data/opera/archive/peaks-20260717070500.json",
-      "peakCount": 20
+      "peakCount": null
+    },
+    {
+      "index": 19,
+      "time": "20260717071000",
+      "path": "data/opera/archive/peaks-20260717071000.json",
+      "peakCount": null
+    },
+    {
+      "index": 20,
+      "time": "20260717071500",
+      "path": "data/opera/archive/peaks-20260717071500.json",
+      "peakCount": null
+    },
+    {
+      "index": 21,
+      "time": "20260717072000",
+      "path": "data/opera/archive/peaks-20260717072000.json",
+      "peakCount": null
+    },
+    {
+      "index": 22,
+      "time": "20260717072500",
+      "path": "data/opera/archive/peaks-20260717072500.json",
+      "peakCount": null
+    },
+    {
+      "index": 23,
+      "time": "20260717081000",
+      "path": "data/opera/archive/peaks-20260717081000.json",
+      "peakCount": 15
     }
   ],
-  "updatedAt": "20260717070500"
+  "updatedAt": "20260717081000"
 }
