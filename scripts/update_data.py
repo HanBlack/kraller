@@ -33,7 +33,7 @@ RADAR_ONLY_STEPS = [
     (
         "opera",
         "OPERA",
-        [sys.executable, "scripts/opera_fetch_convert.py", "--frames", "8"],
+        [sys.executable, "scripts/opera_fetch_convert.py", "--frames", "6"],
     ),
     (
         "wind",

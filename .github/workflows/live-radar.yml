@@ -1,11 +1,10 @@
-# Rychlá smyčka: radar → deploy → hned další běh (bez fronty a bez 3min spánku).
-# cancel-in-progress: true = nový běh zruší starý, žádné Pending fronty.
+# Rychlá smyčka: stáhne radar → push do Gitu (bez build/Pages).
+# Prohlížeč čte data z raw.githubusercontent.com → latence ~1–2 min místo ~5–10.
 
 name: Live radar
 
 on:
   workflow_dispatch:
-  # Záloha kdyby se smyčka přerušila (ne každých 5 min — to dělá frontu)
   schedule:
     - cron: "7,37 * * * *"
   workflow_run:
@@ -14,9 +13,7 @@ on:
 
 permissions:
   actions: write
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: live-radar
@@ -25,18 +22,10 @@ concurrency:
 jobs:
   update:
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
 
       - uses: actions/setup-python@v5
         with:
@@ -53,48 +42,49 @@ jobs:
       - name: Install Python deps
         run: pip install -r requirements.txt
 
-      - name: Fetch OPERA radar + wind
+      - name: Fetch OPERA (+ vítr když stárne)
         run: |
-          npm run data:radar
+          python scripts/opera_fetch_convert.py --frames 6
           python - <<'PY'
           import os, subprocess, sys
           sys.path.insert(0, "scripts")
           from datetime import datetime, timezone
           from data_freshness import age_minutes, read_valid_at
 
-          p = "public/data/formation/grid.json"
-          age = (
-              age_minutes(read_valid_at(p), datetime.now(timezone.utc))
-              if os.path.isfile(p)
-              else 999.0
-          )
-          print(f"formation age={age}")
-          if age is None or age > 90:
-              print("Refreshing formation grid…")
+          now = datetime.now(timezone.utc)
+          wind = "public/data/wind/low.json"
+          form = "public/data/formation/grid.json"
+          wind_age = age_minutes(read_valid_at(wind), now) if os.path.isfile(wind) else 999.0
+          form_age = age_minutes(read_valid_at(form), now) if os.path.isfile(form) else 999.0
+          print(f"wind_age={wind_age} formation_age={form_age}")
+          if form_age is None or form_age > 90:
               subprocess.run([sys.executable, "scripts/fetch_formation.py"], check=False)
+          if wind_age is None or wind_age > 40:
+              subprocess.run([sys.executable, "scripts/fetch_wind.py", "--force"], check=False)
           PY
-          python scripts/fetch_wind.py --force
-          python scripts/write_meta.py || true
+          python scripts/write_meta.py
 
-      - name: Build site
+      - name: Commit and push data
         run: |
-          npm ci
-          npm run build
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data
+          if git diff --staged --quiet; then
+            python scripts/touch_meta.py
+            git add public/data/meta.json
+          fi
+          if git diff --staged --quiet; then
+            echo "No data changes."
+          else
+            git commit -m "chore: refresh radar data"
+            git push
+          fi
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist/
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-      # Hned další běh — žádný sleep (ten dělal frontu Pending vs In progress).
-      - name: Queue next refresh now
+      - name: Queue next refresh
         if: success()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Krátká pauza ať OPERA stihne nový snímek (~5 min), ale bez fronty běhů
+          sleep 90
           gh workflow run live-radar.yml --ref main
-          echo "Next Live radar queued (no wait)."
