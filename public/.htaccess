@@ -1,0 +1,21 @@
+# Kraller — SPA na Apache (AAA hosting / public_html)
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Statická data a assety — servírovat přímo
+  RewriteRule ^data/ - [L]
+  RewriteRule ^assets/ - [L]
+
+  # SPA fallback
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+</IfModule>
+
+# Krátká cache pro JSON/GeoJSON (frontend má cache-bust ?t=)
+<IfModule mod_headers.c>
+  <FilesMatch "\.(json|geojson)$">
+    Header set Cache-Control "public, max-age=60"
+  </FilesMatch>
+</IfModule>

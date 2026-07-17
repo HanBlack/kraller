@@ -1,0 +1,55 @@
+{
+  "generatedAt": "2026-07-17T07:11:41Z",
+  "cellCount": 20,
+  "archiveSlots": 19,
+  "track": {
+    "samples": {
+      "10": 61,
+      "15": 49,
+      "20": 41,
+      "30": 25
+    },
+    "medianKm": {
+      "10": 3.16,
+      "15": 3.82,
+      "20": 4.21,
+      "30": 6.38
+    },
+    "pctUnder15km": {
+      "10": 100.0,
+      "15": 100.0,
+      "20": 100.0,
+      "30": 92.0
+    },
+    "pctUnder25km": {
+      "10": 100.0,
+      "15": 100.0,
+      "20": 100.0,
+      "30": 100.0
+    },
+    "sources": {
+      "radar-track": 29,
+      "radar-blend": 30,
+      "wind-fallback": 3
+    }
+  },
+  "eta": {
+    "samples": 70,
+    "medianAbsErrMin": 10.0,
+    "medianBiasMin": 10.0
+  },
+  "formation": {
+    "zones": 12,
+    "hits": 10,
+    "precisionPct": 83.3,
+    "targetPeaks": 443,
+    "note": "precision = pod\u00edl z\u00f3n s echem \u226435 km (archive+trueBirth)"
+  },
+  "targets": {
+    "trackMedianKm30": 20,
+    "etaMedianAbsErrMin": 15,
+    "formationPrecisionPct": 35
+  },
+  "suggestions": [],
+  "ok": true
+}

@@ -1,0 +1,41 @@
+{
+  "frameMinutes": 5,
+  "frames": [
+    {
+      "index": 0,
+      "offsetMinutes": -25,
+      "time": "20260717064000",
+      "path": "data/opera/history/frame-0.geojson"
+    },
+    {
+      "index": 1,
+      "offsetMinutes": -20,
+      "time": "20260717064500",
+      "path": "data/opera/history/frame-1.geojson"
+    },
+    {
+      "index": 2,
+      "offsetMinutes": -15,
+      "time": "20260717065000",
+      "path": "data/opera/history/frame-2.geojson"
+    },
+    {
+      "index": 3,
+      "offsetMinutes": -10,
+      "time": "20260717065500",
+      "path": "data/opera/history/frame-3.geojson"
+    },
+    {
+      "index": 4,
+      "offsetMinutes": -5,
+      "time": "20260717070000",
+      "path": "data/opera/history/frame-4.geojson"
+    },
+    {
+      "index": 5,
+      "offsetMinutes": 0,
+      "time": "20260717070500",
+      "path": "data/opera/history/frame-5.geojson"
+    }
+  ]
+}

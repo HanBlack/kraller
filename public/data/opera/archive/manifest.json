@@ -1,0 +1,121 @@
+{
+  "frameMinutes": 5,
+  "maxSlots": 36,
+  "frames": [
+    {
+      "index": 0,
+      "time": "20260717052500",
+      "path": "data/opera/archive/peaks-20260717052500.json",
+      "peakCount": null
+    },
+    {
+      "index": 1,
+      "time": "20260717053000",
+      "path": "data/opera/archive/peaks-20260717053000.json",
+      "peakCount": null
+    },
+    {
+      "index": 2,
+      "time": "20260717053500",
+      "path": "data/opera/archive/peaks-20260717053500.json",
+      "peakCount": null
+    },
+    {
+      "index": 3,
+      "time": "20260717054000",
+      "path": "data/opera/archive/peaks-20260717054000.json",
+      "peakCount": null
+    },
+    {
+      "index": 4,
+      "time": "20260717054500",
+      "path": "data/opera/archive/peaks-20260717054500.json",
+      "peakCount": null
+    },
+    {
+      "index": 5,
+      "time": "20260717055000",
+      "path": "data/opera/archive/peaks-20260717055000.json",
+      "peakCount": null
+    },
+    {
+      "index": 6,
+      "time": "20260717060000",
+      "path": "data/opera/archive/peaks-20260717060000.json",
+      "peakCount": null
+    },
+    {
+      "index": 7,
+      "time": "20260717060500",
+      "path": "data/opera/archive/peaks-20260717060500.json",
+      "peakCount": null
+    },
+    {
+      "index": 8,
+      "time": "20260717061000",
+      "path": "data/opera/archive/peaks-20260717061000.json",
+      "peakCount": null
+    },
+    {
+      "index": 9,
+      "time": "20260717062000",
+      "path": "data/opera/archive/peaks-20260717062000.json",
+      "peakCount": null
+    },
+    {
+      "index": 10,
+      "time": "20260717062500",
+      "path": "data/opera/archive/peaks-20260717062500.json",
+      "peakCount": null
+    },
+    {
+      "index": 11,
+      "time": "20260717063000",
+      "path": "data/opera/archive/peaks-20260717063000.json",
+      "peakCount": null
+    },
+    {
+      "index": 12,
+      "time": "20260717063500",
+      "path": "data/opera/archive/peaks-20260717063500.json",
+      "peakCount": null
+    },
+    {
+      "index": 13,
+      "time": "20260717064000",
+      "path": "data/opera/archive/peaks-20260717064000.json",
+      "peakCount": null
+    },
+    {
+      "index": 14,
+      "time": "20260717064500",
+      "path": "data/opera/archive/peaks-20260717064500.json",
+      "peakCount": null
+    },
+    {
+      "index": 15,
+      "time": "20260717065000",
+      "path": "data/opera/archive/peaks-20260717065000.json",
+      "peakCount": null
+    },
+    {
+      "index": 16,
+      "time": "20260717065500",
+      "path": "data/opera/archive/peaks-20260717065500.json",
+      "peakCount": null
+    },
+    {
+      "index": 17,
+      "time": "20260717070000",
+      "path": "data/opera/archive/peaks-20260717070000.json",
+      "peakCount": null
+    },
+    {
+      "index": 18,
+      "time": "20260717070500",
+      "path": "data/opera/archive/peaks-20260717070500.json",
+      "peakCount": 20
+    }
+  ],
+  "updatedAt": "20260717070500"
+}
