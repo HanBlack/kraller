@@ -12,6 +12,17 @@ export const en = {
     bootTiles: "Rendering map…",
     warnings: "Warnings",
   },
+  sync: {
+    updating: "Loading data…",
+    refreshing: "Refreshing…",
+    updated: "Updated · {when}",
+    justNow: "just now",
+    agoMin: "{min} min ago",
+    radar: "Radar · {time}",
+    radarAge: " ({min} min)",
+    stale: "Waiting for fresh data from server",
+    titleDetail: "Last sync {time}",
+  },
   lang: {
     label: "Language",
     cs: "Čeština",

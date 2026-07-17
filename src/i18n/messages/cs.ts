@@ -10,6 +10,17 @@ export const cs = {
     bootTiles: "Vykresluji mapu…",
     warnings: "Varování",
   },
+  sync: {
+    updating: "Načítám data…",
+    refreshing: "Obnovuji…",
+    updated: "Aktualizace · {when}",
+    justNow: "právě teď",
+    agoMin: "před {min} min",
+    radar: "Radar · {time}",
+    radarAge: " ({min} min)",
+    stale: "Čekáme na nová data ze serveru",
+    titleDetail: "Poslední synchronizace {time}",
+  },
   lang: {
     label: "Jazyk",
     cs: "Čeština",
