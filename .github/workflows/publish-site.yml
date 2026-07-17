@@ -1,9 +1,10 @@
-# Každých 5 min: stáhne OPERA/vítr/vznik → build → nasadí na kraller.eu
-# Bez commitu do gitu — data jdou rovnou na GitHub Pages.
+# Jeden pipeline: push kódu + každých 5 min obnova dat → build → GitHub Pages
 
-name: Refresh site data
+name: Publish site
 
 on:
+  push:
+    branches: [main, master]
   schedule:
     - cron: "*/5 * * * *"
   workflow_dispatch:
@@ -13,12 +14,13 @@ permissions:
   pages: write
   id-token: write
 
+# Novější běh přeruší starý — žádná fronta „waiting for #7“.
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
-  refresh:
+  publish:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -47,11 +49,11 @@ jobs:
           npm ci
           npm run build
 
-      - name: Deploy to GitHub Pages
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist/
 
-      - name: Publish
+      - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

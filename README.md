@@ -80,7 +80,7 @@ DNS propagace: obvykle 15 min – 24 h.
 
 ### 3. Automatická aktualizace na stránce
 
-Workflow **Refresh site data** (`refresh-site.yml`) běží **každých 5 min**:
+Workflow **Publish site** (`publish-site.yml`) běží při pushi i **každých 5 min**:
 1. Stáhne OPERA + vítr + vznik (`npm run data:update`)
 2. Sestaví `dist/`
 3. Nasadí na GitHub Pages → **kraller.eu**
