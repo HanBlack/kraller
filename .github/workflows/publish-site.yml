@@ -1,4 +1,4 @@
-# Deploy na GitHub Pages. Data z běžící smyčky radar-loop.yml (push public/data).
+# Stáhne radar → build → deploy → po úspěchu znovu za ~3 min (smyčka bez git push).
 
 name: Publish site
 
@@ -13,6 +13,9 @@ on:
         description: "Stáhnout i vítr a vznik (pomalejší)"
         type: boolean
         default: false
+  workflow_run:
+    workflows: ["Publish site"]
+    types: [completed]
 
 permissions:
   contents: read
@@ -20,11 +23,17 @@ permissions:
   id-token: write
 
 concurrency:
-  group: kraller-publish
-  cancel-in-progress: ${{ github.event_name == 'push' }}
+  group: kraller-live
+  cancel-in-progress: false
 
 jobs:
   publish:
+    if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success')
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -32,6 +41,10 @@ jobs:
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
+
+      - name: Wait before next refresh (loop cadence)
+        if: github.event_name == 'workflow_run'
+        run: sleep 120
 
       - uses: actions/setup-node@v4
         with:
@@ -53,14 +66,11 @@ jobs:
       - name: Install Python deps
         run: pip install -r requirements.txt
 
-      - name: Fetch storm data (code push / manual)
-        if: >-
-          github.event_name == 'workflow_dispatch' ||
-          github.event_name == 'schedule' ||
-          (github.event_name == 'push' &&
-            contains(github.event.head_commit.message, 'chore: refresh radar data') == false)
+      - name: Fetch storm data
         run: |
-          if [ "${{ github.event_name }}" = "push" ] || [ "${{ inputs.full_update }}" = "true" ]; then
+          if [ "${{ github.event_name }}" = "push" ]; then
+            npm run data:update
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.full_update }}" = "true" ]; then
             npm run data:update
           else
             npm run data:radar
