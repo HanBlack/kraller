@@ -1,16 +1,14 @@
-# Deploy po pushi kódu. Obnova radaru běží v live-radar-update.yml.
+# Stáhne radar → build → deploy. Spouští Live radar pulse.
 
-name: Publish site
+name: Live radar update
 
 on:
-  push:
-    branches: [main, master]
+  workflow_run:
+    workflows: ["Live radar pulse", "Publish site"]
+    types: [completed]
+  schedule:
+    - cron: "2/5 * * * *"
   workflow_dispatch:
-    inputs:
-      full_update:
-        description: "Stáhnout i vítr a vznik (pomalejší)"
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -18,11 +16,12 @@ permissions:
   id-token: write
 
 concurrency:
-  group: kraller-publish
+  group: live-radar-update
   cancel-in-progress: false
 
 jobs:
-  publish:
+  update:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -51,8 +50,8 @@ jobs:
       - name: Install Python deps
         run: pip install -r requirements.txt
 
-      - name: Fetch storm data
-        run: npm run data:update
+      - name: Fetch OPERA radar
+        run: npm run data:radar
 
       - name: Build site
         run: |
