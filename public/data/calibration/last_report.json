@@ -1,48 +1,48 @@
 {
-  "generatedAt": "2026-07-17T07:11:41Z",
-  "cellCount": 20,
-  "archiveSlots": 19,
+  "generatedAt": "2026-07-17T08:17:05Z",
+  "cellCount": 15,
+  "archiveSlots": 24,
   "track": {
     "samples": {
-      "10": 61,
-      "15": 49,
-      "20": 41,
-      "30": 25
+      "10": 38,
+      "15": 34,
+      "20": 30,
+      "30": 18
     },
     "medianKm": {
-      "10": 3.16,
-      "15": 3.82,
-      "20": 4.21,
-      "30": 6.38
+      "10": 4.43,
+      "15": 6.09,
+      "20": 7.97,
+      "30": 15.22
     },
     "pctUnder15km": {
       "10": 100.0,
-      "15": 100.0,
-      "20": 100.0,
-      "30": 92.0
+      "15": 97.1,
+      "20": 90.0,
+      "30": 44.4
     },
     "pctUnder25km": {
       "10": 100.0,
       "15": 100.0,
-      "20": 100.0,
-      "30": 100.0
+      "20": 96.7,
+      "30": 88.9
     },
     "sources": {
-      "radar-track": 29,
-      "radar-blend": 30,
+      "radar-track": 18,
+      "radar-blend": 19,
       "wind-fallback": 3
     }
   },
   "eta": {
-    "samples": 70,
-    "medianAbsErrMin": 10.0,
+    "samples": 31,
+    "medianAbsErrMin": 15.0,
     "medianBiasMin": 10.0
   },
   "formation": {
     "zones": 12,
     "hits": 10,
     "precisionPct": 83.3,
-    "targetPeaks": 443,
+    "targetPeaks": 551,
     "note": "precision = pod\u00edl z\u00f3n s echem \u226435 km (archive+trueBirth)"
   },
   "targets": {
