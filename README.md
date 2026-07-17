@@ -78,12 +78,14 @@ Volitelně **www** → CNAME na `TVOJE-USERNAME.github.io`
 
 DNS propagace: obvykle 15 min – 24 h.
 
-### 3. Automatická aktualizace
+### 3. Automatická aktualizace na stránce
 
-- `update-data.yml` — každých 5 min stáhne radar/vítr/vznik a pushne do repa
-- `deploy.yml` — po každém pushi sestaví `dist/` a nasadí na Pages
+Workflow **Refresh site data** (`refresh-site.yml`) běží **každých 5 min**:
+1. Stáhne OPERA + vítr + vznik (`npm run data:update`)
+2. Sestaví `dist/`
+3. Nasadí na GitHub Pages → **kraller.eu**
 
-### Lokální build (volitelně)
+Prohlížeč pak každých 5 min znovu načte JSON (cache-bust). Lokální `data:watch` je jen pro vývoj.
 
 ```bash
 npm run build
