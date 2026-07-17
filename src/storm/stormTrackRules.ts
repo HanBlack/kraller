@@ -1,7 +1,7 @@
 /**
  * Jednotná pravidla pro zrod, stopu a trajektorii bouřek.
- * Směr: deep-layer vítr (850+500) je priorita — buňky většinou jedou s ním.
- * Radarovou stopu bereme jen když je konzistentní a sedí s větrem.
+ * Směr šipek = vždy deep-layer vítr (850+500). Radar jen ladí rychlost,
+ * když je stopa konzistentní a sedí se směrem větru.
  */
 
 import { angleDiffDeg, bearingDeg, distanceKm } from "../lib/geo";
@@ -9,14 +9,17 @@ import { stormSteeringMotion, type WindGrid } from "../lib/windField";
 
 /** Max. důvěryhodná rychlost buňky z OPERA matchingu (km/h). */
 export const MAX_TRUSTED_TRACK_KMH = 70;
-/** Nad touto rychlostí + konfliktem s větrem → čistý vítr. */
-export const FAST_TRACK_KMH = 32;
-/** Tvrdý konflikt radar vs steering → vítr. */
-export const MAX_WIND_CONFLICT_DEG = 55;
-/** Mírný konflikt → blend s převahou větru. */
-export const SOFT_WIND_CONFLICT_DEG = 28;
+/** Max. úhel radar vs vítr, aby se brala radarová rychlost. */
+export const MAX_WIND_ALIGN_DEG = 35;
 /** Max. nesoulad dvou po sobě jdoucích radarových segmentů. */
 export const MAX_SEGMENT_JITTER_DEG = 40;
+
+/** @deprecated — ponecháno kvůli testům / kalibraci */
+export const FAST_TRACK_KMH = 32;
+/** @deprecated */
+export const MAX_WIND_CONFLICT_DEG = 55;
+/** @deprecated */
+export const SOFT_WIND_CONFLICT_DEG = 28;
 
 /** První detekce se smí jmenovat „zrod“ jen pokud byla slabá. */
 export const TRUE_BIRTH_MAX_DBZ = 38;
@@ -48,7 +51,6 @@ export function classifyBirth(input: {
     motionFromRadar = false,
   } = input;
 
-  // Silné echo hned na začátku historie = bouřka sem dorazila / okno začalo pozdě
   if (birthDbz > TRUE_BIRTH_MAX_DBZ) {
     return {
       trueBirth: false,
@@ -134,7 +136,6 @@ function segmentMotion(
 
 /**
  * Pohyb z posledních 2–3 framů; null = nedůvěryhodné (skoky peaku / špatný match).
- * Vyžaduje shodu sousedních segmentů — jinak radarovou stopu zahodíme.
  */
 export function recentRadarMotion(
   history: HistoryPeak[] | undefined,
@@ -151,28 +152,7 @@ export function recentRadarMotion(
     }
   }
 
-  const a = recent[0];
-  const b = recent[recent.length - 1];
-  return segmentMotion(a, b);
-}
-
-function blendMotion(
-  h1: number,
-  s1: number,
-  h2: number,
-  s2: number,
-  weight2: number,
-): { headingDeg: number; speedKmh: number } {
-  const w2 = Math.max(0, Math.min(1, weight2));
-  const w1 = 1 - w2;
-  const r1 = (h1 * Math.PI) / 180;
-  const r2 = (h2 * Math.PI) / 180;
-  const u = w1 * Math.sin(r1) * s1 + w2 * Math.sin(r2) * s2;
-  const v = w1 * Math.cos(r1) * s1 + w2 * Math.cos(r2) * s2;
-  return {
-    headingDeg: ((Math.atan2(u, v) * 180) / Math.PI + 360) % 360,
-    speedKmh: Math.hypot(u, v),
-  };
+  return segmentMotion(recent[0], recent[recent.length - 1]);
 }
 
 export type CellMotionResult = {
@@ -183,8 +163,8 @@ export type CellMotionResult = {
 };
 
 /**
- * Trajektorie buňky: deep-layer vítr je priorita.
- * Radar jen když je konzistentní a úhel s větrem je malý.
+ * Směr = vždy steering vítr (850+500).
+ * Rychlost = radar, jen když stopa sedí se směrem větru; jinak rychlost větru.
  */
 export function resolveCellMotion(
   cell: {
@@ -204,112 +184,48 @@ export function resolveCellMotion(
   );
 
   const fromHist = recentRadarMotion(cell.history);
-  let radarH =
+  const radarH =
     fromHist?.headingDeg ??
     (cell.trackHeadingDeg != null && Number.isFinite(cell.trackHeadingDeg)
       ? cell.trackHeadingDeg
       : null);
-  let radarS =
+  const radarS =
     fromHist?.speedKmh ??
     (cell.trackSpeedKmh != null && Number.isFinite(cell.trackSpeedKmh)
       ? cell.trackSpeedKmh
       : null);
 
-  // Pipeline track bez historie: méně důvěry — jen pokud sedí s větrem
-  const fromPipelineOnly = fromHist == null && radarH != null && radarS != null;
-
-  if (radarS != null && radarS > MAX_TRUSTED_TRACK_KMH) {
-    return {
-      ...steering,
-      source: "wind-fallback",
-      reason: `track ${radarS.toFixed(0)} km/h > ${MAX_TRUSTED_TRACK_KMH}`,
-    };
-  }
-
-  const hasRadar =
+  const hasRadarSpeed =
     radarH != null &&
     radarS != null &&
     radarS >= 5 &&
-    radarS <= MAX_TRUSTED_TRACK_KMH;
+    radarS <= MAX_TRUSTED_TRACK_KMH &&
+    angleDiffDeg(radarH, steering.headingDeg) <= MAX_WIND_ALIGN_DEG;
 
-  if (!hasRadar) {
-    return {
-      ...steering,
-      source: "wind-fallback",
-      reason: "bez důvěryhodné radarové stopy",
-    };
-  }
-
-  const diff = angleDiffDeg(radarH!, steering.headingDeg);
-
-  // Tvrdý konflikt → vždy vítr (i při nižší rychlosti)
-  if (diff > MAX_WIND_CONFLICT_DEG) {
-    return {
-      ...steering,
-      source: "wind-fallback",
-      reason: `konflikt radar↔vítr ${diff.toFixed(0)}°`,
-    };
-  }
-
-  // Rychlý radar + střední konflikt → vítr
-  if (diff > SOFT_WIND_CONFLICT_DEG && radarS! >= FAST_TRACK_KMH) {
-    return {
-      ...steering,
-      source: "wind-fallback",
-      reason: `rychlý track vs vítr ${diff.toFixed(0)}°`,
-    };
-  }
-
-  // Pipeline-only (bez multi-frame historie) → silně větru
-  if (fromPipelineOnly && diff > 20) {
-    const blended = blendMotion(
-      radarH!,
-      Math.min(55, radarS!),
-      steering.headingDeg,
-      steering.speedKmh,
-      0.75,
+  if (hasRadarSpeed) {
+    // Směr větru, rychlost z radaru (typicky o něco realističtější než model)
+    const speed = Math.min(
+      58,
+      Math.max(8, 0.7 * radarS! + 0.3 * steering.speedKmh),
     );
     return {
-      ...blended,
-      source: "wind-fallback",
-      reason: `pipeline track + vítr (diff ${diff.toFixed(0)}°)`,
+      headingDeg: steering.headingDeg,
+      speedKmh: speed,
+      source: "radar-track",
+      reason: "směr vítr · rychlost radar",
     };
   }
 
-  // Mírný konflikt → blend s převahou větru (buňky jedou se steeringem)
-  if (diff > SOFT_WIND_CONFLICT_DEG) {
-    const blended = blendMotion(
-      radarH!,
-      Math.min(55, radarS!),
-      steering.headingDeg,
-      steering.speedKmh,
-      0.65,
-    );
-    return {
-      ...blended,
-      source: "wind-fallback",
-      reason: `blend vítr+radar (diff ${diff.toFixed(0)}°)`,
-    };
-  }
-
-  // Dobrá shoda → radarová stopa (jemně přikloněná k větru)
-  const trusted = blendMotion(
-    radarH!,
-    Math.min(55, radarS!),
-    steering.headingDeg,
-    steering.speedKmh,
-    0.25,
-  );
   return {
-    ...trusted,
-    source: "radar-track",
-    reason: "radar sedí s větrem",
+    headingDeg: steering.headingDeg,
+    speedKmh: steering.speedKmh,
+    source: "wind-fallback",
+    reason: "směr i rychlost z řídícího větru",
   };
 }
 
 /** Max. vzdálenost matchování mezi framy (km) — proti skokům identity. */
 export function maxMatchDistanceKm(dtMinutes: number): number {
   const dt = Math.max(1, dtMinutes);
-  // ~55 km/h + 2.5 km jitter peaku; strop 12 km (~5min)
   return Math.min(12, 2.5 + (dt / 60) * 55);
 }

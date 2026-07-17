@@ -63,10 +63,11 @@ describe("classifyBirth — prevence falešného zrodu (Hradec case)", () => {
   });
 });
 
-describe("resolveCellMotion — divoké stopy", () => {
+describe("resolveCellMotion — směr vždy z větru", () => {
   const windNE = gridConstant(5, 8); // ~NNE/NE
+  const windHeading = ((Math.atan2(5, 8) * 180) / Math.PI + 360) % 360;
 
-  it("zahodí track > 70 km/h", () => {
+  it("zahodí track > 70 km/h → čistý vítr", () => {
     const m = resolveCellMotion(
       {
         peak: [16, 50.4],
@@ -78,10 +79,10 @@ describe("resolveCellMotion — divoké stopy", () => {
       windNE,
     );
     expect(m.source).toBe("wind-fallback");
-    expect(m.reason).toMatch(/> 70/);
+    expect(m.headingDeg).toBeCloseTo(windHeading, 0);
   });
 
-  it("recent historie 25 km/h NE sedí s větrem", () => {
+  it("radar sedí s větrem → směr vítr, rychlost z radaru", () => {
     const m = resolveCellMotion(
       {
         peak: [16.04, 50.45],
@@ -94,12 +95,12 @@ describe("resolveCellMotion — divoké stopy", () => {
       windNE,
       windNE,
     );
-    expect(m.source).toBe("radar-track");
+    expect(m.headingDeg).toBeCloseTo(windHeading, 0);
     expect(m.speedKmh).toBeLessThanOrEqual(MAX_TRUSTED_TRACK_KMH);
     expect(m.speedKmh).toBeGreaterThan(5);
   });
 
-  it("konflikt radaru s větrem → steering", () => {
+  it("konflikt radaru s větrem → směr vítr", () => {
     const m = resolveCellMotion(
       {
         peak: [16, 50.4],
@@ -113,11 +114,11 @@ describe("resolveCellMotion — divoké stopy", () => {
       windNE,
       windNE,
     );
-    // historie jde zhruba na jih — konflikt s NE větrem
     expect(m.source).toBe("wind-fallback");
+    expect(m.headingDeg).toBeCloseTo(windHeading, 0);
   });
 
-  it("zigzag historie → vítr (nestabilní peak)", () => {
+  it("zigzag historie → vítr", () => {
     const m = resolveCellMotion(
       {
         peak: [16.1, 50.4],
@@ -131,6 +132,7 @@ describe("resolveCellMotion — divoké stopy", () => {
       windNE,
     );
     expect(m.source).toBe("wind-fallback");
+    expect(m.headingDeg).toBeCloseTo(windHeading, 0);
   });
 
   it("constants jsou konzistentní", () => {
@@ -144,7 +146,7 @@ describe("recentRadarMotion", () => {
   it("vrátí null při nereálné rychlosti", () => {
     const m = recentRadarMotion([
       { peak: [15, 50], minutesFromBirth: 0 },
-      { peak: [16, 50], minutesFromBirth: 5 }, // ~111 km za 5 min
+      { peak: [16, 50], minutesFromBirth: 5 },
     ]);
     expect(m).toBeNull();
   });

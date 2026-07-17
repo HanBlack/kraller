@@ -53,8 +53,28 @@ jobs:
       - name: Install Python deps
         run: pip install -r requirements.txt
 
-      - name: Fetch OPERA radar
-        run: npm run data:radar
+      - name: Fetch OPERA radar + wind
+        run: |
+          npm run data:radar
+          python - <<'PY'
+          import os, subprocess, sys
+          sys.path.insert(0, "scripts")
+          from datetime import datetime, timezone
+          from data_freshness import age_minutes, read_valid_at
+
+          p = "public/data/formation/grid.json"
+          age = (
+              age_minutes(read_valid_at(p), datetime.now(timezone.utc))
+              if os.path.isfile(p)
+              else 999.0
+          )
+          print(f"formation age={age}")
+          if age is None or age > 90:
+              print("Refreshing formation grid…")
+              subprocess.run([sys.executable, "scripts/fetch_formation.py"], check=False)
+          PY
+          python scripts/fetch_wind.py --force
+          python scripts/write_meta.py || true
 
       - name: Build site
         run: |
