@@ -56,5 +56,7 @@ function devDataRefreshPlugin(): Plugin {
 export default defineConfig({
   plugins: [react(), devDataRefreshPlugin()],
   // Pro https://kraller.eu nech '/'. Pro podsložku např. VITE_BASE_PATH=/app/
-  base: process.env.VITE_BASE_PATH || "/",
+  // Použijeme `./`, aby fungovaly relativní cesty jak na GitHub Pages subcestě,
+  // tak i na custom doméně v rootu.
+  base: process.env.VITE_BASE_PATH ?? "./",
 });
