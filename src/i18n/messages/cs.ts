@@ -48,10 +48,10 @@ export const cs = {
     agoMin: " · před {min} min",
     operaFrame: "Snímek OPERA",
     frameAge: " · stáří {min} min",
-    stale: "Data jsou zastaralá — spusť {cmd} nebo obnov stránku.",
-    warn: "Některá data stárnou — v dev se obnoví automaticky, jinak {cmd}.",
+    stale: "Data jsou zastaralá — na produkci se obnoví do ~5 min automaticky.",
+    warn: "Některá data stárnou — obnova probíhá na serveru každých ~5 min.",
     staleHint:
-      "Stránka načítá soubory ze serveru. Nový radar stáhne skript na serveru (data:watch), ne prohlížeč.",
+      "Stránka načítá soubory ze serveru. Radar obnovuje GitHub Actions (ne prohlížeč).",
     cmd: "npm run data:watch",
     radar: "Radar",
     wind: "Vítr",

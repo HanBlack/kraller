@@ -1,10 +1,11 @@
-# Deploy po pushi kódu na main (včetně čerstvých dat).
+# Každých 5 min: stáhne OPERA/vítr/vznik → build → nasadí na kraller.eu
+# Bez commitu do gitu — data jdou rovnou na GitHub Pages.
 
-name: Deploy to GitHub Pages
+name: Refresh site data
 
 on:
-  push:
-    branches: [main, master]
+  schedule:
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -17,7 +18,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  refresh:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -46,11 +47,11 @@ jobs:
           npm ci
           npm run build
 
-      - name: Upload Pages artifact
+      - name: Deploy to GitHub Pages
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist/
 
-      - name: Deploy to GitHub Pages
+      - name: Publish
         id: deployment
         uses: actions/deploy-pages@v4
