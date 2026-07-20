@@ -47,8 +47,8 @@ HOURLY = ",".join(
 BATCH_SIZE = 80
 BATCH_PAUSE_S = 5.0
 CAPE_HORIZON_H = 6  # max CAPE teď…+6 h pro potenciál vzniku
-# Cílová frekvence obnovy — stejný pipeline jako radar (~25–30 min)
-FORMATION_MAX_AGE_MIN = 30
+# Cílová frekvence obnovy — Live radar každých ~5 min, env ~15 min
+FORMATION_MAX_AGE_MIN = 15
 # Při 429 / cooldownu / výpadku použít existující grid až do této stáří
 FORMATION_KEEP_MAX_AGE_MIN = 360
 OUT_PATH = os.path.join("public", "data", "formation", "grid.json")
