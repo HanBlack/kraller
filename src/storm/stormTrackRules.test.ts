@@ -135,6 +135,19 @@ describe("resolveCellMotion — směr vždy z větru", () => {
     expect(m.headingDeg).toBeCloseTo(windHeading, 0);
   });
 
+  it("mimo mřížku (Cottbus) nepadá na falešný západ 270°", () => {
+    const m = resolveCellMotion(
+      {
+        peak: [14.3, 51.76], // severně od typického wind north 51.4
+        history: [],
+      },
+      windNE,
+      windNE,
+    );
+    expect(m.headingDeg).toBeCloseTo(windHeading, 0);
+    expect(m.headingDeg).not.toBeCloseTo(270, 0);
+  });
+
   it("constants jsou konzistentní", () => {
     expect(TRUE_BIRTH_MAX_DBZ).toBe(38);
     expect(maxMatchDistanceKm(5)).toBeLessThanOrEqual(12);

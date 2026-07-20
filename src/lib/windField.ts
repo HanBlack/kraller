@@ -20,23 +20,19 @@ function idx(cols: number, x: number, y: number): number {
   return y * cols + x;
 }
 
-/** Bilineární vzorek z mřížky. */
+/** Bilineární vzorek z mřížky. Mimo bbox → clamp na okraj (ne null / ne falešný západ). */
 export function sampleWind(
   grid: WindGrid,
   lon: number,
   lat: number,
 ): WindSample | null {
-  if (
-    lon < grid.west ||
-    lon > grid.east ||
-    lat < grid.south ||
-    lat > grid.north
-  ) {
-    return null;
-  }
+  if (grid.cols < 2 || grid.rows < 2) return null;
 
-  const x = ((lon - grid.west) / (grid.east - grid.west)) * (grid.cols - 1);
-  const y = ((lat - grid.south) / (grid.north - grid.south)) * (grid.rows - 1);
+  const clon = Math.min(grid.east, Math.max(grid.west, lon));
+  const clat = Math.min(grid.north, Math.max(grid.south, lat));
+
+  const x = ((clon - grid.west) / (grid.east - grid.west)) * (grid.cols - 1);
+  const y = ((clat - grid.south) / (grid.north - grid.south)) * (grid.rows - 1);
   const x0 = Math.floor(x);
   const y0 = Math.floor(y);
   const x1 = Math.min(x0 + 1, grid.cols - 1);
@@ -72,10 +68,11 @@ function buildGrid(
   rows: number,
   fill: (lon: number, lat: number, i: number, j: number) => { u: number; v: number },
 ): WindGrid {
-  const west = 11.4;
-  const east = 19.6;
-  const south = 47.8;
-  const north = 51.4;
+  // Širší než dřív — Cottbus / PL / AT okraj (ne hard 270° fallback)
+  const west = 11.0;
+  const east = 20.2;
+  const south = 47.5;
+  const north = 52.3;
   const u = new Float32Array(cols * rows);
   const v = new Float32Array(cols * rows);
 
@@ -145,7 +142,26 @@ export function stormSteeringMotion(
     u = wL.u;
     v = wL.v;
   } else {
-    return { headingDeg: 270, speedKmh: 28 };
+    // Poslední záchrana: střed mřížky (ne hardcodovaný západ 270°)
+    const midLon = low
+      ? (low.west + low.east) / 2
+      : upper
+        ? (upper.west + upper.east) / 2
+        : 15.5;
+    const midLat = low
+      ? (low.south + low.north) / 2
+      : upper
+        ? (upper.south + upper.north) / 2
+        : 49.7;
+    const mid =
+      (low && sampleWind(low, midLon, midLat)) ||
+      (upper && sampleWind(upper, midLon, midLat));
+    if (mid && mid.speed >= 0.4) {
+      u = mid.u;
+      v = mid.v;
+    } else {
+      return { headingDeg: 90, speedKmh: 25 };
+    }
   }
 
   const headingDeg = ((Math.atan2(u, v) * 180) / Math.PI + 360) % 360;
