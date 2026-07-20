@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import { useI18n } from "../i18n";
 import { useStormDataContext } from "../providers/StormDataProvider";
 
+/** Prahy pro UI — formation cíl ~30 min, wind ~20 min. */
+const ENV_WARN_MIN = 35;
+const ENV_STALE_MIN = 55;
+
 function ageMinutes(iso: string, nowMs: number): number {
   return Math.max(0, Math.round((nowMs - new Date(iso).getTime()) / 60_000));
 }
@@ -30,10 +34,20 @@ function formatFull(iso: string, dateLocale: string): string {
   }
 }
 
+function sourceAge(
+  sources: { wind?: { updatedAt?: string }; formation?: { updatedAt?: string } } | null,
+  key: "wind" | "formation",
+  nowMs: number,
+): number | null {
+  const iso = sources?.[key]?.updatedAt;
+  if (!iso) return null;
+  return ageMinutes(iso, nowMs);
+}
+
 /** Kompaktní čas poslední synchronizace dat — viditelný i při sbaleném panelu. */
 export function SyncStatus() {
   const { t, dateLocale } = useI18n();
-  const { lastUpdated, operaTime, loading } = useStormDataContext();
+  const { lastUpdated, operaTime, dataSources, loading } = useStormDataContext();
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -45,10 +59,20 @@ export function SyncStatus() {
 
   const age = lastUpdated ? ageMinutes(lastUpdated, now) : null;
   const radarAge = operaTime ? ageMinutes(operaTime, now) : null;
+  const windAge = sourceAge(dataSources, "wind", now);
+  const formAge = sourceAge(dataSources, "formation", now);
+
   const stale = age != null && age >= 10;
   const warn = !stale && age != null && age >= 6;
   const radarStale = radarAge != null && radarAge >= 10;
   const radarWarn = !radarStale && radarAge != null && radarAge >= 6;
+  const envStale =
+    (windAge != null && windAge >= ENV_STALE_MIN) ||
+    (formAge != null && formAge >= ENV_STALE_MIN);
+  const envWarn =
+    !envStale &&
+    ((windAge != null && windAge >= ENV_WARN_MIN) ||
+      (formAge != null && formAge >= ENV_WARN_MIN));
 
   const when =
     loading && !lastUpdated
@@ -61,18 +85,26 @@ export function SyncStatus() {
             ? t("sync.justNow")
             : t("sync.agoMin", { min: age });
 
-  const title = lastUpdated
-    ? t("sync.titleDetail", { time: formatFull(lastUpdated, dateLocale) })
-    : t("sync.updating");
+  const titleParts = [
+    lastUpdated
+      ? t("sync.titleDetail", { time: formatFull(lastUpdated, dateLocale) })
+      : t("sync.updating"),
+  ];
+  if (windAge != null) titleParts.push(t("sync.windAgeTitle", { min: windAge }));
+  if (formAge != null) titleParts.push(t("sync.formAgeTitle", { min: formAge }));
 
   return (
     <div
       className={`sync-status${
-        stale || radarStale ? " is-stale" : warn || radarWarn ? " is-warn" : ""
+        stale || radarStale || envStale
+          ? " is-stale"
+          : warn || radarWarn || envWarn
+            ? " is-warn"
+            : ""
       }${loading ? " is-loading" : ""}`}
       role="status"
       aria-live="polite"
-      title={title}
+      title={titleParts.join(" · ")}
     >
       <span className="sync-status-main">
         {loading ? (
@@ -88,7 +120,20 @@ export function SyncStatus() {
             : ""}
         </span>
       )}
-      {stale && <span className="sync-status-hint">{t("sync.stale")}</span>}
+      {(windAge != null || formAge != null) && (
+        <span
+          className={`sync-status-env${envStale ? " is-stale" : envWarn ? " is-warn" : ""}`}
+        >
+          {formAge != null && t("sync.formationAge", { min: formAge })}
+          {formAge != null && windAge != null ? " · " : ""}
+          {windAge != null && t("sync.windAge", { min: windAge })}
+        </span>
+      )}
+      {(stale || envStale) && (
+        <span className="sync-status-hint">
+          {envStale && !stale ? t("sync.envStale") : t("sync.stale")}
+        </span>
+      )}
     </div>
   );
 }

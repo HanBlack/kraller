@@ -1,4 +1,9 @@
 import { stormConfig } from "./config";
+import {
+  classifyHitAtUser,
+  estimateRainMmH,
+  severityFromDbz,
+} from "./hitAtUser";
 import type {
   ActiveStormAssessment,
   EnvironmentSignals,
@@ -15,14 +20,6 @@ function ramp(value: number, lo: number, hi: number) {
   return clamp01((value - lo) / (hi - lo));
 }
 
-function severityFromDbz(dbz: number): ActiveStormAssessment["severity"] {
-  const z = stormConfig.active.reflectivityDbz;
-  if (dbz >= z.severe) return "strong";
-  if (dbz >= z.strong) return "strong";
-  if (dbz >= z.moderate) return "moderate";
-  return "weak";
-}
-
 function estimateHailCm(echoTopKm: number, maxDbz: number): number | null {
   const h = stormConfig.active.hail;
   // Jen u silného echa — jinak falešné „kroupy X cm“ z proxy výšky
@@ -34,19 +31,6 @@ function estimateHailCm(echoTopKm: number, maxDbz: number): number | null {
     if (echoTopKm >= step.minKm) cm = step.cm;
   }
   return cm;
-}
-
-function estimateRainMmH(maxDbz: number): [number, number] | null {
-  const table = stormConfig.active.rain.dbzToMmH;
-  if (maxDbz < table[0].dbz) return null;
-
-  let mm = table[0].mmH as number;
-  for (const row of table) {
-    if (maxDbz >= row.dbz) mm = row.mmH;
-  }
-  const lo = Math.round(mm * 0.7);
-  const hi = Math.round(mm * 1.15);
-  return [lo, hi];
 }
 
 /** ETA: vzdálenost / složka rychlosti směrem k uživateli (zaokrouhleno, přísnější filtr). */
@@ -79,7 +63,7 @@ function roundEtaMin(minutes: number): number {
 
 /**
  * Skóre bouře, která už je na radaru.
- * Kam jde + jak silná + hazard (kroupy / déšť / supercela).
+ * Kam jde + jak silná u tebe (jádro/okraj) + hazard.
  */
 export function scoreActiveStorm(
   cell: RadarCellSignals,
@@ -87,6 +71,9 @@ export function scoreActiveStorm(
 ): ActiveStormAssessment {
   const cfg = stormConfig.active;
   const reasons: string[] = [];
+
+  const hit = classifyHitAtUser(cell);
+  const strengthDbz = hit.atUserDbz ?? cell.maxDbz;
 
   const zN = ramp(
     cell.maxDbz,
@@ -128,13 +115,18 @@ export function scoreActiveStorm(
     100;
 
   reasons.push(`max Z ${cell.maxDbz.toFixed(0)} dBZ`);
+  reasons.push(
+    `u tebe ~${hit.hitType} (miss ${hit.missKm.toFixed(1)} km` +
+      (hit.atUserDbz != null ? `, ~${hit.atUserDbz.toFixed(0)} dBZ` : "") +
+      `)`,
+  );
   reasons.push(`odhad výšky echa ~${cell.echoTopKm.toFixed(1)} km`);
   if (towardN > 0.5) {
     reasons.push(`směr k lokaci (úhel ${cell.approachAngleDeg.toFixed(0)}°)`);
   }
 
   const hailCm = estimateHailCm(cell.echoTopKm, cell.maxDbz);
-  const rain = estimateRainMmH(cell.maxDbz);
+  const rain = estimateRainMmH(strengthDbz);
   const eta = estimateEtaMinutes(cell);
 
   const hailScore = hailCm != null ? clamp01(hailCm / 5) * 100 : topN * 40;
@@ -149,7 +141,7 @@ export function scoreActiveStorm(
       clamp01(
         ramp(env.srh01, stormConfig.formation.srh01.elevated, stormConfig.formation.srh01.extreme) *
           0.6 +
-          supercell / 100 * 0.4,
+          (supercell / 100) * 0.4,
       ) * 100;
   }
 
@@ -165,13 +157,16 @@ export function scoreActiveStorm(
     kind: "active",
     cellId: cell.id,
     score: Math.round(overall),
-    severity: severityFromDbz(cell.maxDbz),
+    severity: severityFromDbz(strengthDbz),
     etaMinutes: eta,
     fromPlace: cell.fromPlace,
     maxDbz: cell.maxDbz,
     distanceToUserKm: cell.distanceToUserKm,
     hailCmMax: hailCm,
     rainMmPerHour: rain,
+    hitType: hit.hitType,
+    missKm: hit.missKm,
+    atUserDbz: hit.atUserDbz,
     hazards,
     reasons,
   };

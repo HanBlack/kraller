@@ -9,7 +9,7 @@ import { circlePolygon } from "./mapFeatures";
 
 export function formationGridGeoJSON(
   points: ScoredFormationPoint[],
-  minScore = 32,
+  minScore = 22,
 ): FeatureCollection {
   return {
     type: "FeatureCollection",

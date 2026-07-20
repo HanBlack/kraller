@@ -19,6 +19,7 @@ import { birthEnvironmentAt, type BirthEnvironment } from "./birthEnv";
 import type { ScoredFormationPoint } from "./formationData";
 import { explainGrowthWhy } from "./growthWhy";
 import { scoreActiveStorm, shouldAlertActive } from "./scoreActive";
+import { bandRadiiKm } from "./hitAtUser";
 import { stormConfig } from "./config";
 import type { ActiveStormAssessment } from "./types";
 import type { UserLocation } from "../types";
@@ -664,6 +665,64 @@ export function radarPointsGeoJSONAt(
 
 export function radarTracksGeoJSON(features: RadarProgressFeature[]): FeatureCollection {
   return radarTracksGeoJSONAt(features, stormConfig.alertHorizonMin);
+}
+
+/** Koridor nejistoty kolem stopy — jádro skáče, uživatel vidí pás ne přímku. */
+export function radarTrackCorridorsGeoJSONAt(
+  features: RadarProgressFeature[],
+  forecastMinutes: number,
+): FeatureCollection {
+  const horizon = stormConfig.alertHorizonMin;
+  const featuresOut: FeatureCollection["features"] = [];
+
+  for (const f of features) {
+    const here = scaledTrackEnd(f.peak, f.trackEnd, forecastMinutes);
+    let tip = f.trackEnd;
+    const dx = tip[0] - here[0];
+    const dy = tip[1] - here[1];
+    if (dx * dx + dy * dy < 1e-10 || forecastMinutes >= horizon - 1) {
+      tip = destinationPoint(here[1], here[0], f.headingDeg, 18);
+    }
+    const { fringeKm } = bandRadiiKm(f.maxDbz);
+    // Šířka roste s horizontem (chaotické jádro dál = větší pás)
+    const halfKm = Math.min(
+      14,
+      Math.max(3.5, fringeKm * (1 + forecastMinutes / 90)),
+    );
+    const mid = destinationPoint(
+      here[1],
+      here[0],
+      f.headingDeg,
+      distanceKm(here[1], here[0], tip[1], tip[0]) / 2,
+    );
+    const path: [number, number][] = [here, mid, tip];
+    const left: [number, number][] = [];
+    const right: [number, number][] = [];
+    for (let i = 0; i < path.length; i++) {
+      const [lon, lat] = path[i];
+      const prev = path[Math.max(0, i - 1)];
+      const next = path[Math.min(path.length - 1, i + 1)];
+      const bearing =
+        ((Math.atan2(next[0] - prev[0], next[1] - prev[1]) * 180) / Math.PI +
+          360) %
+        360;
+      left.push(destinationPoint(lat, lon, bearing - 90, halfKm));
+      right.push(destinationPoint(lat, lon, bearing + 90, halfKm));
+    }
+    const ring = [...left, ...right.reverse(), left[0]];
+    featuresOut.push({
+      type: "Feature",
+      properties: {
+        id: f.id,
+        threatens: f.threatens,
+        severity: f.severity,
+        halfKm: Math.round(halfKm * 10) / 10,
+      },
+      geometry: { type: "Polygon", coordinates: [ring] },
+    });
+  }
+
+  return { type: "FeatureCollection", features: featuresOut };
 }
 
 export function radarTracksGeoJSONAt(

@@ -76,6 +76,11 @@ export type ActiveStormAssessment = {
   distanceToUserKm: number;
   hailCmMax: number | null;
   rainMmPerHour: [number, number] | null;
+  /** Zásah u sledované adresy (jádro / okraj / mimo). */
+  hitType?: "core" | "fringe" | "edge" | "miss";
+  missKm?: number;
+  /** Odhad dBZ u adresy (může být slabší než peak). */
+  atUserDbz?: number | null;
   hazards: HazardScores;
   reasons: string[];
 };

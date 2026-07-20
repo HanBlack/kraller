@@ -43,27 +43,12 @@ jobs:
       - name: Install Python deps
         run: pip install -r requirements.txt
 
-      - name: Fetch OPERA (+ vítr když stárne)
+      - name: Fetch OPERA (+ env ve stejném taktu)
         run: |
           python scripts/opera_fetch_convert.py --frames 6
-          python - <<'PY'
-          import os, subprocess, sys
-          sys.path.insert(0, "scripts")
-          from datetime import datetime, timezone
-          from data_freshness import age_minutes, read_valid_at
-
-          now = datetime.now(timezone.utc)
-          wind = "public/data/wind/low.json"
-          form = "public/data/formation/grid.json"
-          wind_age = age_minutes(read_valid_at(wind), now) if os.path.isfile(wind) else 999.0
-          form_age = age_minutes(read_valid_at(form), now) if os.path.isfile(form) else 999.0
-          print(f"wind_age={wind_age} formation_age={form_age}")
-          if form_age is None or form_age > 90:
-              subprocess.run([sys.executable, "scripts/fetch_formation.py"], check=False)
-          if wind_age is None or wind_age > 40:
-              subprocess.run([sys.executable, "scripts/fetch_wind.py", "--force"], check=False)
-          PY
+          python scripts/refresh_env_if_stale.py
           python scripts/write_meta.py
+          python scripts/emit_learning.py
 
       - name: Commit and push data
         run: |

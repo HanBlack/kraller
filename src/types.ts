@@ -17,6 +17,11 @@ export type StormAlert = {
   distanceKm?: number;
   hailCmMax?: number;
   rainMmPerHour?: [number, number];
+  /** Zásah u adresy: jádro / okraj / okraj echa / mimo. */
+  hitType?: "core" | "fringe" | "edge" | "miss";
+  missKm?: number;
+  /** Odhad dBZ u adresy (ne peak jádra). */
+  atUserDbz?: number | null;
   /** null / undefined = do zprávy se vůbec nedá */
   tornadoChancePct?: number | null;
 };

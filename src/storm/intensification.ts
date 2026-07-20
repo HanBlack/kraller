@@ -13,6 +13,8 @@ export type IntensTrackCell = {
   peak: [number, number];
   headingDeg: number;
   speedKmh: number;
+  /** Změna dBZ od zrodu / historie — záporné = slábne. */
+  growthDbz?: number;
 };
 
 export type IntensSegment = {
@@ -262,7 +264,11 @@ export function forecastCellIntensification(
 
   let whyHeadline: string | undefined;
   let whyReasons: string[] | undefined;
-  if (alertSegs.length > 0) {
+  const decaying =
+    feature.growthDbz != null &&
+    feature.growthDbz < cfg.suppressIfGrowthDbzBelow;
+
+  if (alertSegs.length > 0 && !decaying) {
     const peak = alertSegs.reduce((a, b) => (b.score > a.score ? b : a));
     const at = nearestEnv(peak.center[1], peak.center[0], points);
     if (at) {
@@ -293,19 +299,28 @@ export function forecastCellIntensification(
         reasons.push("lepší podmínky podél trasy než v místě teď");
       }
       whyReasons = reasons.slice(0, 4);
-      whyHeadline = `Zesílení kvůli lepšímu prostředí na trase — ${reasons[0]}.`;
+      whyHeadline = `Může zesílit — lepší prostředí na trase (${reasons[0]}).`;
     }
   }
 
+  const showSegs = decaying ? [] : alertSegs;
+  const willIntensify = showSegs.length > 0;
+
   return {
     cellId: feature.id,
-    score: alertSegs.length > 0 ? Math.max(...alertSegs.map((s) => s.score)) : 0,
-    enterEtaMin: alertSegs.length > 0 ? alertSegs[0].etaMin : null,
-    peakExpectedDbz,
-    segments: alertSegs,
-    willIntensify: alertSegs.length > 0,
-    whyHeadline,
-    whyReasons,
+    score: willIntensify ? Math.max(...showSegs.map((s) => s.score)) : 0,
+    enterEtaMin: willIntensify ? showSegs[0].etaMin : null,
+    peakExpectedDbz: willIntensify
+      ? Math.max(...showSegs.map((s) => s.expectedDbz))
+      : feature.maxDbz,
+    segments: showSegs,
+    willIntensify,
+    whyHeadline: decaying
+      ? "Echo slábne — fialovou zónu nezobrazujeme (zesílení je nepravděpodobné)."
+      : whyHeadline,
+    whyReasons: decaying
+      ? [`růst echa ${feature.growthDbz?.toFixed(1)} dBZ`]
+      : whyReasons,
     timeline: raw.map((p) => ({
       eta: p.eta,
       expectedDbz: p.expectedDbz,
@@ -439,8 +454,8 @@ export function intensificationCorridorsGeoJSON(
           expectedDbz: seg.expectedDbz,
           label:
             seg.etaMin <= 0
-              ? `zesílení teď\n→ ~${seg.expectedDbz} dBZ`
-              : `zesílení za ${seg.etaMin}–${seg.etaMax} min\n→ ~${seg.expectedDbz} dBZ`,
+              ? `může zesílit teď\n→ ~${seg.expectedDbz} dBZ`
+              : `může zesílit\nza ${seg.etaMin}–${seg.etaMax} min\n→ ~${seg.expectedDbz} dBZ`,
         },
         geometry: geom,
       });
@@ -466,8 +481,8 @@ export function intensificationMarkersGeoJSON(
             etaMin: seg.etaMin,
             label:
               seg.etaMin <= 0
-                ? `↑ zesílení\n~${seg.expectedDbz} dBZ`
-                : `↑ za ${seg.etaMin} min\n~${seg.expectedDbz} dBZ`,
+                ? `↑ může zesílit\n~${seg.expectedDbz} dBZ`
+                : `↑ může zesílit\nza ${seg.etaMin} min · ~${seg.expectedDbz} dBZ`,
           },
           geometry: {
             type: "Point" as const,
@@ -515,7 +530,7 @@ export function formatIntensificationSummary(
     return "Podél stopy zatím nečekáme výrazné zesílení.";
   }
   if (intens.enterEtaMin <= 0) {
-    return `Buňka je v zóně zesílení — odhad růstu k ~${intens.peakExpectedDbz} dBZ.`;
+    return `Buňka je v zóně, kde může zesílit — odhad až ~${intens.peakExpectedDbz} dBZ (není jistota).`;
   }
   return `Za ~${intens.enterEtaMin} min vstoupí do prostředí, kde může zesílit k ~${intens.peakExpectedDbz} dBZ.`;
 }

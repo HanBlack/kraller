@@ -57,6 +57,7 @@ import {
   radarCellsGhostGeoJSONAt,
   radarPointsGeoJSONAt,
   radarTracksGeoJSONAt,
+  radarTrackCorridorsGeoJSONAt,
 } from "../storm/radarCells";
 import { pickThreatBanners, type ThreatBannerItem } from "../storm/userThreats";
 import type { ScoredFormationPoint } from "../storm/formationData";
@@ -123,6 +124,8 @@ const ACT_HALO = "active-halo";
 const ACT_CORE = "active-core";
 const ACT_LABEL = "active-label";
 const TRACK_SOURCE = "active-track-source";
+const TRACK_CORRIDOR_SOURCE = "active-track-corridor";
+const TRACK_CORRIDOR_FILL = "active-track-corridor-fill";
 const TRACK_LINE = "active-track-line";
 const ARROW_SOURCE = "active-arrow-source";
 const ARROW_LAYER = "active-arrow";
@@ -449,8 +452,10 @@ function ensureStormLayers(map: maplibregl.Map) {
 
   if (needsTrackRebuild) {
     removeLayerIfExists(map, TRACK_LINE);
+    removeLayerIfExists(map, TRACK_CORRIDOR_FILL);
     removeLayerIfExists(map, ARROW_LAYER);
     removeSourceIfExists(map, TRACK_SOURCE);
+    removeSourceIfExists(map, TRACK_CORRIDOR_SOURCE);
     removeSourceIfExists(map, ARROW_SOURCE);
   }
 
@@ -1068,6 +1073,27 @@ function ensureStormLayers(map: maplibregl.Map) {
     });
   }
 
+  if (!map.getSource(TRACK_CORRIDOR_SOURCE)) {
+    map.addSource(TRACK_CORRIDOR_SOURCE, {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] },
+    });
+    map.addLayer({
+      id: TRACK_CORRIDOR_FILL,
+      type: "fill",
+      source: TRACK_CORRIDOR_SOURCE,
+      paint: {
+        "fill-color": [
+          "case",
+          ["==", ["get", "threatens"], 1],
+          "rgba(255, 140, 80, 0.18)",
+          "rgba(120, 170, 220, 0.12)",
+        ],
+        "fill-opacity": 0.9,
+      },
+    });
+  }
+
   if (!map.getSource(TRACK_SOURCE)) {
     map.addSource(TRACK_SOURCE, {
       type: "geojson",
@@ -1496,6 +1522,11 @@ export function MapView({
           ? radarTracksGeoJSONAt(radarRef.current, forecastMinutes)
           : activeTracksGeoJSON(activeRef.current, forecastMinutes),
       );
+      (map.getSource(TRACK_CORRIDOR_SOURCE) as maplibregl.GeoJSONSource)?.setData(
+        useRadarProgress
+          ? radarTrackCorridorsGeoJSONAt(radarRef.current, forecastMinutes)
+          : { type: "FeatureCollection", features: [] },
+      );
       (map.getSource(ARROW_SOURCE) as maplibregl.GeoJSONSource).setData(
         useRadarProgress
           ? radarArrowsGeoJSONAt(radarRef.current, forecastMinutes)
@@ -1756,6 +1787,9 @@ export function MapView({
         (map.getSource(TRACK_SOURCE) as maplibregl.GeoJSONSource)?.setData(
           radarTracksGeoJSONAt(radarProgressEnriched, forecastMinutes),
         );
+        (map.getSource(TRACK_CORRIDOR_SOURCE) as maplibregl.GeoJSONSource)?.setData(
+          radarTrackCorridorsGeoJSONAt(radarProgressEnriched, forecastMinutes),
+        );
         (map.getSource(ARROW_SOURCE) as maplibregl.GeoJSONSource)?.setData(
           radarArrowsGeoJSONAt(radarProgressEnriched, forecastMinutes),
         );
@@ -1806,6 +1840,10 @@ export function MapView({
         (map.getSource(TRACK_SOURCE) as maplibregl.GeoJSONSource)?.setData(
           activeTracksGeoJSON(activeFeatures, forecastMinutes),
         );
+        (map.getSource(TRACK_CORRIDOR_SOURCE) as maplibregl.GeoJSONSource)?.setData({
+          type: "FeatureCollection",
+          features: [],
+        });
         (map.getSource(ARROW_SOURCE) as maplibregl.GeoJSONSource)?.setData(
           activeArrowsGeoJSON(activeFeatures, forecastMinutes),
         );
@@ -1836,7 +1874,7 @@ export function MapView({
       // Stopa + šipka: Progress, nebo automaticky v +min
       setLayerVisibility(
         map,
-        [TRACK_LINE, ARROW_LAYER],
+        [TRACK_CORRIDOR_FILL, TRACK_LINE, ARROW_LAYER],
         showCellsNow,
       );
       setLayerVisibility(

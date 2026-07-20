@@ -28,7 +28,7 @@ FULL_STEPS = [
     ("wind", "vítr", [sys.executable, "scripts/fetch_wind.py"]),
 ]
 
-# Rychlá obnova na produkci — radar + vítr (směr šipek).
+# Rychlá obnova na produkci — radar + env (vznik/vítr) podle stáří.
 RADAR_ONLY_STEPS = [
     (
         "opera",
@@ -36,9 +36,9 @@ RADAR_ONLY_STEPS = [
         [sys.executable, "scripts/opera_fetch_convert.py", "--frames", "6"],
     ),
     (
-        "wind",
-        "vítr",
-        [sys.executable, "scripts/fetch_wind.py", "--force"],
+        "env",
+        "env (formation/wind)",
+        [sys.executable, "scripts/refresh_env_if_stale.py"],
     ),
 ]
 
@@ -68,6 +68,16 @@ def run_update(*, radar_only: bool = False) -> bool:
         results[key] = run_step(key, label, cmd)
 
     write_meta(results)
+
+    # Learning store — vždy po úspěšném radaru (sběr pro pozdější kalibraci)
+    if results.get("opera", {}).get("ok"):
+        print("  -> learning emit", flush=True)
+        try:
+            subprocess.run(
+                [sys.executable, "scripts/emit_learning.py"], cwd=".", check=False
+            )
+        except OSError:
+            pass
 
     if radar_only:
         return bool(results.get("opera", {}).get("ok"))
