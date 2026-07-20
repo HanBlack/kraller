@@ -341,7 +341,8 @@ export class WindParticleOverlay {
   }
 
   private frame(ts: number) {
-    if (!this.grid || this.mode === "off") return;
+    const mode = this.mode;
+    if (!this.grid || mode === "off") return;
     if (this.cssW <= 0 || this.cssH <= 0) return;
 
     if (this.map.isMoving()) {
@@ -354,8 +355,7 @@ export class WindParticleOverlay {
     const dt = Math.min(0.05, Math.max(0.012, rawDt));
 
     const g = this.grid;
-    const colorMode: "low" | "upper" | "steer" =
-      this.mode === "off" ? "steer" : this.mode;
+    const colorMode: "low" | "upper" | "steer" = mode;
     const w = this.cssW;
     const h = this.cssH;
     const ctx = this.ctx;
