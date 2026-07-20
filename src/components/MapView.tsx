@@ -513,9 +513,12 @@ function ensureStormLayers(map: maplibregl.Map) {
   }
 
   const arrowData = createArrowImageData();
-  if (arrowData) {
-    if (map.hasImage("storm-arrow")) map.removeImage("storm-arrow");
-    map.addImage("storm-arrow", arrowData, { sdf: true });
+  if (arrowData && !map.hasImage("storm-arrow")) {
+    try {
+      map.addImage("storm-arrow", arrowData, { sdf: true });
+    } catch {
+      // souběžný style reload — ikona už existuje
+    }
   }
 
   emphasizeCountryBorders(map);

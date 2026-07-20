@@ -19,6 +19,9 @@ PUBLIC = ROOT / "public"
 # Rychlá obnova — krátká cache na CDN, klient stejně cache-bustuje ?t=
 CACHE_CONTROL = "public, max-age=45, must-revalidate"
 
+# Veřejná data — prohlížeč z libovolné domény; * je nejspolehlivější u r2.dev.
+DEFAULT_CORS_ORIGINS = ("*",)
+
 SKIP_PREFIXES = (
     "data/learning/",  # learning zůstává v gitu (hodinový job)
 )
@@ -42,6 +45,44 @@ def _should_upload(rel: str) -> bool:
     if not rel.startswith("data/"):
         return False
     return not any(rel.startswith(p) for p in SKIP_PREFIXES)
+
+
+def _cors_origins() -> list[str]:
+    raw = os.environ.get("R2_CORS_ORIGINS", "").strip()
+    if raw:
+        if raw == "*":
+            return ["*"]
+        return [o.strip() for o in raw.split(",") if o.strip()]
+    return list(DEFAULT_CORS_ORIGINS)
+
+
+def ensure_bucket_cors(client, bucket: str) -> bool:
+    """Nastaví CORS na bucketu — bez toho prohlížeč z kraller.eu fetch neprojde."""
+    origins = _cors_origins()
+    try:
+        client.put_bucket_cors(
+            Bucket=bucket,
+            CORSConfiguration={
+                "CORSRules": [
+                    {
+                        "AllowedOrigins": origins,
+                        "AllowedMethods": ["GET", "HEAD"],
+                        "AllowedHeaders": ["*"],
+                        "ExposeHeaders": ["ETag"],
+                        "MaxAgeSeconds": 3600,
+                    },
+                ],
+            },
+        )
+        print(f"R2: CORS applied for {origins}", flush=True)
+        return True
+    except Exception as exc:
+        print(
+            f"R2: CORS setup failed ({exc}) — nastav ručně v Cloudflare → R2 → bucket → CORS",
+            file=sys.stderr,
+            flush=True,
+        )
+        return False
 
 
 def upload_tree() -> int:
@@ -72,6 +113,8 @@ def upload_tree() -> int:
     if not PUBLIC.is_dir():
         print("R2: public/ missing", file=sys.stderr, flush=True)
         return 1
+
+    ensure_bucket_cors(client, bucket)
 
     uploaded = 0
     for path in sorted(PUBLIC.rglob("*")):
