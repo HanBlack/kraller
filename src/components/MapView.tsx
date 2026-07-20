@@ -180,21 +180,21 @@ const dbzValue: maplibregl.ExpressionSpecification = [
     "heavy",
     56,
     "extreme",
-    62,
+    66,
     "core",
-    64,
+    62,
     45,
   ],
 ];
 
 /**
- * Jednoduchá pravda pro uživatele — 4 úrovně, ne meteorologická škála.
- * okraj (<40) → déšť (40–50) → silné (50–58) → jádro (58+)
+ * 5 úrovní síly — pořád jednoduché, ale extrém (65+ / supercela) musí křičet.
+ * okraj → déšť → silné → jádro → extrém
  */
 const dbzFillColor: maplibregl.ExpressionSpecification = [
   "step",
   dbzValue,
-  "rgba(70, 175, 165, 0.28)", // šum / velmi slabé
+  "rgba(70, 175, 165, 0.28)",
   30,
   "rgba(55, 185, 140, 0.40)", // okraj
   40,
@@ -202,7 +202,9 @@ const dbzFillColor: maplibregl.ExpressionSpecification = [
   50,
   "rgba(235, 125, 40, 0.72)", // silné
   58,
-  "rgba(210, 45, 70, 0.86)", // jádro
+  "rgba(215, 40, 65, 0.86)", // jádro / silná bouřka
+  65,
+  "rgba(185, 40, 210, 0.92)", // extrém / supercela
 ];
 
 const dbzOutlineColor: maplibregl.ExpressionSpecification = [
@@ -216,7 +218,9 @@ const dbzOutlineColor: maplibregl.ExpressionSpecification = [
   50,
   "rgba(245, 150, 60, 0.75)",
   58,
-  "rgba(240, 70, 95, 0.85)",
+  "rgba(245, 70, 95, 0.88)",
+  65,
+  "rgba(230, 120, 255, 0.95)",
 ];
 
 const dbzFillOpacity: maplibregl.ExpressionSpecification = [
@@ -230,7 +234,9 @@ const dbzFillOpacity: maplibregl.ExpressionSpecification = [
   50,
   0.82,
   58,
-  0.92,
+  0.9,
+  65,
+  0.96,
 ];
 
 /** Kontura buňky — intensifying / decaying / threat mají prioritu. */
@@ -251,7 +257,15 @@ const cellLineWidth: maplibregl.ExpressionSpecification = [
   2.2,
   ["==", ["get", "threatens"], 1],
   1.6,
-  1.05,
+  [
+    "step",
+    dbzValue,
+    1.0,
+    58,
+    1.25,
+    65,
+    1.55,
+  ],
 ];
 /** Barva stopy / šipky podle síly (oranžová = míří k uživateli). */
 const trackColorExpr: maplibregl.ExpressionSpecification = [
@@ -576,16 +590,36 @@ function ensureStormLayers(map: maplibregl.Map) {
       ["linear"],
       ["coalesce", ["get", "dbz"], 50],
       50,
-      2.8,
+      2.6,
       58,
-      3.6,
+      3.4,
       65,
-      4.2,
+      5,
+      70,
+      6,
     ]);
-    map.setPaintProperty(RADAR_PEAK, "circle-color", "rgba(255, 248, 250, 0.65)");
-    map.setPaintProperty(RADAR_PEAK, "circle-stroke-width", 1.5);
-    map.setPaintProperty(RADAR_PEAK, "circle-stroke-color", "rgba(210, 45, 70, 0.85)");
-    map.setPaintProperty(RADAR_PEAK, "circle-opacity", 0.88);
+    map.setPaintProperty(RADAR_PEAK, "circle-color", [
+      "step",
+      ["coalesce", ["get", "dbz"], 50],
+      "rgba(255, 248, 250, 0.65)",
+      65,
+      "rgba(255, 220, 255, 0.85)",
+    ]);
+    map.setPaintProperty(RADAR_PEAK, "circle-stroke-width", [
+      "step",
+      ["coalesce", ["get", "dbz"], 50],
+      1.5,
+      65,
+      2.2,
+    ]);
+    map.setPaintProperty(RADAR_PEAK, "circle-stroke-color", [
+      "step",
+      ["coalesce", ["get", "dbz"], 50],
+      "rgba(210, 45, 70, 0.85)",
+      65,
+      "rgba(200, 60, 230, 0.95)",
+    ]);
+    map.setPaintProperty(RADAR_PEAK, "circle-opacity", 0.9);
     map.setPaintProperty(RADAR_PEAK, "circle-blur", 0.08);
   }
 
@@ -846,16 +880,36 @@ function ensureStormLayers(map: maplibregl.Map) {
           ["linear"],
           ["coalesce", ["get", "dbz"], 50],
           50,
-          2.8,
+          2.6,
           58,
-          3.6,
+          3.4,
           65,
-          4.2,
+          5,
+          70,
+          6,
         ],
-        "circle-color": "rgba(255, 248, 250, 0.65)",
-        "circle-stroke-width": 1.5,
-        "circle-stroke-color": "rgba(210, 45, 70, 0.85)",
-        "circle-opacity": 0.88,
+        "circle-color": [
+          "step",
+          ["coalesce", ["get", "dbz"], 50],
+          "rgba(255, 248, 250, 0.65)",
+          65,
+          "rgba(255, 220, 255, 0.85)",
+        ],
+        "circle-stroke-width": [
+          "step",
+          ["coalesce", ["get", "dbz"], 50],
+          1.5,
+          65,
+          2.2,
+        ],
+        "circle-stroke-color": [
+          "step",
+          ["coalesce", ["get", "dbz"], 50],
+          "rgba(210, 45, 70, 0.85)",
+          65,
+          "rgba(200, 60, 230, 0.95)",
+        ],
+        "circle-opacity": 0.9,
       },
     });
   }

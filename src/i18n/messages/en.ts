@@ -97,9 +97,10 @@ export const en = {
     moderate: "moderate (~45)",
     strong: "stronger (~50)",
     heavy: "heavy",
-    extreme: "very strong (~60+)",
-    core: "core (worst rain)",
-    radarGuide: "Green = fringe · yellow = rain · orange = heavy · red = core",
+    extreme: "extreme · 65+ (supercell)",
+    core: "core · strong storm",
+    radarGuide:
+      "Green fringe · yellow rain · orange heavy · red core · purple extreme (65+)",
     radarNote: "Data: EUMETNET OPERA · CC BY 4.0",
     trackTitle: "Track · cell lifecycle",
     echoGrow: "echo / growing",
