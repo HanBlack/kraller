@@ -1,13 +1,13 @@
 {
-  "updatedAt": "2026-07-20T06:10:56Z",
-  "operaTime": null,
+  "updatedAt": "2026-07-20T06:14:11Z",
+  "operaTime": "2026-07-20T06:10:00Z",
   "opera": true,
   "wind": true,
   "formation": true,
   "sources": {
     "opera": {
       "ok": true,
-      "updatedAt": "2026-07-20T06:10:56Z",
+      "updatedAt": "2026-07-20T06:14:11Z",
       "error": null
     },
     "wind": {
