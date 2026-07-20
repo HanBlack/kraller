@@ -6,7 +6,7 @@ export const en = {
     bootSub: "Loading radar and forecast…",
     bootData: "Loading radar and forecast…",
     bootFetch: "Updating radar…",
-    bootHistory: "Loading history…",
+    bootHistory: "Loading radar image and history…",
     bootRefresh: "Loading latest data…",
     bootMap: "Preparing map…",
     bootTiles: "Rendering map…",
