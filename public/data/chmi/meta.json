@@ -1,10 +1,10 @@
 {
-  "validAt": "2026-07-20T10:25:00Z",
-  "productTime": "20260720102500",
+  "validAt": "2026-07-20T10:30:00Z",
+  "productTime": "20260720103000",
   "source": "CHMI",
   "products": [
     "maxz",
     "echotop"
   ],
-  "cellsEnriched": 3
+  "cellsEnriched": 4
 }
