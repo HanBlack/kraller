@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import { scoreActiveStorm, shouldAlertActive } from "./scoreActive";
 import type { RadarCellSignals } from "./types";
 
-function cell(partial: Partial<RadarCellSignals> & Pick<RadarCellSignals, "id">): RadarCellSignals {
+function cell(partial: Partial<RadarCellSignals>): RadarCellSignals {
   return {
+    id: "x",
     lat: 49.3,
     lon: 18.0,
     maxDbz: 55,

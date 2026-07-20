@@ -487,7 +487,7 @@ function ensureStormLayers(map: maplibregl.Map) {
   if (map.getLayer(CELL_FILL)) {
     map.setPaintProperty(CELL_FILL, "fill-color", dbzFillColor);
     map.setPaintProperty(CELL_FILL, "fill-outline-color", dbzOutlineColor);
-    map.setPaintProperty(CELL_FILL, "fill-sort-key", [
+    map.setLayoutProperty(CELL_FILL, "fill-sort-key", [
       "coalesce",
       ["get", "dbz"],
       ["get", "order"],
@@ -497,7 +497,7 @@ function ensureStormLayers(map: maplibregl.Map) {
   if (map.getLayer(RADAR_FILL)) {
     map.setPaintProperty(RADAR_FILL, "fill-color", dbzFillColor);
     map.setPaintProperty(RADAR_FILL, "fill-outline-color", dbzOutlineColor);
-    map.setPaintProperty(RADAR_FILL, "fill-sort-key", [
+    map.setLayoutProperty(RADAR_FILL, "fill-sort-key", [
       "coalesce",
       ["get", "dbz"],
       0,
@@ -727,10 +727,12 @@ function ensureStormLayers(map: maplibregl.Map) {
       type: "fill",
       source: RADAR_SOURCE,
       filter: ["==", ["geometry-type"], "Polygon"],
+      layout: {
+        "fill-sort-key": ["coalesce", ["get", "dbz"], 0],
+      },
       paint: {
         "fill-color": dbzFillColor,
         "fill-outline-color": dbzOutlineColor,
-        "fill-sort-key": ["coalesce", ["get", "dbz"], 0],
       },
     });
     map.addLayer({
@@ -880,10 +882,12 @@ function ensureStormLayers(map: maplibregl.Map) {
         id: CELL_FILL,
         type: "fill",
         source: CELL_SOURCE,
+        layout: {
+          "fill-sort-key": ["coalesce", ["get", "dbz"], ["get", "order"], 0],
+        },
         paint: {
           "fill-color": dbzFillColor,
           "fill-outline-color": dbzOutlineColor,
-          "fill-sort-key": ["coalesce", ["get", "dbz"], ["get", "order"], 0],
           "fill-opacity": [
             "case",
             ["has", "opacity"],
