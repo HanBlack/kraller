@@ -160,6 +160,31 @@ export function peakAtForecast(
   return scaledTrackEnd(feature.peak, feature.trackEnd, forecastMinutes);
 }
 
+/**
+ * Průměrný posun jader (váha = dBZ) pro advekci celého PNG radaru.
+ * Stačí směr — jednotlivé buňky se můžou lišit.
+ */
+export function meanForecastDelta(
+  features: Array<Pick<RadarProgressFeature, "peak" | "trackEnd" | "maxDbz">>,
+  forecastMinutes: number,
+): { dLon: number; dLat: number } {
+  if (forecastMinutes <= 0 || features.length === 0) {
+    return { dLon: 0, dLat: 0 };
+  }
+  let wSum = 0;
+  let dLon = 0;
+  let dLat = 0;
+  for (const f of features) {
+    const w = Math.max(1, f.maxDbz - 20);
+    const [lon, lat] = scaledTrackEnd(f.peak, f.trackEnd, forecastMinutes);
+    dLon += (lon - f.peak[0]) * w;
+    dLat += (lat - f.peak[1]) * w;
+    wSum += w;
+  }
+  if (wSum <= 0) return { dLon: 0, dLat: 0 };
+  return { dLon: dLon / wSum, dLat: dLat / wSum };
+}
+
 function shiftPolygon(
   polygon: Polygon,
   dx: number,

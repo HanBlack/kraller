@@ -12,6 +12,22 @@ export type RadarRasterMeta = {
   minDbz?: number;
 };
 
+/** Posune rohy PNG o Δlon/Δlat (forecast advekce — stejný obrázek, jiná pozice). */
+export function shiftRadarRaster(
+  meta: RadarRasterMeta,
+  dLon: number,
+  dLat: number,
+): RadarRasterMeta {
+  if (dLon === 0 && dLat === 0) return meta;
+  return {
+    ...meta,
+    coordinates: meta.coordinates.map(([lon, lat]) => [
+      lon + dLon,
+      lat + dLat,
+    ]) as RadarRasterMeta["coordinates"],
+  };
+}
+
 /** Poslední live blob:URL — revoke při dalším live preloadu. */
 let lastLiveRasterBlobUrl: string | null = null;
 
