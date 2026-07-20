@@ -1,18 +1,6 @@
 {
   "tracks": {},
   "formationPending": {
-    "z:48.62:15.61": {
-      "lat": 48.6176,
-      "lon": 15.6111,
-      "score": 47.7,
-      "fromTs": "20260720194000",
-      "cape": 0.0,
-      "shear": 15.9,
-      "dew": 4.6,
-      "li": null,
-      "freezingLevelM": 3150.0,
-      "cinJkg": 0.0
-    },
     "z:50.38:17.33": {
       "lat": 50.3824,
       "lon": 17.3333,
@@ -3964,5 +3952,5 @@
     "INTENSIFY_HIT_DBZ": 3.0
   },
   "schemaVersion": 2,
-  "updatedAt": "2026-07-20T22:17:36Z"
+  "updatedAt": "2026-07-20T22:21:38Z"
 }
