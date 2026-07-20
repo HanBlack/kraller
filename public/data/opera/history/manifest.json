@@ -4,37 +4,37 @@
     {
       "index": 0,
       "offsetMinutes": -25,
-      "time": "20260720100500",
+      "time": "20260720101000",
       "path": "data/opera/history/frame-0.geojson"
     },
     {
       "index": 1,
       "offsetMinutes": -20,
-      "time": "20260720101000",
+      "time": "20260720101500",
       "path": "data/opera/history/frame-1.geojson"
     },
     {
       "index": 2,
       "offsetMinutes": -15,
-      "time": "20260720101500",
+      "time": "20260720102000",
       "path": "data/opera/history/frame-2.geojson"
     },
     {
       "index": 3,
       "offsetMinutes": -10,
-      "time": "20260720102000",
+      "time": "20260720102500",
       "path": "data/opera/history/frame-3.geojson"
     },
     {
       "index": 4,
       "offsetMinutes": -5,
-      "time": "20260720102500",
+      "time": "20260720103000",
       "path": "data/opera/history/frame-4.geojson"
     },
     {
       "index": 5,
       "offsetMinutes": 0,
-      "time": "20260720103000",
+      "time": "20260720103500",
       "path": "data/opera/history/frame-5.geojson"
     }
   ]
