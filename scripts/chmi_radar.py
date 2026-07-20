@@ -212,15 +212,10 @@ def build_contour_features(
     geo: dict,
     time_str: str,
 ) -> list[dict]:
-    """Prstence mezi prahy — jeden pixel = jedna barva (bez nested cibule)."""
+    """Nested ≥ prahy — celistvá skvrna (prstence na slabém echu = pilulky)."""
     features: list[dict] = []
-    for i, lvl in enumerate(CONTOUR_LEVELS):
-        next_lvl = CONTOUR_LEVELS[i + 1] if i + 1 < len(CONTOUR_LEVELS) else None
-        finite = np.isfinite(grid)
-        if next_lvl is None:
-            mask = finite & (grid >= lvl)
-        else:
-            mask = finite & (grid >= lvl) & (grid < next_lvl)
+    for lvl in CONTOUR_LEVELS:
+        mask = np.isfinite(grid) & (grid >= lvl)
         if not mask.any():
             continue
         contours = measure.find_contours(mask.astype(float), 0.5)
