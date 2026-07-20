@@ -1,43 +1,5 @@
 {
-  "tracks": {
-    "t:20260720071000:48.70:16.38": {
-      "lat": 48.70164880073469,
-      "lon": 16.378909207256093,
-      "maxDbz": 48.0,
-      "lastTs": "20260720071000",
-      "cellId": "cell-3",
-      "firstTs": "20260720071000",
-      "preds": {
-        "15": {
-          "predLat": 48.7037,
-          "predLon": 16.5587,
-          "fromTs": "20260720071000",
-          "fromLat": 48.7016,
-          "fromLon": 16.3789,
-          "heading": 88.9,
-          "speed": 52.8,
-          "motionSource": "wind-fallback",
-          "windAlignDeg": null
-        },
-        "30": {
-          "predLat": 48.7055,
-          "predLon": 16.7385,
-          "fromTs": "20260720071000",
-          "fromLat": 48.7016,
-          "fromLon": 16.3789,
-          "heading": 88.9,
-          "speed": 52.8,
-          "motionSource": "wind-fallback",
-          "windAlignDeg": null
-        }
-      },
-      "dbzSlopePer15": null,
-      "areaPx": null,
-      "growthDbz": null,
-      "dbzDelta5": null,
-      "dbzDelta15": null
-    }
-  },
+  "tracks": {},
   "formationPending": {
     "z:47.80:11.40": {
       "lat": 47.8,
@@ -4001,26 +3963,6 @@
     }
   },
   "intensityPending": {
-    "t:20260720065500:51.46:17.31:15:20260720065500": {
-      "trackKey": "t:20260720065500:51.46:17.31",
-      "horizonMin": 15,
-      "fromTs": "20260720065500",
-      "fromDbz": 39.5,
-      "predDbz": 39.5,
-      "slope": 0.0,
-      "lat": 51.46176590755411,
-      "lon": 17.313802253514623,
-      "envDistKm": 12.3,
-      "cape": 130.0,
-      "capeNow": 50.0,
-      "dew": 11.7,
-      "shear": 8.2,
-      "srh01": 90.2,
-      "cooling": -1.6,
-      "li": null,
-      "steerHdg": 82.9,
-      "steerSpd": 57.8
-    },
     "t:20260720065500:51.46:17.31:30:20260720065500": {
       "trackKey": "t:20260720065500:51.46:17.31",
       "horizonMin": 30,
@@ -4096,5 +4038,5 @@
     "WIND_BLEND_500": 0.75
   },
   "schemaVersion": 2,
-  "updatedAt": "2026-07-20T07:19:03Z"
+  "updatedAt": "2026-07-20T07:22:03Z"
 }
