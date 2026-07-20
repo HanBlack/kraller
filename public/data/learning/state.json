@@ -1,54 +1,6 @@
 {
   "tracks": {},
   "formationPending": {
-    "z:48.26:15.04": {
-      "lat": 48.2647,
-      "lon": 15.037,
-      "score": 42.599999999999994,
-      "fromTs": "20260720201500",
-      "cape": 0.0,
-      "shear": 14.2,
-      "dew": 2.8,
-      "li": null,
-      "freezingLevelM": 2990.0,
-      "cinJkg": 0.0
-    },
-    "z:48.62:15.04": {
-      "lat": 48.6176,
-      "lon": 15.037,
-      "score": 52.800000000000004,
-      "fromTs": "20260720201500",
-      "cape": 0.0,
-      "shear": 17.6,
-      "dew": 5.0,
-      "li": null,
-      "freezingLevelM": 2680.0,
-      "cinJkg": 0.0
-    },
-    "z:48.97:15.61": {
-      "lat": 48.9706,
-      "lon": 15.6111,
-      "score": 45.0,
-      "fromTs": "20260720201500",
-      "cape": 0.0,
-      "shear": 15.0,
-      "dew": 4.5,
-      "li": null,
-      "freezingLevelM": 2660.0,
-      "cinJkg": 0.0
-    },
-    "z:49.32:15.61": {
-      "lat": 49.3235,
-      "lon": 15.6111,
-      "score": 41.400000000000006,
-      "fromTs": "20260720201500",
-      "cape": 0.0,
-      "shear": 13.8,
-      "dew": 4.9,
-      "li": null,
-      "freezingLevelM": 2710.0,
-      "cinJkg": 0.0
-    },
     "z:46.50:7.00": {
       "lat": 46.5,
       "lon": 7.0,
@@ -3601,5 +3553,5 @@
     "INTENSIFY_HIT_DBZ": 3.0
   },
   "schemaVersion": 2,
-  "updatedAt": "2026-07-20T22:54:06Z"
+  "updatedAt": "2026-07-20T22:56:48Z"
 }
