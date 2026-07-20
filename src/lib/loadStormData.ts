@@ -1,5 +1,5 @@
 import type { FeatureCollection } from "geojson";
-import { fetchDataJson } from "./dataUrls";
+import { dataUrl, fetchDataJson } from "./dataUrls";
 import { smoothPolygonFeatures } from "./geoSmooth";
 import { loadWindGrids } from "./windField";
 import { buildRealFormationZones } from "../storm/formationData";
@@ -10,6 +10,7 @@ import type { WindGrid } from "./windField";
 import type { TrackedCell } from "../storm/radarCells";
 import type { RadarHistoryManifest } from "./radarHistory";
 import { loadRadarHistoryManifest } from "./radarHistory";
+import type { RadarRasterMeta } from "./radarRaster";
 
 export type DataSourceStatus = {
   ok: boolean;
@@ -35,6 +36,8 @@ export type DataMeta = {
 
 export type StormDataBundle = {
   radarData: FeatureCollection;
+  /** Spojitý PNG radar (preferovaný display); null = fallback na kontury. */
+  radarRaster: RadarRasterMeta | null;
   cellsData: FeatureCollection;
   trackedCells: TrackedCell[];
   windLow: WindGrid;
@@ -76,14 +79,16 @@ export async function loadStormData(
   cacheBust: number,
   fallbackFormation: FormationZone[],
 ): Promise<StormDataBundle> {
-  const [meta, radarData, chmiRadar, cellsData, wind, radarHistory] = await Promise.all([
-    fetchJson<DataMeta>("data/meta.json", cacheBust),
-    fetchJson<FeatureCollection>("data/opera/latest.geojson", cacheBust),
-    fetchJson<FeatureCollection>("data/chmi/latest.geojson", cacheBust),
-    fetchJson<FeatureCollection>("data/opera/cells.geojson", cacheBust),
-    loadWindGrids(cacheBust),
-    loadRadarHistoryManifest(cacheBust),
-  ]);
+  const [meta, radarData, chmiRadar, cellsData, wind, radarHistory, rasterMeta] =
+    await Promise.all([
+      fetchJson<DataMeta>("data/meta.json", cacheBust),
+      fetchJson<FeatureCollection>("data/opera/latest.geojson", cacheBust),
+      fetchJson<FeatureCollection>("data/chmi/latest.geojson", cacheBust),
+      fetchJson<FeatureCollection>("data/opera/cells.geojson", cacheBust),
+      loadWindGrids(cacheBust),
+      loadRadarHistoryManifest(cacheBust),
+      fetchJson<RadarRasterMeta>("data/opera/latest-raster.json", cacheBust),
+    ]);
 
   const cellsFc = cellsData ?? EMPTY_FC;
   const radarFc = smoothPolygonFeatures(
@@ -92,8 +97,21 @@ export async function loadStormData(
   );
   const formation = await buildRealFormationZones(cellsFc, cacheBust);
 
+  let radarRaster: RadarRasterMeta | null = null;
+  if (
+    rasterMeta?.url &&
+    Array.isArray(rasterMeta.coordinates) &&
+    rasterMeta.coordinates.length === 4
+  ) {
+    radarRaster = {
+      ...rasterMeta,
+      url: dataUrl(rasterMeta.url, cacheBust),
+    };
+  }
+
   return {
     radarData: radarFc,
+    radarRaster,
     cellsData: cellsFc,
     trackedCells: parseTrackedCells(cellsFc),
     windLow: wind.low,

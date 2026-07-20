@@ -100,7 +100,7 @@ export const en = {
     extreme: "extreme · 65+ (supercell)",
     core: "core · strong storm",
     radarGuide:
-      "Colors blend by strength: green fringe → yellow rain → orange heavy → red core → purple extreme (65+)",
+      "Continuous radar: smooth colors (green → yellow → orange → red → purple), no hard contour bands",
     radarNote: "Data: EUMETNET OPERA · CC BY 4.0",
     trackTitle: "Arrow + corridor",
     echoGrow: "echo / growing",

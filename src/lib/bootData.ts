@@ -45,7 +45,8 @@ export function isBootDataReady(
   if (!data.windReal) return false;
   if (
     data.dataSources?.opera?.ok === false &&
-    data.radarData.features.length === 0
+    data.radarData.features.length === 0 &&
+    !data.radarRaster
   ) {
     return false;
   }
