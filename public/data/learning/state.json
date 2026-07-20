@@ -504,48 +504,6 @@
       "dbzDelta5": null,
       "dbzDelta15": null
     },
-    "t:20260720154500:51.10:16.52": {
-      "lat": 51.09334015761349,
-      "lon": 16.551756363166707,
-      "maxDbz": 45.0,
-      "lastTs": "20260720155000",
-      "cellId": "cell-44",
-      "firstTs": "20260720154500",
-      "preds": {
-        "15": {
-          "predLat": 51.0682,
-          "predLon": 16.7012,
-          "fromTs": "20260720155000",
-          "fromLat": 51.0933,
-          "fromLon": 16.5518,
-          "heading": 104.9,
-          "speed": 43.2,
-          "motionSource": "radar-track",
-          "windAlignDeg": 9.7
-        },
-        "30": {
-          "predLat": 51.0429,
-          "predLon": 16.8505,
-          "fromTs": "20260720155000",
-          "fromLat": 51.0933,
-          "fromLon": 16.5518,
-          "heading": 104.9,
-          "speed": 43.2,
-          "motionSource": "radar-track",
-          "windAlignDeg": 9.7
-        }
-      },
-      "dbzSlopePer15": -4.5,
-      "areaPx": 11,
-      "growthDbz": -4.5,
-      "surfaceDbz": null,
-      "fctAgree": true,
-      "fctAngleDiffDeg": 13.0,
-      "hailCmProxy": null,
-      "purpleCandidate": false,
-      "dbzDelta5": 0.0,
-      "dbzDelta15": -4.5
-    },
     "t:20260720155000:51.09:16.55": {
       "lat": 51.09334015761349,
       "lon": 16.551756363166707,
@@ -965,48 +923,6 @@
       "purpleCandidate": false,
       "dbzDelta5": null,
       "dbzDelta15": null
-    },
-    "t:20260720152500:51.74:14.41": {
-      "lat": 51.780061498226715,
-      "lon": 14.25419023952817,
-      "maxDbz": 41.0,
-      "lastTs": "20260720155000",
-      "cellId": "cell-4",
-      "firstTs": "20260720155000",
-      "preds": {
-        "15": {
-          "predLat": 51.7251,
-          "predLon": 14.3768,
-          "fromTs": "20260720155000",
-          "fromLat": 51.7801,
-          "fromLon": 14.2542,
-          "heading": 125.9,
-          "speed": 41.7,
-          "motionSource": "wind-fallback",
-          "windAlignDeg": 167.7
-        },
-        "30": {
-          "predLat": 51.67,
-          "predLon": 14.499,
-          "fromTs": "20260720155000",
-          "fromLat": 51.7801,
-          "fromLon": 14.2542,
-          "heading": 125.9,
-          "speed": 41.7,
-          "motionSource": "wind-fallback",
-          "windAlignDeg": 167.7
-        }
-      },
-      "dbzSlopePer15": 6.75,
-      "areaPx": 12,
-      "growthDbz": 4.5,
-      "surfaceDbz": null,
-      "fctAgree": null,
-      "fctAngleDiffDeg": null,
-      "hailCmProxy": null,
-      "purpleCandidate": true,
-      "dbzDelta5": 0.0,
-      "dbzDelta15": 4.5
     },
     "t:20260720155000:51.78:14.25": {
       "lat": 51.780061498226715,
@@ -14315,6 +14231,52 @@
       "cinJkg": 7.0,
       "steerHdg": 121.7,
       "steerSpd": 43.5
+    },
+    "purple:t:20260720155000:51.78:14.25:15:20260720155000": {
+      "trackKey": "t:20260720155000:51.78:14.25",
+      "horizonMin": 15,
+      "fromTs": "20260720155000",
+      "fromDbz": 41.0,
+      "growthDbz": 4.5,
+      "slope": 6.75,
+      "lat": 51.780061498226715,
+      "lon": 14.25419023952817,
+      "why": "candidate",
+      "envDistKm": 14.4,
+      "cape": 40.0,
+      "capeNow": 40.0,
+      "dew": 11.9,
+      "shear": 4.1,
+      "srh01": 56.1,
+      "cooling": 0.0,
+      "li": null,
+      "freezingLevelM": 2470.0,
+      "cinJkg": 7.0,
+      "steerHdg": 121.7,
+      "steerSpd": 43.5
+    },
+    "purple:t:20260720155000:51.78:14.25:30:20260720155000": {
+      "trackKey": "t:20260720155000:51.78:14.25",
+      "horizonMin": 30,
+      "fromTs": "20260720155000",
+      "fromDbz": 41.0,
+      "growthDbz": 4.5,
+      "slope": 6.75,
+      "lat": 51.780061498226715,
+      "lon": 14.25419023952817,
+      "why": "candidate",
+      "envDistKm": 14.4,
+      "cape": 40.0,
+      "capeNow": 40.0,
+      "dew": 11.9,
+      "shear": 4.1,
+      "srh01": 56.1,
+      "cooling": 0.0,
+      "li": null,
+      "freezingLevelM": 2470.0,
+      "cinJkg": 7.0,
+      "steerHdg": 121.7,
+      "steerSpd": 43.5
     }
   },
   "lastConstants": {
@@ -14338,5 +14300,5 @@
     "INTENSIFY_HIT_DBZ": 3.0
   },
   "schemaVersion": 2,
-  "updatedAt": "2026-07-20T15:56:39Z"
+  "updatedAt": "2026-07-20T16:03:29Z"
 }
