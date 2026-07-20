@@ -15,7 +15,7 @@ import {
   loadRadarHistoryRaster,
 } from "../lib/radarHistory";
 import { filterRadarForCzFocus } from "../lib/radarDisplay";
-import type { RadarRasterMeta } from "../lib/radarRaster";
+import { shiftRadarRaster, type RadarRasterMeta } from "../lib/radarRaster";
 import { useStormDataContext } from "../providers/StormDataProvider";
 import { MAP_STYLE_URL } from "../lib/preloadBoot";
 import {
@@ -54,6 +54,7 @@ import {
   birthMarkersGeoJSON,
   birthTrailGeoJSON,
   buildRadarProgressFeatures,
+  meanForecastDelta,
   peakAtForecast,
   radarArrowsGeoJSONAt,
   radarCellsGeoJSONAt,
@@ -560,14 +561,34 @@ function whenStyleReady(
 /**
  * Nahraje PNG do image source a počká, až je ready.
  * Do té doby vrstva zůstat hidden — jinak MapLibre ukáže červený „error“ obdélník.
+ * Stejné URL = jen setCoordinates (rychlý forecast scrub).
  */
+let lastSyncedRasterUrl: string | null = null;
+
 function syncRadarRasterImage(
   map: maplibregl.Map,
   meta: RadarRasterMeta | null,
 ): Promise<boolean> {
   ensureStormLayers(map);
+  if (!meta?.url) {
+    lastSyncedRasterUrl = null;
+    setLayerVisibility(map, [RADAR_RASTER], false);
+    return Promise.resolve(false);
+  }
+
+  const existing = map.getSource(RADAR_RASTER_SOURCE) as
+    | maplibregl.ImageSource
+    | undefined;
+  if (existing && lastSyncedRasterUrl === meta.url) {
+    try {
+      existing.setCoordinates(meta.coordinates);
+      return Promise.resolve(true);
+    } catch {
+      // full reload below
+    }
+  }
+
   setLayerVisibility(map, [RADAR_RASTER], false);
-  if (!meta?.url) return Promise.resolve(false);
 
   return new Promise((resolve) => {
     const fail = () => resolve(false);
@@ -597,6 +618,7 @@ function syncRadarRasterImage(
         settled = true;
         map.off("sourcedata", onData);
         window.clearTimeout(timer);
+        if (ok) lastSyncedRasterUrl = meta.url;
         resolve(ok);
       };
       const onData = (e: maplibregl.MapSourceDataEvent) => {
@@ -1645,10 +1667,30 @@ export function MapView({
   const forecastMinutes = Math.max(0, timeOffsetMinutes);
   const isHistoryView = timeOffsetMinutes < 0;
   const windGrid = windLow;
-  /** Raster: live nebo historie. Budoucnost (+min) = buňky (není reálný snímek). */
-  const activeRaster = isHistoryView ? historicalRaster : radarRaster;
-  const useRasterDisplay =
-    Boolean(activeRaster) && forecastMinutes === 0;
+  /** Live / history PNG; forecast = stejný PNG posunutý po tracku. */
+  const baseRaster = isHistoryView ? historicalRaster : radarRaster;
+
+  const radarProgress = useMemo(
+    () =>
+      buildRadarProgressFeatures(
+        trackedCells,
+        windLow,
+        location,
+        formationScoredPoints,
+        windUpper,
+        locale,
+      ),
+    [trackedCells, windLow, windUpper, location, formationScoredPoints, locale],
+  );
+
+  const activeRaster = useMemo(() => {
+    if (!baseRaster) return null;
+    if (isHistoryView || forecastMinutes <= 0) return baseRaster;
+    const { dLon, dLat } = meanForecastDelta(radarProgress, forecastMinutes);
+    return shiftRadarRaster(baseRaster, dLon, dLat);
+  }, [baseRaster, isHistoryView, forecastMinutes, radarProgress]);
+
+  const useRasterDisplay = Boolean(activeRaster);
   const operaReady = radarData.features.length > 0 || Boolean(activeRaster);
   const rasterReadyRef = useRef(false);
   const radarRasterRef = useRef(activeRaster);
@@ -1742,7 +1784,7 @@ export function MapView({
         if (activeRaster && useRasterDisplay) {
           const ok = await syncRadarRasterImage(map, activeRaster);
           rasterReadyRef.current = ok;
-          if (ok && showRadar && forecastMinutes <= 0) {
+          if (ok && showRadar) {
             setLayerVisibility(map, [RADAR_RASTER], true);
           }
         } else {
@@ -1764,18 +1806,6 @@ export function MapView({
     forecastMinutes,
   ]);
 
-  const radarProgress = useMemo(
-    () =>
-      buildRadarProgressFeatures(
-        trackedCells,
-        windLow,
-        location,
-        formationScoredPoints,
-        windUpper,
-        locale,
-      ),
-    [trackedCells, windLow, windUpper, location, formationScoredPoints, locale],
-  );
   const intensForecasts = useMemo(
     () => buildIntensificationForecasts(radarProgress, formationScoredPoints),
     [radarProgress, formationScoredPoints],
@@ -2247,24 +2277,23 @@ export function MapView({
         );
       }
       const showProgressNow = showProgress && !isHistoryView;
-      // Budoucnost musí jet i bez zapnuté Stopy — jinak zůstane statické OPERA.
-      const showForecastCells =
+      // Tracky / šipky / peaky v +min — déšť zůstává PNG (posunutý), ne buňkový fill.
+      const showForecastOverlay =
         forecastMinutes > 0 && !isHistoryView && useRadarProgress;
       const showCellsNow =
-        (showProgressNow || showForecastCells) && useRadarProgress;
+        (showProgressNow || showForecastOverlay) && useRadarProgress;
       const hasOpera =
         useRasterDisplay ||
         (operaReady && radarDataRef.current.features.length > 0);
-      const liveRadarOn = showRadar && hasOpera && !showForecastCells;
+      const liveRadarOn = showRadar && hasOpera;
       const showRaster =
         liveRadarOn && useRasterDisplay && rasterReadyRef.current;
       const showContourFill = liveRadarOn && !useRasterDisplay;
       // Detail (zrod / zesílení / ghost) jen po výběru buňky — mapa zůstane čitelná.
       const showCellDetail =
         showProgressNow && useRadarProgress && selectedRadarId != null;
-      // Buňkový fill pod radarem = duplicita; jen forecast nebo když je radar vypnutý.
-      const showCellFill =
-        showForecastCells || (showCellsNow && !liveRadarOn);
+      // Buňkový fill jen když není raster (fallback) — jinak duplicita pod PNG.
+      const showCellFill = showCellsNow && !showRaster;
 
       setLayerVisibility(
         map,
@@ -2275,7 +2304,7 @@ export function MapView({
       setLayerVisibility(
         map,
         [GHOST_FILL, GHOST_LINE],
-        showCellDetail && !showForecastCells,
+        showCellDetail && !showForecastOverlay,
       );
       setLayerVisibility(
         map,
@@ -2310,7 +2339,7 @@ export function MapView({
         map.setPaintProperty(
           CELL_FILL,
           "fill-opacity",
-          showForecastCells ? 0.82 : dbzFillOpacity,
+          showForecastOverlay ? 0.82 : dbzFillOpacity,
         );
       }
     };
