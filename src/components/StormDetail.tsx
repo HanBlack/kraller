@@ -26,6 +26,10 @@ import {
 
 } from "../storm/buildAlert";
 
+import { showSupercellEnvBadge } from "../storm/scoreActive";
+
+import type { ActiveStormAssessment } from "../storm/types";
+
 import type { ScoredFormationPoint } from "../storm/formationData";
 
 import { formationEnvironmentSummary } from "../storm/formationCopy";
@@ -81,29 +85,49 @@ type Props = {
 
 
 function SeverityBadge({
-
   severity,
-
   formation = false,
-
 }: {
-
   severity: "weak" | "moderate" | "strong";
-
   formation?: boolean;
-
 }) {
-
   const { locale } = useI18n();
-
   const label = formation
-
     ? formationSeverityLabel(severity, locale)
-
     : severityLabel(severity, locale);
-
   return <span className={`severity-badge ${severity}`}>{label}</span>;
+}
 
+/** Upřímné riziko — ne „kroupy padají“ / „vidíme rotaci“. */
+function HazardBadges({
+  assessment,
+}: {
+  assessment: ActiveStormAssessment | null | undefined;
+}) {
+  const { t } = useI18n();
+  if (!assessment) return null;
+
+  const hail =
+    assessment.hailCmMax != null &&
+    assessment.hailCmMax >= 1 &&
+    assessment.maxDbz >= 55;
+  const supercell = showSupercellEnvBadge(assessment);
+  if (!hail && !supercell) return null;
+
+  return (
+    <div className="hazard-badges" role="group" aria-label={t("alert.expect")}>
+      {hail ? (
+        <span className="hazard-badge hail">
+          {t("alert.hailRiskCm", { cm: assessment.hailCmMax! })}
+        </span>
+      ) : null}
+      {supercell ? (
+        <span className="hazard-badge supercell">
+          {t("alert.supercellEnv")}
+        </span>
+      ) : null}
+    </div>
+  );
 }
 
 
@@ -282,7 +306,7 @@ function RadarLifecycleDetail({
 
       <p className="alert-message">{life.summary}</p>
 
-
+      <HazardBadges assessment={feature.assessment} />
 
       {toYou && feature.threatens === 1 && (
 
@@ -349,19 +373,27 @@ function RadarLifecycleDetail({
               >
 
                 <span className="lifecycle-step-toggle-text">
-
-                  <span className="lifecycle-step-title">{step.title}</span>
-
+                  <span className="lifecycle-step-title">
+                    {step.title}
+                    {step.badge ? (
+                      <span
+                        className={`lifecycle-badge confidence-${
+                          step.badge === "z radaru"
+                            ? "observed"
+                            : step.badge === "trend"
+                              ? "trending"
+                              : "climatology"
+                        }`}
+                      >
+                        {step.badge}
+                      </span>
+                    ) : null}
+                  </span>
                   {!open && (
-
                     <span className="lifecycle-step-body-preview">
-
                       {step.body}
-
                     </span>
-
                   )}
-
                 </span>
 
                 <span className="lifecycle-step-chevron" aria-hidden>
@@ -732,6 +764,8 @@ export function StormDetail({
 
   const dir = headingLabel(feature.storm.headingDeg, locale);
 
+  const alertDetail = alert ? formatStormAlertDetail(alert, locale) : null;
+
 
 
   return (
@@ -787,6 +821,12 @@ export function StormDetail({
               : t("storm.headingNeedAddress", { dir })}
 
       </p>
+
+      <HazardBadges assessment={feature.assessment} />
+
+      {alertDetail ? (
+        <p className="to-you-expect">{alertDetail}</p>
+      ) : null}
 
     </section>
 

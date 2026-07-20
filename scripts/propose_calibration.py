@@ -28,6 +28,11 @@ CURRENT = {
     "TRUE_BIRTH_MAX_AGE_MIN": 18,
     "MIN_ZONE_SCORE": 28,
     "FORMATION_HIT_KM": 35,
+    "FCT_AGREE_MAX_DEG": 35,
+    "INTENSIFY_ALERT_SCORE_MIN": 32,
+    "INTENSIFY_SUPPRESS_GROWTH_DBZ": -1.5,
+    "HAIL_LIKELY_DBZ": 55,
+    "HAIL_MIN_ABOVE_FZL_KM": 1.5,
 }
 
 
@@ -285,6 +290,171 @@ def propose_speed_bias(tracks: list[dict]) -> dict:
     }
 
 
+def propose_fct_agree(tracks: list[dict]) -> dict:
+    """Když FCT nesouhlasí, je track err větší? → práh FCT_AGREE_MAX_DEG."""
+    pairs = [
+        (
+            float(s["fctAngleDiffDeg"]),
+            float(s["errKm"]),
+            bool(s.get("fctAgree")),
+        )
+        for s in tracks
+        if s.get("fctAngleDiffDeg") is not None
+        and s.get("errKm") is not None
+        and int(s.get("horizonMin") or 0) == 15
+    ]
+    if len(pairs) < 15:
+        return {
+            "param": "FCT_AGREE_MAX_DEG",
+            "current": CURRENT["FCT_AGREE_MAX_DEG"],
+            "proposed": CURRENT["FCT_AGREE_MAX_DEG"],
+            "confidence": "low",
+            "n": len(pairs),
+            "file": "scripts/chmi_radar.py + src/storm/radarCells.ts",
+            "reason": "málo track samples s FCT (sběr ČHMÚ Fáze 3)",
+        }
+    best = CURRENT["FCT_AGREE_MAX_DEG"]
+    best_gap = -1.0
+    evidence = []
+    for thr in (25, 30, 35, 40, 50):
+        agree_err = [e for a, e, _ in pairs if a <= thr]
+        disagree_err = [e for a, e, _ in pairs if a > thr]
+        if len(agree_err) < 3 or len(disagree_err) < 3:
+            continue
+        ma, md = med(agree_err) or 0, med(disagree_err) or 0
+        gap = md - ma  # očekáváme vyšší err při disagree
+        evidence.append(
+            {
+                "thr": thr,
+                "nAgree": len(agree_err),
+                "nDisagree": len(disagree_err),
+                "medErrAgree": ma,
+                "medErrDisagree": md,
+                "gapKm": round(gap, 2),
+            }
+        )
+        if gap > best_gap:
+            best_gap = gap
+            best = thr
+    return {
+        "param": "FCT_AGREE_MAX_DEG",
+        "current": CURRENT["FCT_AGREE_MAX_DEG"],
+        "proposed": best,
+        "confidence": "high" if len(pairs) >= 40 else "medium",
+        "n": len(pairs),
+        "evidence": evidence,
+        "file": "scripts/chmi_radar.py (FCT_AGREE_MAX_DEG)",
+        "reason": "max gap median errKm agree vs disagree podle úhlu FCT",
+    }
+
+
+def propose_intensify(purples: list[dict]) -> dict:
+    """Hit rate fialové → alertScoreMin / suppress growth."""
+    if len(purples) < 12:
+        return {
+            "param": "intensification.alertScoreMin",
+            "current": CURRENT["INTENSIFY_ALERT_SCORE_MIN"],
+            "proposed": CURRENT["INTENSIFY_ALERT_SCORE_MIN"],
+            "confidence": "low",
+            "n": len(purples),
+            "file": "src/storm/config.ts",
+            "reason": "malo intensify samples (purple candidate -> T+15/30)",
+        }
+    hits = [p for p in purples if p.get("hitIntensify")]
+    misses = [p for p in purples if p.get("hitIntensify") is False]
+    hit_rate = len(hits) / max(1, len(purples))
+    # nízký hit rate → zpřísnit (vyšší alertScoreMin)
+    if hit_rate < 0.35:
+        proposed = min(48, CURRENT["INTENSIFY_ALERT_SCORE_MIN"] + 8)
+        reason = f"hit rate {hit_rate:.0%} — příliš false positive, zpřísnit"
+    elif hit_rate > 0.7:
+        proposed = max(24, CURRENT["INTENSIFY_ALERT_SCORE_MIN"] - 4)
+        reason = f"hit rate {hit_rate:.0%} — lze mírně uvolnit"
+    else:
+        proposed = CURRENT["INTENSIFY_ALERT_SCORE_MIN"]
+        reason = f"hit rate {hit_rate:.0%} — držet"
+    return {
+        "param": "intensification.alertScoreMin",
+        "current": CURRENT["INTENSIFY_ALERT_SCORE_MIN"],
+        "proposed": proposed,
+        "confidence": "high" if len(purples) >= 40 else "medium",
+        "n": len(purples),
+        "hitRate": round(hit_rate, 3),
+        "nHit": len(hits),
+        "nMiss": len(misses),
+        "file": "src/storm/config.ts",
+        "reason": reason,
+        "alsoReview": {
+            "param": "intensification.suppressIfGrowthDbzBelow",
+            "current": CURRENT["INTENSIFY_SUPPRESS_GROWTH_DBZ"],
+            "hint": "při fade po purple zkontroluj růst dBZ před kandidátem",
+        },
+    }
+
+
+def propose_hail(events_hail_hint: list[dict], demises: list[dict]) -> dict:
+    """
+    Heuristika: silné echo + hailCmProxy — pokud po tom rychlý fade,
+    možná příliš agresivní FZL práh (nebo naopak).
+    """
+    with_hail = [d for d in demises if d.get("hailCmProxy")]
+    if len(with_hail) < 5 and len(events_hail_hint) < 10:
+        return {
+            "param": "active.hail.minAboveFreezingKm",
+            "current": CURRENT["HAIL_MIN_ABOVE_FZL_KM"],
+            "proposed": CURRENT["HAIL_MIN_ABOVE_FZL_KM"],
+            "confidence": "low",
+            "n": len(with_hail) + len(events_hail_hint),
+            "file": "src/storm/config.ts",
+            "reason": "málo hail proxy samples (čekej silné buňky + FZL v env)",
+        }
+    fade_after = sum(
+        1
+        for d in with_hail
+        if d.get("demiseReason") == "fade"
+        and d.get("lifeMin") is not None
+        and float(d["lifeMin"]) < 40
+    )
+    # hodně krátkých fade po „kroupách“ → přísnější (vyšší minAboveFreezing)
+    if with_hail and fade_after / max(1, len(with_hail)) > 0.55:
+        proposed = round(CURRENT["HAIL_MIN_ABOVE_FZL_KM"] + 0.5, 1)
+        reason = "častý krátký fade po hail proxy — zpřísnit FZL excess"
+    else:
+        proposed = CURRENT["HAIL_MIN_ABOVE_FZL_KM"]
+        reason = "zatím držet; ladit až s víc bouřkami"
+    return {
+        "param": "active.hail.minAboveFreezingKm",
+        "current": CURRENT["HAIL_MIN_ABOVE_FZL_KM"],
+        "proposed": proposed,
+        "confidence": "medium" if len(with_hail) >= 15 else "low",
+        "n": len(with_hail),
+        "nHailEvents": len(events_hail_hint),
+        "shortFadeShare": round(fade_after / max(1, len(with_hail)), 2) if with_hail else None,
+        "file": "src/storm/config.ts",
+        "reason": reason,
+        "alsoReview": {
+            "param": "active.hail.likelyDbz",
+            "current": CURRENT["HAIL_LIKELY_DBZ"],
+        },
+    }
+
+
+def load_track_sample_events() -> list[dict]:
+    rows: list[dict] = []
+    if not LEARNING_DIR.is_dir():
+        return rows
+    for path in sorted(LEARNING_DIR.glob("events-*.jsonl")):
+        with path.open(encoding="utf-8") as f:
+            for line in f:
+                try:
+                    ev = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if ev.get("kind") == "track_sample":
+                    rows.append(ev)
+    return rows
+
+
 def main() -> int:
     samples = load_samples()
     tracks = [s for s in samples if s.get("type") == "track"]
@@ -292,6 +462,9 @@ def main() -> int:
     births = [s for s in samples if s.get("type") == "birth_features"]
     intens = [s for s in samples if s.get("type") == "intensity"]
     demises = [s for s in samples if s.get("type") == "demise"]
+    purples = [s for s in samples if s.get("type") == "intensify"]
+    track_ev = load_track_sample_events()
+    hail_ev = [e for e in track_ev if e.get("hailCmProxy")]
 
     proposals = [
         propose_wind_align(tracks),
@@ -299,6 +472,9 @@ def main() -> int:
         propose_birth(births),
         propose_formation(forms),
         propose_speed_bias(tracks),
+        propose_fct_agree(tracks),
+        propose_intensify(purples),
+        propose_hail(hail_ev, demises),
     ]
 
     intens_note = None
@@ -308,6 +484,15 @@ def main() -> int:
             "n": len(intens),
             "medianAbsErrDbz": med(errs),
             "hint": "slope z historie; při velké chybě doladit intensifikaci / env weight",
+        }
+
+    purple_note = None
+    if purples:
+        hits = sum(1 for p in purples if p.get("hitIntensify"))
+        purple_note = {
+            "n": len(purples),
+            "hitRate": round(hits / len(purples), 3),
+            "hint": "upřímná fialová — nízký hitRate → vyšší alertScoreMin / suppress",
         }
 
     demise_note = None
@@ -322,7 +507,19 @@ def main() -> int:
             "n": len(demises),
             "reasons": dict(by_r),
             "medianLifeMin": med(lives),
+            "nWithHailProxy": sum(1 for d in demises if d.get("hailCmProxy")),
+            "nAfterPurple": sum(1 for d in demises if d.get("purpleCandidate")),
         }
+
+    surface_n = sum(1 for e in track_ev if e.get("surfaceDbz") is not None)
+    fct_n = sum(1 for e in track_ev if e.get("fctAgree") is not None)
+    fzl_n = sum(1 for e in track_ev if e.get("freezingLevelM") is not None)
+
+    ready = (
+        len(tracks) >= 50
+        and len(forms) >= 20
+        and (len(purples) >= 12 or len(tracks) >= 120)
+    )
 
     report = {
         "generatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -331,16 +528,31 @@ def main() -> int:
             "formation": len(forms),
             "birth_features": len(births),
             "intensity": len(intens),
+            "intensify": len(purples),
             "demise": len(demises),
+            "track_sample_events": len(track_ev),
+            "withSurfaceDbz": surface_n,
+            "withFct": fct_n,
+            "withFreezingLevel": fzl_n,
+            "withHailProxy": len(hail_ev),
             "total": len(samples),
         },
-        "readyForApply": len(tracks) >= 50 and len(forms) >= 20,
+        "readyForApply": ready,
         "proposals": proposals,
         "intensity": intens_note,
+        "intensifyPurple": purple_note,
         "demise": demise_note,
         "applyHint": (
-            "Po review propsat proposed do src/storm/stormTrackRules.ts "
-            "a ACTIVE_CONSTANTS v scripts/emit_learning.py / calibrate_nowcast.py"
+            "Po review propsat: "
+            "src/storm/stormTrackRules.ts (motion/birth), "
+            "src/storm/formationData.ts (MIN_ZONE_SCORE), "
+            "src/storm/config.ts (hail / intensification), "
+            "scripts/chmi_radar.py (FCT_AGREE_MAX_DEG), "
+            "ACTIVE_CONSTANTS v scripts/emit_learning.py"
+        ),
+        "tuneInDays": (
+            "Po ~2 dnech bouřek: npm run data:learning-summary && "
+            "npm run data:propose-calibration → public/data/calibration/proposal.json"
         ),
     }
 
@@ -349,11 +561,17 @@ def main() -> int:
         json.dump(report, f, ensure_ascii=False, indent=2)
 
     print(f"Wrote {OUT}")
-    print(f"readyForApply={report['readyForApply']} tracks={len(tracks)} formation={len(forms)}")
+    print(
+        f"readyForApply={report['readyForApply']} "
+        f"tracks={len(tracks)} formation={len(forms)} intensify={len(purples)}"
+    )
     for p in proposals:
+        cur = p.get("current")
+        prop = p.get("proposed")
+        reason = str(p.get("reason", "")).replace("\u2192", "->").replace("\u2014", "-")[:70]
         print(
-            f"  {p['param']}: {p.get('current')} -> {p.get('proposed')} "
-            f"[{p.get('confidence')}] {p.get('reason', '')[:60]}"
+            f"  {p['param']}: {cur} -> {prop} "
+            f"[{p.get('confidence')}] {reason}"
         )
     return 0
 

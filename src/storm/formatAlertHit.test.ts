@@ -32,6 +32,17 @@ describe("formatStormAlert — síla u adresy před příchodem", () => {
     expect(detail).toMatch(/mm\/h/i);
   });
 
+  it("silné echo: detail má riziko krup s cm", () => {
+    const scored = scoreActiveStorm(
+      cell({ maxDbz: 58, echoTopKm: 12, approachAngleDeg: 2 }),
+    );
+    expect(scored.hailCmMax).not.toBeNull();
+    const alert = alertFromActive(scored, "Hrozenkov");
+    const detail = formatStormAlertDetail(alert!, "cs");
+    expect(detail).toMatch(/kroupy/i);
+    expect(detail).toMatch(/cm/);
+  });
+
   it("okraj: text říká že jádro mine + slabší déšť", () => {
     const scored = scoreActiveStorm(
       cell({ distanceToUserKm: 35, approachAngleDeg: 18 }),

@@ -20,16 +20,37 @@ function ramp(value: number, lo: number, hi: number) {
   return clamp01((value - lo) / (hi - lo));
 }
 
-function estimateHailCm(echoTopKm: number, maxDbz: number): number | null {
+/**
+ * Proxy velikosti krup — jen silné echo.
+ * Se známou nulovou izotermou: Waldvogel-style (echo musí být výrazně nad FZL).
+ */
+export function estimateHailCm(
+  echoTopKm: number,
+  maxDbz: number,
+  freezingLevelM?: number | null,
+): number | null {
   const h = stormConfig.active.hail;
   // Jen u silného echa — jinak falešné „kroupy X cm“ z proxy výšky
   if (maxDbz < Math.max(h.likelyDbz, 55)) return null;
   if (echoTopKm < h.likelyEchoTopKm) return null;
 
+  if (freezingLevelM != null && freezingLevelM > 0) {
+    const excessKm = echoTopKm - freezingLevelM / 1000;
+    if (excessKm < h.minAboveFreezingKm) return null;
+  }
+
   let cm = 1;
   for (const step of h.cmFromEchoTop) {
     if (echoTopKm >= step.minKm) cm = step.cm;
   }
+
+  // Hlubší echo nad FZL → mírně vyšší odhad (stále proxy, ne měření)
+  if (freezingLevelM != null && freezingLevelM > 0) {
+    const excessKm = echoTopKm - freezingLevelM / 1000;
+    if (excessKm >= 4) cm = Math.max(cm, 4);
+    else if (excessKm >= 3) cm = Math.max(cm, 2);
+  }
+
   return cm;
 }
 
@@ -74,6 +95,17 @@ export function scoreActiveStorm(
 
   const hit = classifyHitAtUser(cell);
   const strengthDbz = hit.atUserDbz ?? cell.maxDbz;
+  // Déšť: PseudoCAPPI u země (CZ), jinak dBZ u zásahu z maxZ
+  const rainDbz =
+    cell.surfaceDbz != null && cell.surfaceDbz > 0
+      ? hit.hitType === "core"
+        ? cell.surfaceDbz
+        : hit.hitType === "fringe"
+          ? Math.max(28, cell.surfaceDbz - 10)
+          : hit.hitType === "edge"
+            ? Math.max(25, cell.surfaceDbz - 18)
+            : strengthDbz
+      : strengthDbz;
 
   const zN = ramp(
     cell.maxDbz,
@@ -125,12 +157,19 @@ export function scoreActiveStorm(
   } else {
     reasons.push(`odhad výšky echa ~${cell.echoTopKm.toFixed(1)} km`);
   }
+  if (cell.surfaceDbz != null && cell.surfaceDbz > 0) {
+    reasons.push(`u země ~${cell.surfaceDbz.toFixed(0)} dBZ (PseudoCAPPI)`);
+  }
   if (towardN > 0.5) {
     reasons.push(`směr k lokaci (úhel ${cell.approachAngleDeg.toFixed(0)}°)`);
   }
 
-  const hailCm = estimateHailCm(cell.echoTopKm, cell.maxDbz);
-  const rain = estimateRainMmH(strengthDbz);
+  const hailCm = estimateHailCm(
+    cell.echoTopKm,
+    cell.maxDbz,
+    env?.freezingLevelM,
+  );
+  const rain = estimateRainMmH(rainDbz);
   const eta = estimateEtaMinutes(cell);
 
   const hailScore = hailCm != null ? clamp01(hailCm / 5) * 100 : topN * 40;
@@ -147,6 +186,16 @@ export function scoreActiveStorm(
           0.6 +
           (supercell / 100) * 0.4,
       ) * 100;
+  }
+
+  if (hailCm != null) {
+    reasons.push(`riziko krup ~${hailCm} cm (proxy)`);
+  }
+  if (
+    supercell >= stormConfig.severe.supercellScoreMin &&
+    cell.maxDbz >= cfg.reflectivityDbz.strong
+  ) {
+    reasons.push(`prostředí vhodné pro supercelu (ne rotace)`);
   }
 
   const hazards: HazardScores = {
@@ -182,4 +231,12 @@ export function shouldAlertActive(a: ActiveStormAssessment): boolean {
   // Blízko + smysluplné echo → varuj i při nižším overall skóre
   if (a.score >= 38 && a.etaMinutes <= 45) return true;
   return a.score >= stormConfig.active.alertScoreMin;
+}
+
+/** Zobrazit badge supercely — silné echo + vysoké skóre prostředí. */
+export function showSupercellEnvBadge(a: ActiveStormAssessment): boolean {
+  return (
+    a.hazards.supercell >= stormConfig.severe.supercellScoreMin &&
+    a.maxDbz >= stormConfig.active.reflectivityDbz.strong
+  );
 }

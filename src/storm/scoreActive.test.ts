@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { scoreActiveStorm, shouldAlertActive } from "./scoreActive";
-import type { RadarCellSignals } from "./types";
+import {
+  estimateHailCm,
+  scoreActiveStorm,
+  shouldAlertActive,
+} from "./scoreActive";
+import type { EnvironmentSignals, RadarCellSignals } from "./types";
 
 function cell(partial: Partial<RadarCellSignals>): RadarCellSignals {
   return {
@@ -14,6 +18,21 @@ function cell(partial: Partial<RadarCellSignals>): RadarCellSignals {
     distanceToUserKm: 30,
     approachAngleDeg: 5,
     fromPlace: "test",
+    ...partial,
+  };
+}
+
+function env(partial: Partial<EnvironmentSignals> = {}): EnvironmentSignals {
+  return {
+    capeJkg: 800,
+    capeNowJkg: 600,
+    dewpointC: 16,
+    shear0to6Ms: 20,
+    srh01: 120,
+    cloudTopCoolingCPer15min: -1,
+    liftedIndexC: -3,
+    freezingLevelM: 3200,
+    convectiveInhibitionJkg: -20,
     ...partial,
   };
 }
@@ -82,5 +101,51 @@ describe("scoreActiveStorm — zásah u adresy", () => {
     );
     expect(a.etaMinutes).not.toBeNull();
     expect(shouldAlertActive(a)).toBe(true);
+  });
+});
+
+describe("estimateHailCm — Waldvogel / FZL", () => {
+  it("bez FZL: silné echo + vysoký top → kroupy", () => {
+    expect(estimateHailCm(12, 58)).toBe(2);
+  });
+
+  it("s FZL: echo málo nad nulovou izotermou → žádné kroupy", () => {
+    // echo 11 km, FZL 10 km → excess 1 km < 1.5
+    expect(estimateHailCm(11, 60, 10_000)).toBeNull();
+  });
+
+  it("s FZL: dostatečná hloubka nad FZL → kroupy", () => {
+    // echo 12 km, FZL 3.2 km → excess 8.8 km
+    expect(estimateHailCm(12, 58, 3200)).toBeGreaterThanOrEqual(2);
+  });
+
+  it("slabé echo → null i s vysokým topem", () => {
+    expect(estimateHailCm(14, 48, 3000)).toBeNull();
+  });
+
+  it("scoreActiveStorm předá FZL z env", () => {
+    const withLid = scoreActiveStorm(
+      cell({ maxDbz: 58, echoTopKm: 11 }),
+      env({ freezingLevelM: 10_000 }),
+    );
+    const deep = scoreActiveStorm(
+      cell({ maxDbz: 58, echoTopKm: 12 }),
+      env({ freezingLevelM: 3200 }),
+    );
+    expect(withLid.hailCmMax).toBeNull();
+    expect(deep.hailCmMax).not.toBeNull();
+  });
+
+  it("PseudoCAPPI surfaceDbz snižuje odhad mm/h oproti maxZ", () => {
+    const fromMax = scoreActiveStorm(
+      cell({ maxDbz: 58, approachAngleDeg: 2 }),
+    );
+    const fromSurf = scoreActiveStorm(
+      cell({ maxDbz: 58, surfaceDbz: 42, approachAngleDeg: 2 }),
+    );
+    expect(fromSurf.rainMmPerHour).not.toBeNull();
+    expect(fromMax.rainMmPerHour).not.toBeNull();
+    expect(fromSurf.rainMmPerHour![1]).toBeLessThan(fromMax.rainMmPerHour![1]);
+    expect(fromSurf.reasons.some((r) => r.includes("PseudoCAPPI"))).toBe(true);
   });
 });

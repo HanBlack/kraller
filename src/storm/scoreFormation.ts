@@ -74,6 +74,12 @@ export function scoreFormation(
     reasons.push(`lifted index ${(env.liftedIndexC ?? 0).toFixed(1)} °C`);
   }
 
+  const cinMag =
+    env.convectiveInhibitionJkg != null
+      ? Math.abs(env.convectiveInhibitionJkg)
+      : 0;
+  const cinPenalty = cinMag >= 40 ? clamp01((cinMag - 40) / 160) : 0;
+
   const w = cfg.weights;
   const srhWeight = 0.12;
   const wSum = w.cape + w.dewpoint + w.shear + w.satelliteGrowth + srhWeight;
@@ -89,6 +95,12 @@ export function scoreFormation(
   // Jen reálná nestabilita — ne umělý boost z vlhkosti při CAPE≈0
   if (env.capeJkg >= 40 && (env.liftedIndexC ?? 99) <= 0) {
     overall = Math.max(overall, 18 + capeN * 8 + dewN * 6);
+  }
+
+  // Silný záklop (CIN) snižuje šanci vzniku — upřímněji „proč zatím nic“
+  if (cinPenalty > 0) {
+    overall *= 1 - cinPenalty * 0.4;
+    reasons.push(`CIN ~${Math.round(cinMag)} J/kg (záklop)`);
   }
 
   const supercell =
@@ -135,8 +147,14 @@ export function isViableFormationEnv(env: EnvironmentSignals): boolean {
   const cape = env.capeJkg ?? 0;
   const dew = env.dewpointC ?? -40;
   const li = env.liftedIndexC ?? 99;
+  const cinMag =
+    env.convectiveInhibitionJkg != null
+      ? Math.abs(env.convectiveInhibitionJkg)
+      : 0;
   if (dew < 11) return false;
   if (cape < 25) return false;
+  // Silný záklop + málo energie → zatím nevykreslovat zónu vzniku
+  if (cinMag >= 120 && cape < 250) return false;
   if (cape >= 100) return true;
   if (cape >= 50 && li <= 1) return true;
   if (cape >= 40 && li <= 0 && dew >= 13) return true;

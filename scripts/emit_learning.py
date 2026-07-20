@@ -50,6 +50,14 @@ ACTIVE_CONSTANTS = {
     "FORMATION_TIMEOUT_MIN": 150,
     "WIND_BLEND_850": 0.25,
     "WIND_BLEND_500": 0.75,
+    # stormConfig / ČHMÚ — pro propose po ~2 dnech
+    "HAIL_LIKELY_DBZ": 55,
+    "HAIL_LIKELY_ECHO_TOP_KM": 10,
+    "HAIL_MIN_ABOVE_FZL_KM": 1.5,
+    "FCT_AGREE_MAX_DEG": 35,
+    "INTENSIFY_ALERT_SCORE_MIN": 32,
+    "INTENSIFY_SUPPRESS_GROWTH_DBZ": -1.5,
+    "INTENSIFY_HIT_DBZ": 3.0,  # act − from ≥ 3 = hit po purple candidate
 }
 
 
@@ -311,9 +319,58 @@ def nearest_env(lat: float, lon: float, points: list[dict], max_km: float = 40.0
         "srh01": env.get("srh01"),
         "cooling": env.get("cloudTopCoolingCPer15min"),
         "li": env.get("liftedIndexC"),
+        "freezingLevelM": env.get("freezingLevelM"),
+        "cinJkg": env.get("convectiveInhibitionJkg"),
         "steerHdg": env.get("steerHeadingDeg"),
         "steerSpd": env.get("steerSpeedKmh"),
     }
+
+
+def estimate_hail_cm_proxy(
+    echo_top_km: float | None,
+    max_dbz: float,
+    freezing_level_m: float | None,
+) -> float | None:
+    """Zrcadlo scoreActive.estimateHailCm — pro learning samples."""
+    if max_dbz < ACTIVE_CONSTANTS["HAIL_LIKELY_DBZ"]:
+        return None
+    if echo_top_km is None or echo_top_km < ACTIVE_CONSTANTS["HAIL_LIKELY_ECHO_TOP_KM"]:
+        return None
+    if freezing_level_m is not None and freezing_level_m > 0:
+        excess = echo_top_km - freezing_level_m / 1000.0
+        if excess < ACTIVE_CONSTANTS["HAIL_MIN_ABOVE_FZL_KM"]:
+            return None
+    cm = 1.0
+    for min_km, step_cm in ((10, 1), (12, 2), (14, 4), (16, 5)):
+        if echo_top_km >= min_km:
+            cm = float(step_cm)
+    return cm
+
+
+def purple_candidate(
+    cell: dict,
+    env: dict | None,
+    trend: dict,
+) -> tuple[bool, str]:
+    """
+    Proxy „ukázali bychom fialovou“ — bez plného intensification.ts.
+    Cíl: skórovat hit vs demise po kandidátovi.
+    """
+    growth = cell.get("growthDbz")
+    if growth is not None and float(growth) < ACTIVE_CONSTANTS["INTENSIFY_SUPPRESS_GROWTH_DBZ"]:
+        return False, "suppressed_decay"
+    dbz = float(cell.get("maxDbz") or 0)
+    if dbz < 38 or dbz >= 60:
+        return False, "dbz_range"
+    slope = float(trend.get("dbzSlopePer15") or 0)
+    cape = float((env or {}).get("cape") or 0)
+    shear = float((env or {}).get("shear") or 0)
+    # silné echo + slabý trend + nízké CAPE → ne kandidát
+    if slope < 0.5 and cape < 200:
+        return False, "weak_fuel"
+    if slope >= 1.5 or (cape >= 280 and shear >= 12) or (cape >= 400):
+        return True, "candidate"
+    return False, "no_signal"
 
 
 def track_error_components(
@@ -363,6 +420,7 @@ def cells_from_geojson(path: Path) -> list[dict]:
         if not pos:
             continue
         lon, lat = pos
+        echo_top = props.get("echoTopKm")
         out.append(
             {
                 "id": str(props.get("id") or props.get("cellId") or ""),
@@ -383,6 +441,15 @@ def cells_from_geojson(path: Path) -> list[dict]:
                 "historyMinutes": props.get("historyMinutes"),
                 "time": str(props.get("time") or ""),
                 "history": props.get("history") or [],
+                # ČHMÚ / Fáze 2–3
+                "chmiDbz": props.get("chmiDbz"),
+                "surfaceDbz": props.get("chmiSurfaceDbz"),
+                "echoTopKm": float(echo_top) if echo_top is not None else None,
+                "echoTopSource": props.get("echoTopSource"),
+                "dbzSource": props.get("dbzSource"),
+                "fctAgree": props.get("chmiFctAgree"),
+                "fctAngleDiffDeg": props.get("chmiFctAngleDiffDeg"),
+                "fctHeadingDeg": props.get("chmiFctHeadingDeg"),
             }
         )
     return out
@@ -490,6 +557,7 @@ def emit() -> dict[str, int]:
     prev_tracks: dict[str, Any] = state.get("tracks") or {}
     pending_form: dict[str, Any] = state.get("formationPending") or {}
     pending_intensity: dict[str, Any] = state.get("intensityPending") or {}
+    pending_purple: dict[str, Any] = state.get("purplePending") or {}
 
     events: list[dict] = []
     samples: list[dict] = []
@@ -599,6 +667,13 @@ def emit() -> dict[str, int]:
             )
 
         # --- TRACK SAMPLE (každý snímek) ---
+        fzl = (env or {}).get("freezingLevelM")
+        hail_cm = estimate_hail_cm_proxy(
+            cell.get("echoTopKm"),
+            float(cell["maxDbz"]),
+            float(fzl) if fzl is not None else None,
+        )
+        show_purple, purple_why = purple_candidate(cell, env, trend)
         events.append(
             {
                 "kind": "track_sample",
@@ -623,6 +698,16 @@ def emit() -> dict[str, int]:
                 "motionSource": motion_source,
                 "ageMin": age_min,
                 "histN": len(cell.get("history") or []),
+                "surfaceDbz": cell.get("surfaceDbz"),
+                "echoTopKm": cell.get("echoTopKm"),
+                "chmiDbz": cell.get("chmiDbz"),
+                "dbzSource": cell.get("dbzSource"),
+                "fctAgree": cell.get("fctAgree"),
+                "fctAngleDiffDeg": cell.get("fctAngleDiffDeg"),
+                "fctHeadingDeg": cell.get("fctHeadingDeg"),
+                "hailCmProxy": hail_cm,
+                "purpleCandidate": show_purple,
+                "purpleWhy": purple_why,
                 **trend,
                 **(env or {}),
                 **ages,
@@ -690,6 +775,9 @@ def emit() -> dict[str, int]:
                             "windAlignDeg": align,
                             "actDbz": hit.get("maxDbz"),
                             "dtMin": round(dt, 1),
+                            "fctAgree": cell.get("fctAgree"),
+                            "fctAngleDiffDeg": cell.get("fctAngleDiffDeg"),
+                            "surfaceDbz": cell.get("surfaceDbz"),
                             **ages,
                         }
                     )
@@ -726,8 +814,28 @@ def emit() -> dict[str, int]:
                 "slope": slope,
                 "lat": cell["lat"],
                 "lon": cell["lon"],
+                "surfaceDbz": cell.get("surfaceDbz"),
+                "echoTopKm": cell.get("echoTopKm"),
+                "fctAgree": cell.get("fctAgree"),
                 **(env or {}),
             }
+
+        # fialová / zesílení — kandidát → ověř hit vs fade
+        if show_purple:
+            for horizon in (15, 30):
+                pkey = f"purple:{key}:{horizon}:{ts}"
+                pending_purple[pkey] = {
+                    "trackKey": key,
+                    "horizonMin": horizon,
+                    "fromTs": ts,
+                    "fromDbz": cell["maxDbz"],
+                    "growthDbz": growth,
+                    "slope": slope,
+                    "lat": cell["lat"],
+                    "lon": cell["lon"],
+                    "why": purple_why,
+                    **(env or {}),
+                }
 
         new_tracks[key] = {
             "lat": cell["lat"],
@@ -740,6 +848,11 @@ def emit() -> dict[str, int]:
             "dbzSlopePer15": slope,
             "areaPx": cell.get("areaPx"),
             "growthDbz": growth,
+            "surfaceDbz": cell.get("surfaceDbz"),
+            "fctAgree": cell.get("fctAgree"),
+            "fctAngleDiffDeg": cell.get("fctAngleDiffDeg"),
+            "hailCmProxy": hail_cm,
+            "purpleCandidate": show_purple,
             **trend,
         }
 
@@ -780,6 +893,10 @@ def emit() -> dict[str, int]:
                 "lastDbz": prev.get("maxDbz"),
                 "demiseReason": reason,
                 "dbzSlopePer15": prev.get("dbzSlopePer15"),
+                "surfaceDbz": prev.get("surfaceDbz"),
+                "fctAgree": prev.get("fctAgree"),
+                "hailCmProxy": prev.get("hailCmProxy"),
+                "purpleCandidate": prev.get("purpleCandidate"),
                 "verifiedAt": ts,
                 **ages,
             }
@@ -892,6 +1009,81 @@ def emit() -> dict[str, int]:
         else:
             still_intensity[ikey] = pend
 
+    # --- PURPLE / INTENSIFY VERIFY (hit vs fade) ---
+    still_purple: dict[str, Any] = {}
+    for pkey, pend in pending_purple.items():
+        from_ts = parse_opera_time(str(pend.get("fromTs") or ""))
+        if not from_ts or not t_now:
+            continue
+        age = (t_now - from_ts).total_seconds() / 60.0
+        horizon = int(pend.get("horizonMin") or 15)
+        if age < horizon - 4:
+            still_purple[pkey] = pend
+            continue
+        if age > horizon + 12:
+            # expired without match → treat as miss (bouřka zmizela / nezesílila)
+            samples.append(
+                {
+                    "type": "intensify",
+                    "ts": pend.get("fromTs"),
+                    "horizonMin": horizon,
+                    "trackKey": pend.get("trackKey"),
+                    "fromDbz": pend.get("fromDbz"),
+                    "actDbz": None,
+                    "hitIntensify": False,
+                    "outcome": "expired_or_gone",
+                    "growthDbz": pend.get("growthDbz"),
+                    "slope": pend.get("slope"),
+                    "cape": pend.get("cape"),
+                    "shear": pend.get("shear"),
+                    "why": pend.get("why"),
+                    "verifiedAt": ts,
+                    **ages,
+                }
+            )
+            continue
+        hit_dbz = None
+        for cell in cells:
+            d = haversine_km(pend["lat"], pend["lon"], cell["lat"], cell["lon"])
+            if d <= 25:
+                hit_dbz = cell["maxDbz"]
+                break
+        if hit_dbz is None:
+            for at, peaks in archive.items():
+                at_dt = parse_opera_time(at)
+                if not at_dt:
+                    continue
+                if abs((at_dt - from_ts).total_seconds() / 60.0 - horizon) <= 6:
+                    hit = match_peak(pend["lat"], pend["lon"], peaks, max_km=25.0)
+                    if hit and hit.get("maxDbz") is not None:
+                        hit_dbz = float(hit["maxDbz"])
+                    break
+        if hit_dbz is not None:
+            delta = float(hit_dbz) - float(pend.get("fromDbz") or 0)
+            hit_ok = delta >= ACTIVE_CONSTANTS["INTENSIFY_HIT_DBZ"]
+            samples.append(
+                {
+                    "type": "intensify",
+                    "ts": pend.get("fromTs"),
+                    "horizonMin": horizon,
+                    "trackKey": pend.get("trackKey"),
+                    "fromDbz": pend.get("fromDbz"),
+                    "actDbz": hit_dbz,
+                    "deltaDbz": round(delta, 1),
+                    "hitIntensify": hit_ok,
+                    "outcome": "intensified" if hit_ok else "flat_or_weakened",
+                    "growthDbz": pend.get("growthDbz"),
+                    "slope": pend.get("slope"),
+                    "cape": pend.get("cape"),
+                    "shear": pend.get("shear"),
+                    "why": pend.get("why"),
+                    "verifiedAt": ts,
+                    **ages,
+                }
+            )
+        else:
+            still_purple[pkey] = pend
+
     # --- FORMATION ---
     for p in form_points:
         env = p.get("environment") or {}
@@ -916,6 +1108,8 @@ def emit() -> dict[str, int]:
                 "li": env.get("liftedIndexC"),
                 "cooling": env.get("cloudTopCoolingCPer15min"),
                 "srh01": env.get("srh01"),
+                "freezingLevelM": env.get("freezingLevelM"),
+                "cinJkg": env.get("convectiveInhibitionJkg"),
                 **ages,
             }
         )
@@ -929,6 +1123,8 @@ def emit() -> dict[str, int]:
                 "shear": shear,
                 "dew": env.get("dewpointC"),
                 "li": env.get("liftedIndexC"),
+                "freezingLevelM": env.get("freezingLevelM"),
+                "cinJkg": env.get("convectiveInhibitionJkg"),
             }
 
     still_pending: dict[str, Any] = {}
@@ -948,6 +1144,8 @@ def emit() -> dict[str, int]:
                         "shear": zone.get("shear"),
                         "dew": zone.get("dew"),
                         "li": zone.get("li"),
+                        "freezingLevelM": zone.get("freezingLevelM"),
+                        "cinJkg": zone.get("cinJkg"),
                         "leadMin": round(age, 1),
                         "hit": False,
                         "verifiedAt": ts,
@@ -998,6 +1196,8 @@ def emit() -> dict[str, int]:
                     "shear": zone.get("shear"),
                     "dew": zone.get("dew"),
                     "li": zone.get("li"),
+                    "freezingLevelM": zone.get("freezingLevelM"),
+                    "cinJkg": zone.get("cinJkg"),
                     "leadMin": lead,
                     "hit": True,
                     "distKm": round(dist, 1),
@@ -1010,10 +1210,13 @@ def emit() -> dict[str, int]:
         else:
             still_pending[zid] = zone
 
-    # limituj pending intensity (max ~2000)
+    # limituj pending intensity / purple (max ~2000)
     if len(still_intensity) > 2000:
         keys = sorted(still_intensity.keys())[-2000:]
         still_intensity = {k: still_intensity[k] for k in keys}
+    if len(still_purple) > 1500:
+        keys = sorted(still_purple.keys())[-1500:]
+        still_purple = {k: still_purple[k] for k in keys}
 
     n_ev = append_jsonl(events_path(now), events)
     n_sa = append_jsonl(samples_path(now), samples)
@@ -1022,6 +1225,7 @@ def emit() -> dict[str, int]:
             "tracks": new_tracks,
             "formationPending": still_pending,
             "intensityPending": still_intensity,
+            "purplePending": still_purple,
             "lastConstants": ACTIVE_CONSTANTS,
             "schemaVersion": SCHEMA_VERSION,
         }
