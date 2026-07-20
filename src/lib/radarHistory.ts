@@ -1,13 +1,19 @@
 import type { FeatureCollection } from "geojson";
 import { t, type Locale } from "../i18n";
-import { fetchData, fetchDataJson } from "./dataUrls";
+import { dataUrl, fetchData, fetchDataJson } from "./dataUrls";
 import { smoothPolygonFeatures } from "./geoSmooth";
+import {
+  preloadRadarRasterKeep,
+  type RadarRasterMeta,
+} from "./radarRaster";
 
 export type RadarHistoryFrame = {
   index: number;
   offsetMinutes: number;
   time: string;
   path: string;
+  /** Spojitý PNG meta (jako live latest-raster.json). */
+  rasterPath?: string;
 };
 
 export type RadarHistoryManifest = {
@@ -23,9 +29,14 @@ const EMPTY_FC: FeatureCollection = { type: "FeatureCollection", features: [] };
 
 /** Cache snímků historie — naplní se při bootu, slider pak nic nedotahuje. */
 const frameCache = new Map<string, FeatureCollection>();
+const rasterCache = new Map<string, RadarRasterMeta>();
 
 function frameCacheKey(frame: RadarHistoryFrame, cacheBust?: number): string {
   return `${frame.path}::${cacheBust ?? "live"}`;
+}
+
+function rasterCacheKey(frame: RadarHistoryFrame, cacheBust?: number): string {
+  return `${frame.rasterPath ?? frame.path}::raster::${cacheBust ?? "live"}`;
 }
 
 export async function loadRadarHistoryManifest(
@@ -79,15 +90,50 @@ export async function loadRadarHistoryFrame(
   }
 }
 
-/** Přednačte všechny historické snímky při startu stránky. */
+/** Načte / přednačte PNG raster pro history frame (blob URL). */
+export async function loadRadarHistoryRaster(
+  frame: RadarHistoryFrame,
+  cacheBust?: number,
+): Promise<RadarRasterMeta | null> {
+  if (!frame.rasterPath) return null;
+  const key = rasterCacheKey(frame, cacheBust);
+  const cached = rasterCache.get(key);
+  if (cached) return cached;
+
+  const meta = await fetchDataJson<RadarRasterMeta>(
+    frame.rasterPath,
+    cacheBust,
+  );
+  if (
+    !meta?.url ||
+    !Array.isArray(meta.coordinates) ||
+    meta.coordinates.length !== 4
+  ) {
+    return null;
+  }
+
+  const withUrl: RadarRasterMeta = {
+    ...meta,
+    url: dataUrl(meta.url, cacheBust),
+  };
+  const ready = await preloadRadarRasterKeep(withUrl);
+  if (ready) rasterCache.set(key, ready);
+  return ready;
+}
+
+/** Přednačte všechny historické snímky při startu stránky (geojson + PNG). */
 export async function preloadRadarHistoryFrames(
   manifest: RadarHistoryManifest | null,
   cacheBust?: number,
 ): Promise<void> {
   if (!manifest?.frames.length) return;
   frameCache.clear();
+  rasterCache.clear();
   await Promise.all(
-    manifest.frames.map((frame) => loadRadarHistoryFrame(frame, cacheBust)),
+    manifest.frames.map(async (frame) => {
+      await loadRadarHistoryFrame(frame, cacheBust);
+      await loadRadarHistoryRaster(frame, cacheBust);
+    }),
   );
 }
 
@@ -99,14 +145,5 @@ export function formatTimeOffsetLabel(
   if (offsetMinutes > 0) {
     return t("time.offsetFuture", { min: offsetMinutes }, locale);
   }
-  return t("time.offsetPast", { min: offsetMinutes }, locale);
-}
-
-export function formatRadarTime(timeStr: string): string | null {
-  if (timeStr.length < 12) return null;
-  const mo = timeStr.slice(4, 6);
-  const d = timeStr.slice(6, 8);
-  const h = timeStr.slice(8, 10);
-  const mi = timeStr.slice(10, 12);
-  return `${d}.${mo}. ${h}:${mi}`;
+  return t("time.offsetPast", { min: Math.abs(offsetMinutes) }, locale);
 }

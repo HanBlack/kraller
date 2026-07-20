@@ -752,7 +752,7 @@ def build_radar_contour_features(frame: dict) -> list[dict]:
 
 
 def export_radar_history(frames: list[dict], history_dir: str) -> str:
-    """Uloží historické radarové snímky + manifest pro timelapse (krátké UI okno)."""
+    """Uloží historické snímky: PNG raster (+ geojson fallback) + manifest."""
     os.makedirs(history_dir, exist_ok=True)
     if not frames:
         manifest = {"frameMinutes": 5, "frames": []}
@@ -766,17 +766,25 @@ def export_radar_history(frames: list[dict], history_dir: str) -> str:
 
     for idx, frame in enumerate(frames):
         offset_min = int((frame["time"] - latest_time).total_seconds() / 60)
-        rel_name = f"frame-{idx}.geojson"
-        out_path = os.path.join(history_dir, rel_name)
+        rel_geo = f"frame-{idx}.geojson"
+        rel_png = f"frame-{idx}.png"
+        rel_meta = f"frame-{idx}-raster.json"
+        geo_path = os.path.join(history_dir, rel_geo)
+        png_path = os.path.join(history_dir, rel_png)
+        meta_path = os.path.join(history_dir, rel_meta)
+
         features = build_radar_contour_features(frame)
-        with open(out_path, "w", encoding="utf-8") as f:
+        with open(geo_path, "w", encoding="utf-8") as f:
             json.dump({"type": "FeatureCollection", "features": features}, f)
+
+        write_radar_raster(frame, png_path, meta_path)
         manifest_frames.append(
             {
                 "index": idx,
                 "offsetMinutes": offset_min,
                 "time": frame["time_str"],
-                "path": f"data/opera/history/{rel_name}",
+                "path": f"data/opera/history/{rel_geo}",
+                "rasterPath": f"data/opera/history/{rel_meta}",
             }
         )
 
@@ -784,7 +792,7 @@ def export_radar_history(frames: list[dict], history_dir: str) -> str:
     manifest_path = os.path.join(history_dir, "manifest.json")
     with open(manifest_path, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2)
-    print(f"Wrote {len(manifest_frames)} history frames to {history_dir}")
+    print(f"Wrote {len(manifest_frames)} history frames (+PNG) to {history_dir}")
     return manifest_path
 
 

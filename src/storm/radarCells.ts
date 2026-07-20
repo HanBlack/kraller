@@ -1,4 +1,4 @@
-import { czechRegionLabel } from "../lib/czechRegion";
+import { czechRegionLabel, isInCzechiaApprox } from "../lib/czechRegion";
 import { t, getLocale, type Locale } from "../i18n";
 import type { FeatureCollection, Polygon } from "geojson";
 import {
@@ -700,6 +700,19 @@ export function radarPointsGeoJSON(features: RadarProgressFeature[]): FeatureCol
   return radarPointsGeoJSONAt(features, 0);
 }
 
+/**
+ * Tečka / šipka na mapě: v ČR (+okraj) vždy; mimo ČR jen opravdu silné jádro.
+ * (Mimo ČR peaky na hraně cropu často lžou.)
+ */
+export function showCoreMarkerOnMap(f: {
+  peak: [number, number];
+  maxDbz: number;
+}): boolean {
+  const [lon, lat] = f.peak;
+  if (isInCzechiaApprox(lat, lon, 40)) return true;
+  return f.maxDbz >= 52;
+}
+
 export function radarPointsGeoJSONAt(
   features: RadarProgressFeature[],
   forecastMinutes: number,
@@ -708,7 +721,9 @@ export function radarPointsGeoJSONAt(
 ): FeatureCollection {
   return {
     type: "FeatureCollection",
-    features: features.map((f) => {
+    features: features
+      .filter(showCoreMarkerOnMap)
+      .map((f) => {
       const intens = intensByCell?.get(f.id);
       const dbz = predictedDbzAt(f, intens, forecastMinutes);
       const intensifying = isIntensifyingAt(intens, forecastMinutes) ? 1 : 0;
@@ -751,6 +766,7 @@ export function radarTrackCorridorsGeoJSONAt(
   const featuresOut: FeatureCollection["features"] = [];
 
   for (const f of features) {
+    if (!showCoreMarkerOnMap(f)) continue;
     const here = scaledTrackEnd(f.peak, f.trackEnd, forecastMinutes);
     let tip = f.trackEnd;
     const dx = tip[0] - here[0];
@@ -820,7 +836,7 @@ export function radarTracksGeoJSONAt(
   const horizon = stormConfig.alertHorizonMin;
   return {
     type: "FeatureCollection",
-    features: features.map((f) => {
+    features: features.filter(showCoreMarkerOnMap).map((f) => {
       // Trasa od aktuální pozice jádra dál po směru (ne od starého peaku)
       const here = scaledTrackEnd(f.peak, f.trackEnd, forecastMinutes);
       let tip = f.trackEnd;
@@ -859,7 +875,7 @@ export function radarArrowsGeoJSONAt(
 ): FeatureCollection {
   return {
     type: "FeatureCollection",
-    features: features.map((f) => {
+    features: features.filter(showCoreMarkerOnMap).map((f) => {
       // Stejný bod jako jádro — šipka (anchor bottom) vyrůstá po heading
       const here = scaledTrackEnd(f.peak, f.trackEnd, forecastMinutes);
       return {
