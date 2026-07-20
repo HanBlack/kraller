@@ -506,7 +506,11 @@ def track_cells_over_time(frames: list[dict]) -> list[dict]:
 
 
 def build_radar_contour_features(frame: dict) -> list[dict]:
-    """Echo kontury jako prstence (pás mezi prahy) — bez nested překryvu na mapě."""
+    """Echo kontury — nested ≥ prahy (celistvá skvrna), ne prstence.
+
+    Prstence (pás mezi prahy) na slabém echu dělají desítky oddělených
+    „pilulek“. Nested + neprůhledný fill na mapě = jedna bouře se stupni.
+    """
     levels = [30.0, 35.0, 40.0, 45.0, 50.0, 55.0, 60.0]
     band_for = {
         30.0: "light",
@@ -524,13 +528,8 @@ def build_radar_contour_features(frame: dict) -> list[dict]:
     time_str = frame["time_str"]
     features: list[dict] = []
 
-    for i, lvl in enumerate(levels):
-        next_lvl = levels[i + 1] if i + 1 < len(levels) else None
-        finite = np.isfinite(crop)
-        if next_lvl is None:
-            mask = finite & (crop >= lvl)
-        else:
-            mask = finite & (crop >= lvl) & (crop < next_lvl)
+    for lvl in levels:
+        mask = np.isfinite(crop) & (crop >= lvl)
         if not mask.any():
             continue
         contours = measure.find_contours(mask.astype(float), 0.5)

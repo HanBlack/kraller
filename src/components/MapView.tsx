@@ -189,35 +189,35 @@ const dbzValue: maplibregl.ExpressionSpecification = [
 ];
 
 /**
- * 5 úrovní síly s plynulými přechody (interpolate) — pořád přesné mapování dBZ.
- * okraj → déšť → silné → jádro → extrém (65+)
+ * 5 úrovní síly — neprůhledné barvy (alfa v rgba by u nested kontur
+ * zase dělala tmavé „švy“ mezi kruhy).
  */
 const dbzFillColor: maplibregl.ExpressionSpecification = [
   "interpolate",
   ["linear"],
   dbzValue,
   25,
-  "rgba(70, 175, 165, 0.22)",
+  "#2a6e68",
   30,
-  "rgba(55, 185, 140, 0.38)",
+  "#2e9a72",
   38,
-  "rgba(120, 195, 90, 0.48)",
+  "#5aaf3e",
   40,
-  "rgba(220, 195, 55, 0.56)",
+  "#c9b02a",
   48,
-  "rgba(235, 160, 45, 0.64)",
+  "#d99224",
   50,
-  "rgba(235, 125, 40, 0.72)",
+  "#d96e22",
   56,
-  "rgba(225, 75, 50, 0.80)",
+  "#d44a32",
   58,
-  "rgba(215, 40, 65, 0.86)",
+  "#c42845",
   63,
-  "rgba(200, 40, 140, 0.90)",
+  "#b0288a",
   65,
-  "rgba(185, 40, 210, 0.93)",
+  "#a028c8",
   72,
-  "rgba(210, 90, 240, 0.95)",
+  "#c85af0",
 ];
 
 const dbzOutlineColor: maplibregl.ExpressionSpecification = [
