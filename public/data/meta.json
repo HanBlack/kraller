@@ -1,23 +1,23 @@
 {
-  "updatedAt": "2026-07-20T05:59:00Z",
-  "operaTime": "2026-07-20T05:50:00Z",
+  "updatedAt": "2026-07-20T06:02:22Z",
+  "operaTime": null,
   "opera": true,
   "wind": true,
   "formation": true,
   "sources": {
     "opera": {
       "ok": true,
-      "updatedAt": "2026-07-17T10:49:03Z",
+      "updatedAt": "2026-07-20T06:01:53Z",
       "error": null
     },
     "wind": {
       "ok": true,
-      "updatedAt": "2026-07-17T08:19:11Z",
+      "updatedAt": "2026-07-20T06:01:53Z",
       "error": null
     },
     "formation": {
       "ok": true,
-      "updatedAt": "2026-07-17T08:19:11Z",
+      "updatedAt": "2026-07-20T06:01:53Z",
       "error": null
     }
   }

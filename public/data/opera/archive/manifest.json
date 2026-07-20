@@ -1,6 +1,6 @@
 {
   "frameMinutes": 5,
-  "maxSlots": 36,
+  "maxSlots": 72,
   "frames": [
     {
       "index": 0,
@@ -216,8 +216,14 @@
       "index": 35,
       "time": "20260720055000",
       "path": "data/opera/archive/peaks-20260720055000.json",
-      "peakCount": 1
+      "peakCount": null
+    },
+    {
+      "index": 36,
+      "time": "20260720055500",
+      "path": "data/opera/archive/peaks-20260720055500.json",
+      "peakCount": 0
     }
   ],
-  "updatedAt": "20260720055000"
+  "updatedAt": "20260720055500"
 }
