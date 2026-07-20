@@ -1,24 +1,29 @@
 # Stáhne radar → R2 (rychlé CDN) + volitelný git backup.
-# Cíl: ~5–7 min od snímku. Viz docs/DATA-DELIVERY.md
+# Cíl: ~5–7 min od snímku. Primární trigger: Cloudflare Worker (workers/radar-trigger).
+# Viz docs/RADAR-TRIGGER.md
 
 name: Live radar
 
 on:
   workflow_dispatch:
+  repository_dispatch:
+    types: [live-radar]
   schedule:
+    # GitHub cron je nespolehlivý — záloha; hlavní je Cloudflare Cron Worker
     - cron: "*/5 * * * *"
+    - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
 
 permissions:
   contents: write
 
 concurrency:
   group: live-radar
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 7
     steps:
       - uses: actions/checkout@v4
 
