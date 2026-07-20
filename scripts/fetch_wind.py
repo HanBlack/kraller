@@ -24,9 +24,9 @@ from openmeteo_client import (
 )
 from openmeteo_hour import current_hour_index
 
-# Oblast ČR + okolí (hrubší mřížka = méně API volání)
-WEST, SOUTH, EAST, NORTH = 11.4, 47.8, 19.6, 51.4
-COLS, ROWS = 12, 8
+# Oblast ČR + okolí (DE/PL/AT) — sever musí sahat za Cottbus (~51.8°)
+WEST, SOUTH, EAST, NORTH = 11.0, 47.5, 20.2, 52.3
+COLS, ROWS = 14, 10
 BATCH_SIZE = 48
 BATCH_PAUSE_S = 3.0
 FORMATION_GRID = os.path.join("public", "data", "formation", "grid.json")
