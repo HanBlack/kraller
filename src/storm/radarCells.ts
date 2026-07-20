@@ -541,7 +541,7 @@ export function radarCellsGeoJSONAt(
             severity: f.severity,
             intensifying,
             decaying,
-            opacity: dbz < 32 ? 0.45 : dbz < 40 ? 0.7 : 0.9,
+            opacity: dbz < 30 ? 0.35 : dbz < 40 ? 0.55 : dbz < 50 ? 0.7 : 0.82,
           },
           geometry: scaled,
         };
