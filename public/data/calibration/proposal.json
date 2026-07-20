@@ -1,18 +1,18 @@
 {
-  "generatedAt": "2026-07-20T10:43:03Z",
+  "generatedAt": "2026-07-20T11:16:07Z",
   "sampleCounts": {
-    "track": 0,
-    "formation": 396,
-    "birth_features": 12,
-    "intensity": 1,
-    "intensify": 0,
-    "demise": 8,
-    "track_sample_events": 38,
-    "withSurfaceDbz": 2,
-    "withFct": 0,
-    "withFreezingLevel": 0,
+    "track": 4,
+    "formation": 397,
+    "birth_features": 27,
+    "intensity": 31,
+    "intensify": 12,
+    "demise": 46,
+    "track_sample_events": 126,
+    "withSurfaceDbz": 30,
+    "withFct": 12,
+    "withFreezingLevel": 76,
     "withHailProxy": 0,
-    "total": 417
+    "total": 517
   },
   "readyForApply": false,
   "proposals": [
@@ -29,48 +29,56 @@
       "current": 40,
       "proposed": 40,
       "confidence": "low",
-      "n": 1,
+      "n": 22,
       "reason": "málo jitter samples"
     },
     {
       "param": "TRUE_BIRTH_MAX_DBZ",
       "current": 38,
-      "proposed": 38,
+      "proposed": 40,
+      "also": {
+        "TRUE_BIRTH_MAX_AGE_MIN": {
+          "current": 18,
+          "proposed": 18
+        }
+      },
       "confidence": "low",
-      "n": 12,
-      "reason": "málo birth_features"
+      "n": 27,
+      "medianBirthDbzTrue": 37.75,
+      "medianBirthDbzFalse": 42.0,
+      "reason": "oddělení trueBirth vs příjezd podle birthDbz"
     },
     {
       "param": "MIN_ZONE_SCORE",
       "current": 28,
       "proposed": 22,
       "confidence": "high",
-      "n": 396,
+      "n": 397,
       "evidence": [
         {
           "thr": 22,
-          "n": 396,
+          "n": 397,
           "precision": 0.0,
           "recall": 0.0,
           "f1": 0.0
         },
         {
           "thr": 26,
-          "n": 396,
+          "n": 397,
           "precision": 0.0,
           "recall": 0.0,
           "f1": 0.0
         },
         {
           "thr": 28,
-          "n": 396,
+          "n": 397,
           "precision": 0.0,
           "recall": 0.0,
           "f1": 0.0
         },
         {
           "thr": 32,
-          "n": 371,
+          "n": 372,
           "precision": 0.0,
           "recall": 0.0,
           "f1": 0.0
@@ -118,11 +126,19 @@
     {
       "param": "intensification.alertScoreMin",
       "current": 32,
-      "proposed": 32,
-      "confidence": "low",
-      "n": 0,
+      "proposed": 40,
+      "confidence": "medium",
+      "n": 12,
+      "hitRate": 0.083,
+      "nHit": 1,
+      "nMiss": 11,
       "file": "src/storm/config.ts",
-      "reason": "malo intensify samples (purple candidate -> T+15/30)"
+      "reason": "hit rate 8% — příliš false positive, zpřísnit",
+      "alsoReview": {
+        "param": "intensification.suppressIfGrowthDbzBelow",
+        "current": -1.5,
+        "hint": "při fade po purple zkontroluj růst dBZ před kandidátem"
+      }
     },
     {
       "param": "active.hail.minAboveFreezingKm",
@@ -135,19 +151,24 @@
     }
   ],
   "intensity": {
-    "n": 1,
-    "medianAbsErrDbz": 0.0,
+    "n": 31,
+    "medianAbsErrDbz": 3.3,
     "hint": "slope z historie; při velké chybě doladit intensifikaci / env weight"
   },
-  "intensifyPurple": null,
+  "intensifyPurple": {
+    "n": 12,
+    "hitRate": 0.083,
+    "hint": "upřímná fialová — nízký hitRate → vyšší alertScoreMin / suppress"
+  },
   "demise": {
-    "n": 8,
+    "n": 46,
     "reasons": {
-      "merge_or_jump": 8
+      "merge_or_jump": 44,
+      "fade": 2
     },
     "medianLifeMin": 0.0,
     "nWithHailProxy": 0,
-    "nAfterPurple": 0
+    "nAfterPurple": 8
   },
   "applyHint": "Po review propsat: src/storm/stormTrackRules.ts (motion/birth), src/storm/formationData.ts (MIN_ZONE_SCORE), src/storm/config.ts (hail / intensification), scripts/chmi_radar.py (FCT_AGREE_MAX_DEG), ACTIVE_CONSTANTS v scripts/emit_learning.py",
   "tuneInDays": "Po ~2 dnech bouřek: npm run data:learning-summary && npm run data:propose-calibration → public/data/calibration/proposal.json"
