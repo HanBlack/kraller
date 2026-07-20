@@ -17,14 +17,14 @@ type Particle = {
 
 /**
  * Pixely / (m·s⁻¹) / s — zoom-invariant.
- * 850 je pomalejší než 500; cap dřív srovnával obě vrstvy (~95 % 500 hitlo strop).
+ * Tempo jako u 850: klidné stopy, i u Bouřky / 500.
  */
 const SPEED_TO_PX_LOW = 5.5;
-const SPEED_TO_PX_UPPER = 7;
-const SPEED_TO_PX_STEER = 6;
+const SPEED_TO_PX_UPPER = 5.5;
+const SPEED_TO_PX_STEER = 5.5;
 const MAX_MOVE_PX_LOW = 1.35;
-const MAX_MOVE_PX_UPPER = 3.4;
-const MAX_MOVE_PX_STEER = 2.5;
+const MAX_MOVE_PX_UPPER = 1.35;
+const MAX_MOVE_PX_STEER = 1.35;
 const MAX_AGE = 110;
 const MIN_PARTICLES = 400;
 const MAX_PARTICLES = 750;
