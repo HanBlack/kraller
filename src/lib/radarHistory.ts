@@ -147,3 +147,13 @@ export function formatTimeOffsetLabel(
   }
   return t("time.offsetPast", { min: Math.abs(offsetMinutes) }, locale);
 }
+
+/** OPERA time stamp `YYYYMMDDHHmm` → `DD.MM. HH:mm`. */
+export function formatRadarTime(timeStr: string): string | null {
+  if (timeStr.length < 12) return null;
+  const mo = timeStr.slice(4, 6);
+  const d = timeStr.slice(6, 8);
+  const h = timeStr.slice(8, 10);
+  const mi = timeStr.slice(10, 12);
+  return `${d}.${mo}. ${h}:${mi}`;
+}

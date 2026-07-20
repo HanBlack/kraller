@@ -16,7 +16,6 @@ import {
 } from "../lib/radarHistory";
 import { filterRadarForCzFocus } from "../lib/radarDisplay";
 import type { RadarRasterMeta } from "../lib/radarRaster";
-import { isInCzechiaApprox } from "../lib/czechRegion";
 import { useStormDataContext } from "../providers/StormDataProvider";
 import { MAP_STYLE_URL } from "../lib/preloadBoot";
 import {
