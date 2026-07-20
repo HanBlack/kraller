@@ -1,5 +1,43 @@
 {
-  "tracks": {},
+  "tracks": {
+    "t:20260720072500:48.92:18.99": {
+      "lat": 48.922511287872524,
+      "lon": 18.98652603233792,
+      "maxDbz": 45.0,
+      "lastTs": "20260720072500",
+      "cellId": "cell-1",
+      "firstTs": "20260720072500",
+      "preds": {
+        "15": {
+          "predLat": 48.9234,
+          "predLon": 19.1201,
+          "fromTs": "20260720072500",
+          "fromLat": 48.9225,
+          "fromLon": 18.9865,
+          "heading": 89.4,
+          "speed": 39.1,
+          "motionSource": "wind-fallback",
+          "windAlignDeg": null
+        },
+        "30": {
+          "predLat": 48.9241,
+          "predLon": 19.2538,
+          "fromTs": "20260720072500",
+          "fromLat": 48.9225,
+          "fromLon": 18.9865,
+          "heading": 89.4,
+          "speed": 39.1,
+          "motionSource": "wind-fallback",
+          "windAlignDeg": null
+        }
+      },
+      "dbzSlopePer15": null,
+      "areaPx": null,
+      "growthDbz": null,
+      "dbzDelta5": null,
+      "dbzDelta15": null
+    }
+  },
   "formationPending": {
     "z:47.80:11.40": {
       "lat": 47.8,
@@ -4022,6 +4060,46 @@
       "li": null,
       "steerHdg": 88.8,
       "steerSpd": 49.2
+    },
+    "t:20260720072500:48.92:18.99:15:20260720072500": {
+      "trackKey": "t:20260720072500:48.92:18.99",
+      "horizonMin": 15,
+      "fromTs": "20260720072500",
+      "fromDbz": 45.0,
+      "predDbz": 45.0,
+      "slope": 0.0,
+      "lat": 48.922511287872524,
+      "lon": 18.98652603233792,
+      "envDistKm": 7.3,
+      "cape": 30.0,
+      "capeNow": 20.0,
+      "dew": 9.3,
+      "shear": 13.9,
+      "srh01": 175.3,
+      "cooling": 0.0,
+      "li": null,
+      "steerHdg": 91.4,
+      "steerSpd": 39.3
+    },
+    "t:20260720072500:48.92:18.99:30:20260720072500": {
+      "trackKey": "t:20260720072500:48.92:18.99",
+      "horizonMin": 30,
+      "fromTs": "20260720072500",
+      "fromDbz": 45.0,
+      "predDbz": 45.0,
+      "slope": 0.0,
+      "lat": 48.922511287872524,
+      "lon": 18.98652603233792,
+      "envDistKm": 7.3,
+      "cape": 30.0,
+      "capeNow": 20.0,
+      "dew": 9.3,
+      "shear": 13.9,
+      "srh01": 175.3,
+      "cooling": 0.0,
+      "li": null,
+      "steerHdg": 91.4,
+      "steerSpd": 39.3
     }
   },
   "lastConstants": {
@@ -4038,5 +4116,5 @@
     "WIND_BLEND_500": 0.75
   },
   "schemaVersion": 2,
-  "updatedAt": "2026-07-20T07:27:48Z"
+  "updatedAt": "2026-07-20T07:30:38Z"
 }
