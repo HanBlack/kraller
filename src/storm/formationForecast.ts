@@ -273,5 +273,6 @@ export function formationMapLabelWithForecast(
   const [endLon, endLat] = f.trackEnd;
   const dest = czechRegionLabel(endLat, endLon, locale);
   const where = dest !== place ? `${place} → ${dest}` : place;
-  return `${where}\n≈${formatInitiationWindow(f)} · ${headingShort(f.headingDeg)}`;
+  const when = formatInitiationWindow(f);
+  return `${where}\n≈${when} · ${headingShort(f.headingDeg)}`;
 }

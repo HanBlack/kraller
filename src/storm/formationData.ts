@@ -1,6 +1,6 @@
 import type { FeatureCollection } from "geojson";
 import { fetchDataJson } from "../lib/dataUrls";
-import { czechRegionLabel, pathReachesCzechia } from "../lib/czechRegion";
+import { czechRegionLabel, isInCzechiaApprox } from "../lib/czechRegion";
 import { distanceKm } from "../lib/geo";
 import type { FormationZone } from "./demo";
 import { isViableFormationEnv, scoreFormation } from "./scoreFormation";
@@ -110,11 +110,11 @@ function nearRadar(lat: number, lon: number, peaks: RadarPeak[]): boolean {
   return false;
 }
 
+/** Zóna Vznik jen v ČR (+ krátký okraj hranice) — mimo to popisky zbytečně šumí. */
+const ZONE_CZ_MARGIN_KM = 8;
+
 function zoneRelevantToCz(zone: FormationZone): boolean {
-  const env = zone.environment;
-  const heading = env.steerHeadingDeg ?? 90;
-  const speed = env.steerSpeedKmh ?? 35;
-  return pathReachesCzechia(zone.lat, zone.lon, heading, speed, 90);
+  return isInCzechiaApprox(zone.lat, zone.lon, ZONE_CZ_MARGIN_KM);
 }
 
 function pointToZone(
@@ -151,7 +151,11 @@ export function clusterFormationZones(
   radarCells: FeatureCollection | null,
 ): FormationZone[] {
   const peaks = radarCells ? radarPeakCoords(radarCells) : [];
-  const visible = points.filter((p) => !nearRadar(p.lat, p.lon, peaks));
+  const visible = points.filter(
+    (p) =>
+      isInCzechiaApprox(p.lat, p.lon, ZONE_CZ_MARGIN_KM) &&
+      !nearRadar(p.lat, p.lon, peaks),
+  );
   const candidates = visible
     .filter(
       (p) =>
@@ -231,6 +235,7 @@ export function formationHeatGeoJSON(
       (p) =>
         p.assessment.score >= HEAT_MIN_SCORE &&
         isViableFormationEnv(p.environment) &&
+        isInCzechiaApprox(p.lat, p.lon, ZONE_CZ_MARGIN_KM) &&
         !nearRadar(p.lat, p.lon, peaks),
     )
     .sort((a, b) => b.assessment.score - a.assessment.score)
