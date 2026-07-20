@@ -14,6 +14,7 @@ import {
   loadRadarHistoryFrame,
 } from "../lib/radarHistory";
 import { filterRadarForCzFocus } from "../lib/radarDisplay";
+import type { RadarRasterMeta } from "../lib/radarRaster";
 import { useStormDataContext } from "../providers/StormDataProvider";
 import { MAP_STYLE_URL } from "../lib/preloadBoot";
 import {
@@ -553,6 +554,65 @@ function whenStyleReady(
     map.off("idle", run);
     map.off("styledata", run);
   };
+}
+
+/**
+ * Nahraje PNG do image source a počká, až je ready.
+ * Do té doby vrstva zůstat hidden — jinak MapLibre ukáže červený „error“ obdélník.
+ */
+function syncRadarRasterImage(
+  map: maplibregl.Map,
+  meta: RadarRasterMeta | null,
+): Promise<boolean> {
+  ensureStormLayers(map);
+  setLayerVisibility(map, [RADAR_RASTER], false);
+  if (!meta?.url) return Promise.resolve(false);
+
+  return new Promise((resolve) => {
+    const fail = () => resolve(false);
+    const img = new Image();
+    img.decoding = "async";
+    img.onload = () => {
+      const src = map.getSource(RADAR_RASTER_SOURCE) as
+        | maplibregl.ImageSource
+        | undefined;
+      if (!src) {
+        fail();
+        return;
+      }
+      try {
+        src.updateImage({
+          url: meta.url,
+          coordinates: meta.coordinates,
+        });
+      } catch {
+        fail();
+        return;
+      }
+
+      let settled = false;
+      const finish = (ok: boolean) => {
+        if (settled) return;
+        settled = true;
+        map.off("sourcedata", onData);
+        window.clearTimeout(timer);
+        resolve(ok);
+      };
+      const onData = (e: maplibregl.MapSourceDataEvent) => {
+        if (e.sourceId !== RADAR_RASTER_SOURCE) return;
+        if (e.isSourceLoaded || map.isSourceLoaded(RADAR_RASTER_SOURCE)) {
+          finish(true);
+        }
+      };
+      map.on("sourcedata", onData);
+      const timer = window.setTimeout(() => {
+        finish(map.isSourceLoaded(RADAR_RASTER_SOURCE));
+      }, 2800);
+      if (map.isSourceLoaded(RADAR_RASTER_SOURCE)) finish(true);
+    };
+    img.onerror = fail;
+    img.src = meta.url;
+  });
 }
 
 function ensureStormLayers(map: maplibregl.Map) {
@@ -1577,6 +1637,9 @@ export function MapView({
   const windGrid = windLow;
   const useLiveRaster = Boolean(radarRaster) && !isHistoryView;
   const operaReady = radarData.features.length > 0 || Boolean(radarRaster);
+  const rasterReadyRef = useRef(false);
+  const radarRasterRef = useRef(radarRaster);
+  radarRasterRef.current = radarRaster;
   const onSelectRef = useRef(onSelect);
   const onWindSourceRef = useRef(onWindSource);
   const onFormationSourceRef = useRef(onFormationSource);
@@ -1654,15 +1717,18 @@ export function MapView({
       (map.getSource(RADAR_SOURCE) as maplibregl.GeoJSONSource | undefined)?.setData(
         radarDataRef.current,
       );
-      if (radarRaster && useLiveRaster) {
-        const src = map.getSource(RADAR_RASTER_SOURCE) as
-          | maplibregl.ImageSource
-          | undefined;
-        src?.updateImage({
-          url: radarRaster.url,
-          coordinates: radarRaster.coordinates,
-        });
-      }
+      void (async () => {
+        if (radarRaster && useLiveRaster) {
+          const ok = await syncRadarRasterImage(map, radarRaster);
+          rasterReadyRef.current = ok;
+          if (ok && showRadar && forecastMinutes <= 0) {
+            setLayerVisibility(map, [RADAR_RASTER], true);
+          }
+        } else {
+          rasterReadyRef.current = false;
+          setLayerVisibility(map, [RADAR_RASTER], false);
+        }
+      })();
     };
     return whenStyleReady(map, apply);
   }, [
@@ -1673,6 +1739,8 @@ export function MapView({
     formationReal,
     radarRaster,
     useLiveRaster,
+    showRadar,
+    forecastMinutes,
   ]);
 
   const radarProgress = useMemo(
@@ -1819,9 +1887,25 @@ export function MapView({
         });
       }
 
-      map.once("idle", () => {
-        onMapReadyRef.current?.();
-      });
+      void (async () => {
+        // Nevolat onMapReady, dokud není PNG v mapě — jinak červený error-quad.
+        let notified = false;
+        const notifyReady = () => {
+          if (notified) return;
+          notified = true;
+          onMapReadyRef.current?.();
+        };
+        const meta = radarRasterRef.current;
+        if (meta) {
+          const ok = await syncRadarRasterImage(map, meta);
+          rasterReadyRef.current = ok;
+          if (ok) setLayerVisibility(map, [RADAR_RASTER], true);
+        } else {
+          rasterReadyRef.current = false;
+        }
+        map.once("idle", notifyReady);
+        window.setTimeout(notifyReady, 600);
+      })();
     });
 
     const selectLockUntilRef = { current: 0 };
@@ -2151,7 +2235,8 @@ export function MapView({
         useLiveRaster ||
         (operaReady && radarDataRef.current.features.length > 0);
       const liveRadarOn = showRadar && hasOpera && !showForecastCells;
-      const showRaster = liveRadarOn && useLiveRaster;
+      const showRaster =
+        liveRadarOn && useLiveRaster && rasterReadyRef.current;
       const showContourFill = liveRadarOn && !useLiveRaster;
       // Detail (zrod / zesílení / ghost) jen po výběru buňky — mapa zůstane čitelná.
       const showCellDetail =
