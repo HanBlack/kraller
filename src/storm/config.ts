@@ -87,6 +87,8 @@ export const stormConfig = {
     hail: {
       likelyEchoTopKm: 10,
       likelyDbz: 55,
+      /** Min. výška echa nad nulovou izotermou (km), když známe FZL. */
+      minAboveFreezingKm: 1.5,
       cmFromEchoTop: [
         { minKm: 10, cm: 1 },
         { minKm: 12, cm: 2 },

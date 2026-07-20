@@ -24,4 +24,9 @@ export type StormAlert = {
   atUserDbz?: number | null;
   /** null / undefined = do zprávy se vůbec nedá */
   tornadoChancePct?: number | null;
+  /**
+   * Prostředí vhodné pro supercelu (CAPE+shear+silné echo) —
+   * ne detekce rotace.
+   */
+  supercellEnvRisk?: boolean;
 };

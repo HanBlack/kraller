@@ -61,4 +61,15 @@ describe("radarTrackCorridors — pás místo přímky", () => {
     const w1 = Number(far.features[0].properties?.halfKm);
     expect(w1).toBeGreaterThanOrEqual(w0);
   });
+
+  it("FCT nesouhlas → širší koridor", () => {
+    const agree = radarTrackCorridorsGeoJSONAt([feature()], 15);
+    const disagree = radarTrackCorridorsGeoJSONAt(
+      [feature({ fctDisagree: true, fctAngleDiffDeg: 50 })],
+      15,
+    );
+    expect(Number(disagree.features[0].properties?.halfKm)).toBeGreaterThan(
+      Number(agree.features[0].properties?.halfKm),
+    );
+  });
 });

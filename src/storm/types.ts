@@ -14,6 +14,13 @@ export type EnvironmentSignals = {
   cloudTopCoolingCPer15min: number;
   /** Lifted index (°C); záporné = nestabilní prostředí. */
   liftedIndexC?: number;
+  /** Výška nulové izotermy (m n. m.) — Waldvogel / riziko krup. */
+  freezingLevelM?: number | null;
+  /**
+   * Convective inhibition (J/kg). Open-Meteo často záporné;
+   * větší |CIN| = silnější záklop proti vzniku.
+   */
+  convectiveInhibitionJkg?: number | null;
   /** Směr řízení (deep-layer 850+500) — stejné jako trajektorie buněk. */
   steerHeadingDeg?: number;
   /** Rychlost řízení (km/h). */
@@ -39,6 +46,11 @@ export type RadarCellSignals = {
   echoTopSource?: "CHMI";
   /** Zdroj dBZ u jádra. */
   dbzSource?: "CHMI" | "OPERA";
+  /**
+   * PseudoCAPPI 2 km (ČHMÚ) — lepší proxy deště u země než maxZ.
+   * Jen nad CZ, když je k dispozici.
+   */
+  surfaceDbz?: number;
   /** Rychlost pohybu (km/h). */
   speedKmh: number;
   /** Azimut pohybu ve stupních (0 = sever, 90 = východ). */

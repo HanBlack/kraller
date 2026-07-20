@@ -29,14 +29,21 @@ export type LifecycleStep = {
   /** Proč se to stane — konkrétní drivěry. */
   reasons?: string[];
   active?: boolean;
+  /** Badge u zániku: z radaru / trend / odhad */
+  badge?: string;
 };
+
+export type DemiseConfidence = "observed" | "trending" | "climatology";
 
 export type DemiseEstimate = {
   etaMin: number;
+  etaMinLo: number;
+  etaMinHi: number;
   lon: number;
   lat: number;
   reason: string;
   reasons: string[];
+  confidence: DemiseConfidence;
 };
 
 export type StormLifecycle = {
@@ -45,6 +52,9 @@ export type StormLifecycle = {
   steps: LifecycleStep[];
   demiseAt: [number, number] | null;
   demiseEtaMin: number | null;
+  demiseEtaMinLo: number | null;
+  demiseEtaMinHi: number | null;
+  demiseConfidence: DemiseConfidence | null;
   intensifyAt: [number, number] | null;
   intensifyEtaMin: number | null;
 };
@@ -284,6 +294,7 @@ export function explainDemiseWhy(
 
 /**
  * Odhad, kdy/kde buňka zeslábne pod ~30 dBZ.
+ * Confidence odděluje fakt (slábne na radaru) od klimatologického tipu.
  */
 export function estimateDemise(
   feature: RadarProgressFeature,
@@ -299,16 +310,19 @@ export function estimateDemise(
   const targetDbz = 30;
 
   let lifeMin: number | null = null;
+  let confidence: DemiseConfidence = "climatology";
 
   if (decayPerMin != null && decayPerMin < -0.15) {
     const toTarget = (dbz - targetDbz) / Math.abs(decayPerMin);
     lifeMin = Math.round(toTarget);
+    confidence = "observed";
   }
 
   if (lifeMin == null) {
     const decayPer15 = stormConfig.intensification.decayDbzPer15Min;
     if (feature.growthDbz <= -2) {
       lifeMin = Math.round(((dbz - targetDbz) / decayPer15) * 15);
+      confidence = "trending";
     } else if (feature.phase === "mature" || feature.phase === "moving") {
       if (dbz >= 50) lifeMin = 40;
       else if (dbz >= 45) lifeMin = 32;
@@ -350,6 +364,12 @@ export function estimateDemise(
 
   lifeMin = Math.round(Math.max(10, Math.min(75, lifeMin)));
 
+  // ±30 % rozsah — climatology širší (±40 %)
+  const spread =
+    confidence === "observed" ? 0.25 : confidence === "trending" ? 0.3 : 0.4;
+  const etaMinLo = Math.round(Math.max(8, lifeMin * (1 - spread)));
+  const etaMinHi = Math.round(Math.min(90, lifeMin * (1 + spread)));
+
   const [lon, lat] = destinationPoint(
     feature.peak[1],
     feature.peak[0],
@@ -360,13 +380,41 @@ export function estimateDemise(
   const at = nearestPoint(lat, lon, points);
   const why = explainDemiseWhy(feature, lifeMin, at?.environment ?? null, intens);
 
+  let reasons = why.reasons;
+  if (confidence === "climatology") {
+    reasons = [
+      "nejde o fakt — typický útlum při této síle (ne změřený rozpad)",
+      ...reasons.filter((r) => !r.startsWith("typický útlum")),
+    ].slice(0, 4);
+  }
+
   return {
     etaMin: lifeMin,
+    etaMinLo,
+    etaMinHi,
     lon,
     lat,
-    reason: why.reason,
-    reasons: why.reasons,
+    reason: reasons[0] ?? why.reason,
+    reasons,
+    confidence,
   };
+}
+
+function demiseBodyCopy(demise: DemiseEstimate): string {
+  const range = `~${demise.etaMinLo}–${demise.etaMinHi} min`;
+  if (demise.confidence === "observed") {
+    return `Echo už slábne. Odhad pod ~30 dBZ za ${range}.`;
+  }
+  if (demise.confidence === "trending") {
+    return `Echo mírně klesá. Odhad zániku za ${range} (nejistota vyšší).`;
+  }
+  return `Nejde o fakt — typický útlum při této síle za ${range}. Může vydržet déle, pokud dorazí energie.`;
+}
+
+function demiseBadge(confidence: DemiseConfidence): string {
+  if (confidence === "observed") return "z radaru";
+  if (confidence === "trending") return "trend";
+  return "odhad";
 }
 
 function intensifyPoint(
@@ -465,8 +513,15 @@ export function buildStormLifecycle(
           ? " (radarová stopa)"
           : " (odhad z větru 850+500)"
       }.`,
-      meta: `za ${demise.etaMin} min ~${Math.round((feature.speedKmh * demise.etaMin) / 60)} km dál`,
-      reasons: severityWhy.reasons,
+      meta: `odhad: za ~${demise.etaMinLo}–${demise.etaMinHi} min ~${Math.round((feature.speedKmh * demise.etaMin) / 60)} km dál`,
+      reasons: [
+        ...(severityWhy.reasons ?? []),
+        ...(feature.fctDisagree
+          ? [
+              `ČHMÚ FCT +30 min se odchyluje od stopy (~${Math.round(feature.fctAngleDiffDeg ?? 0)}°) — širší koridor`,
+            ]
+          : []),
+      ],
     },
   ];
 
@@ -503,14 +558,15 @@ export function buildStormLifecycle(
   steps.push({
     id: "demise",
     title: "5 · Odhad zániku",
-    body: `Zeslabení pod ~30 dBZ za ~${demise.etaMin} min.`,
+    body: demiseBodyCopy(demise),
     meta: demise.reason,
     reasons: demise.reasons,
+    badge: demiseBadge(demise.confidence),
   });
 
   const summary = feature.trueBirth
     ? feature.phase === "birth"
-      ? `Nový zrod u ${place}. ${growthWhy?.headline ?? "Sledujeme růst, trasu a kde zeslábne."}`
+      ? `Nový zrod u ${place}. ${growthWhy?.headline ?? "Sledujeme růst, trasu a kde může zeslábnout."}`
       : feature.phase === "growing"
         ? `Roste u ${place} (+${feature.growthDbz.toFixed(0)} dBZ). ${growthWhy?.headline ?? ""}`
         : `Buňka u ${place} jde na ${dir}. Od zrodu ~${feature.ageMinutes} min · ${severityWhy.headline}`
@@ -527,6 +583,9 @@ export function buildStormLifecycle(
     steps,
     demiseAt: [demise.lon, demise.lat],
     demiseEtaMin: demise.etaMin,
+    demiseEtaMinLo: demise.etaMinLo,
+    demiseEtaMinHi: demise.etaMinHi,
+    demiseConfidence: demise.confidence,
     intensifyAt: intensPt?.at ?? null,
     intensifyEtaMin: intensPt?.eta ?? null,
   };
@@ -568,14 +627,17 @@ export function lifecycleMapGeoJSON(
 
   if (life.demiseAt) {
     coords.push(life.demiseAt);
+    const lo = life.demiseEtaMinLo ?? life.demiseEtaMin;
+    const hi = life.demiseEtaMinHi ?? life.demiseEtaMin;
     features.push({
       type: "Feature",
       properties: {
         kind: "demise",
+        confidence: life.demiseConfidence ?? "climatology",
         label:
-          life.demiseEtaMin != null
-            ? `zánik\nza ~${life.demiseEtaMin} min`
-            : "zánik",
+          lo != null && hi != null
+            ? `odhad zániku\nza ~${lo}–${hi} min`
+            : "odhad zániku",
         reason:
           life.steps.find((s) => s.id === "demise")?.reasons?.[0] ??
           life.steps.find((s) => s.id === "demise")?.meta ??

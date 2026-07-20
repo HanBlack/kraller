@@ -68,8 +68,16 @@ export function formatStormAlertDetail(
 
   if (alert.hailCmMax != null && alert.hailCmMax >= 1 && (alert.maxDbz ?? 0) >= 55) {
     if (alert.hitType === "core" || alert.hitType === "fringe") {
+      parts.push(
+        t("alert.hailRiskCm", { cm: alert.hailCmMax }, locale),
+      );
+    } else {
       parts.push(t("alert.hailRisk", undefined, locale));
     }
+  }
+
+  if (alert.supercellEnvRisk) {
+    parts.push(t("alert.supercellEnv", undefined, locale));
   }
 
   if (alert.rainMmPerHour) {

@@ -1,4 +1,4 @@
-# Learning store — mimo rychlý radar loop (1× za hodinu).
+# Learning store — záloha + proposal (primární emit je Live radar ~5 min).
 
 name: Learning collect
 
@@ -17,7 +17,7 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
 
@@ -31,14 +31,17 @@ jobs:
       - name: Emit learning events
         run: python scripts/emit_learning.py
 
-      - name: Commit learning data
+      - name: Propose calibration
+        run: python scripts/propose_calibration.py
+
+      - name: Commit learning + proposal
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/data/learning
+          git add public/data/learning public/data/calibration
           if git diff --staged --quiet; then
             echo "No learning changes."
           else
-            git commit -m "chore: learning collect"
+            git commit -m "chore: learning collect + calibration proposal"
             git push
           fi

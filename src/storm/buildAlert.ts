@@ -12,6 +12,7 @@ import type {
   FormationAssessment,
 } from "./types";
 import type { FormationZone } from "./demo";
+import { showSupercellEnvBadge } from "./scoreActive";
 
 export function alertFromActive(
   a: ActiveStormAssessment,
@@ -37,6 +38,7 @@ export function alertFromActive(
     missKm: a.missKm,
     atUserDbz: a.atUserDbz,
     tornadoChancePct: tornado,
+    supercellEnvRisk: showSupercellEnvBadge(a) || undefined,
   };
 }
 
@@ -68,4 +70,4 @@ export function formatFormationSummary(
     locale,
   );
 }
-
+

@@ -581,6 +581,36 @@
   color: #f0d5a8;
 }
 
+.hazard-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.55rem 0 0.35rem;
+}
+
+.hazard-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+}
+
+.hazard-badge.hail {
+  background: rgba(180, 140, 90, 0.22);
+  color: #e8d4b0;
+  border: 1px solid rgba(200, 160, 100, 0.4);
+}
+
+.hazard-badge.supercell {
+  background: rgba(140, 110, 160, 0.22);
+  color: #d8c8e8;
+  border: 1px solid rgba(160, 130, 180, 0.4);
+}
+
 .status {
   margin: 0.75rem 0 0;
   font-size: 0.88rem;
@@ -1486,11 +1516,45 @@
 
 .lifecycle-step-title {
   margin: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
   font-size: 0.72rem;
   font-weight: 650;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: #9ec5f0;
+}
+
+.lifecycle-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.62rem;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+.lifecycle-badge.confidence-observed {
+  background: rgba(200, 160, 120, 0.28);
+  color: #f0dcc0;
+  border: 1px solid rgba(200, 160, 120, 0.45);
+}
+
+.lifecycle-badge.confidence-trending {
+  background: rgba(180, 170, 140, 0.22);
+  color: #e0d8c0;
+  border: 1px solid rgba(180, 170, 140, 0.4);
+}
+
+.lifecycle-badge.confidence-climatology {
+  background: rgba(140, 150, 160, 0.2);
+  color: #b8c0c8;
+  border: 1px dashed rgba(160, 170, 180, 0.45);
 }
 
 .lifecycle-step.active .lifecycle-step-title {

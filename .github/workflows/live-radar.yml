@@ -53,6 +53,10 @@ jobs:
           python scripts/refresh_env_if_stale.py
           python scripts/write_meta.py
 
+      - name: Learning emit (kalibrace — T+15/30 ověření)
+        run: python scripts/emit_learning.py
+        continue-on-error: true
+
       - name: Upload to Cloudflare R2
         env:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
@@ -62,14 +66,14 @@ jobs:
           R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
         run: python scripts/upload_data_r2.py
 
-      - name: Git backup (meta + radar, bez learning)
+      - name: Git backup (meta + radar + learning)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/data/meta.json public/data/opera public/data/chmi public/data/wind public/data/formation
+          git add public/data/meta.json public/data/opera public/data/chmi public/data/wind public/data/formation public/data/learning
           if git diff --staged --quiet; then
             echo "No git backup changes."
           else
-            git commit -m "chore: refresh radar data"
+            git commit -m "chore: refresh radar + learning"
             git push
           fi

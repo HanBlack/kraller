@@ -15,10 +15,13 @@ import {
   predictedDbzAt,
   type CellIntensification,
 } from "./intensification";
-import { birthEnvironmentAt, type BirthEnvironment } from "./birthEnv";
+import { birthEnvironmentAt, nearestFormationPoint, type BirthEnvironment } from "./birthEnv";
 import type { ScoredFormationPoint } from "./formationData";
 import { explainGrowthWhy } from "./growthWhy";
-import { scoreActiveStorm, shouldAlertActive } from "./scoreActive";
+import {
+  scoreActiveStorm,
+  shouldAlertActive,
+} from "./scoreActive";
 import { bandRadiiKm } from "./hitAtUser";
 import { stormConfig } from "./config";
 import type { ActiveStormAssessment } from "./types";
@@ -77,6 +80,14 @@ export type TrackedCell = {
   dbzSource?: "CHMI" | "OPERA";
   echoTopKm?: number;
   echoTopSource?: "CHMI";
+  /** PseudoCAPPI 2 km — déšť u země (ČHMÚ). */
+  surfaceDbz?: number;
+  /**
+   * ČHMÚ FCT_MAX_Z +30 min vs naše stopa.
+   * false = nesouhlas → širší koridor.
+   */
+  fctAgree?: boolean;
+  fctAngleDiffDeg?: number;
   peak: [number, number];
   polygon: Polygon;
   trackHeadingDeg?: number | null;
@@ -104,6 +115,9 @@ export type RadarProgressFeature = {
   label: string;
   trackEnd: [number, number];
   motionSource: "radar-track" | "wind-fallback";
+  /** ČHMÚ FCT nesouhlasí se stopou → širší koridor. */
+  fctDisagree?: boolean;
+  fctAngleDiffDeg?: number;
   historyMinutes: number;
   birth: [number, number];
   birthDbz: number;
@@ -292,6 +306,18 @@ export function parseTrackedCells(fc: FeatureCollection): TrackedCell[] {
           : undefined,
       echoTopSource:
         f.properties.echoTopSource === "CHMI" ? "CHMI" : undefined,
+      surfaceDbz:
+        typeof f.properties.chmiSurfaceDbz === "number"
+          ? Number(f.properties.chmiSurfaceDbz)
+          : undefined,
+      fctAgree:
+        typeof f.properties.chmiFctAgree === "boolean"
+          ? f.properties.chmiFctAgree
+          : undefined,
+      fctAngleDiffDeg:
+        typeof f.properties.chmiFctAngleDiffDeg === "number"
+          ? Number(f.properties.chmiFctAngleDiffDeg)
+          : undefined,
       peak,
       polygon: f.geometry,
       trackHeadingDeg:
@@ -398,20 +424,28 @@ export function buildRadarProgressFeatures(
       approachAngleDeg = angleDiffDeg(motion.headingDeg, toUser);
     }
 
-    const assessment = scoreActiveStorm({
-      id: cell.id,
-      lat: peakLat,
-      lon: peakLon,
-      maxDbz: peakDbz,
-      echoTopKm,
-      echoTopSource: cell.echoTopSource,
-      dbzSource: cell.dbzSource,
-      speedKmh: motion.speedKmh,
-      headingDeg: motion.headingDeg,
-      distanceToUserKm,
-      approachAngleDeg,
-      fromPlace: cell.dbzSource === "CHMI" ? "Radar ČHMÚ" : "Radar OPERA",
-    });
+    const peakEnv =
+      nearestFormationPoint(peakLat, peakLon, formationPoints)?.environment ??
+      null;
+
+    const assessment = scoreActiveStorm(
+      {
+        id: cell.id,
+        lat: peakLat,
+        lon: peakLon,
+        maxDbz: peakDbz,
+        echoTopKm,
+        echoTopSource: cell.echoTopSource,
+        dbzSource: cell.dbzSource,
+        surfaceDbz: cell.surfaceDbz,
+        speedKmh: motion.speedKmh,
+        headingDeg: motion.headingDeg,
+        distanceToUserKm,
+        approachAngleDeg,
+        fromPlace: cell.dbzSource === "CHMI" ? "Radar ČHMÚ" : "Radar OPERA",
+      },
+      peakEnv,
+    );
 
     const age = cell.ageMinutes ?? cell.historyMinutes ?? 0;
     const birth = cell.birth ?? cell.peak;
@@ -483,6 +517,8 @@ export function buildRadarProgressFeatures(
       label,
       trackEnd,
       motionSource: motion.source,
+      fctDisagree: cell.fctAgree === false,
+      fctAngleDiffDeg: cell.fctAngleDiffDeg,
       historyMinutes: cell.historyMinutes ?? 0,
       birth,
       birthDbz,
@@ -724,10 +760,14 @@ export function radarTrackCorridorsGeoJSONAt(
     }
     const { fringeKm } = bandRadiiKm(f.maxDbz);
     // Šířka roste s horizontem (chaotické jádro dál = větší pás)
-    const halfKm = Math.min(
+    let halfKm = Math.min(
       14,
       Math.max(3.5, fringeKm * (1 + forecastMinutes / 90)),
     );
+    // ČHMÚ FCT vs naše stopa — nesouhlas → širší koridor (ne měnit heading)
+    if (f.fctDisagree) {
+      halfKm = Math.min(18, halfKm * 1.45);
+    }
     const mid = destinationPoint(
       here[1],
       here[0],

@@ -37,6 +37,8 @@ HOURLY = ",".join(
         "cape",
         "dew_point_2m",
         "lifted_index",
+        "freezing_level_height",
+        "convective_inhibition",
         "wind_speed_850hPa",
         "wind_direction_850hPa",
         "wind_speed_500hPa",
@@ -160,6 +162,8 @@ def point_environment(point: dict, now: datetime) -> dict:
 
     dew = series_at(h.get("dew_point_2m") or [], idx)
     li = series_at(h.get("lifted_index") or [], idx)
+    fzl = series_at(h.get("freezing_level_height") or [], idx)
+    cin = series_at(h.get("convective_inhibition") or [], idx)
 
     spd850 = series_at(h.get("wind_speed_850hPa") or [], idx, 0.0)
     dir850 = series_at(h.get("wind_direction_850hPa") or [], idx)
@@ -191,6 +195,8 @@ def point_environment(point: dict, now: datetime) -> dict:
         "srh01": round(srh, 1),
         "cloudTopCoolingCPer15min": round(cooling, 2),
         "liftedIndexC": round(li, 1) if not math.isnan(li) else None,
+        "freezingLevelM": round(fzl, 0) if not math.isnan(fzl) else None,
+        "convectiveInhibitionJkg": round(cin, 1) if not math.isnan(cin) else None,
         "steerHeadingDeg": round(steer_heading, 1),
         "steerSpeedKmh": round(max(0.0, steer_speed), 1),
         "hourIndex": idx,
