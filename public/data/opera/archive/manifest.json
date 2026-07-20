@@ -228,8 +228,14 @@
       "index": 37,
       "time": "20260720060000",
       "path": "data/opera/archive/peaks-20260720060000.json",
-      "peakCount": 1
+      "peakCount": null
+    },
+    {
+      "index": 38,
+      "time": "20260720060500",
+      "path": "data/opera/archive/peaks-20260720060500.json",
+      "peakCount": 0
     }
   ],
-  "updatedAt": "20260720060000"
+  "updatedAt": "20260720060500"
 }
