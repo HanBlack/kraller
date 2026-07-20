@@ -165,6 +165,7 @@ export const en = {
     hailRiskCm: "higher hail chance (~{cm} cm)",
     supercellEnv: "environment favorable for a supercell",
     rain: "rain about {lo}–{hi} mm/h",
+    rainShort: "{lo}–{hi} mm/h",
     organized: "more organized storm",
     heavyRain: "heavy rain, wind gusts, lightning",
     rainWind: "rain, lightning, brief gusts",

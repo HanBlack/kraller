@@ -136,10 +136,14 @@ export function intensificationScoreAt(
   }
 
   // Už silná buňka: jen když prostředí opravdu unese ještě víc
-  if (currentDbz >= 55 && headroomDbz < 4) {
+  if (currentDbz >= 55 && headroomDbz < cfg.minHeadroomDbz) {
     return { score: 0, expectedDbz, headroomDbz };
   }
-  if (currentDbz >= 50 && headroomDbz < 2.5 && relativeBoost < 6) {
+  if (
+    currentDbz >= 50 &&
+    headroomDbz < cfg.minHeadroomDbz - 1.5 &&
+    relativeBoost < 6
+  ) {
     return { score: 0, expectedDbz, headroomDbz };
   }
 

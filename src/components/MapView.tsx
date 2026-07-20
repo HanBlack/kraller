@@ -586,7 +586,7 @@ function ensureStormLayers(map: maplibregl.Map) {
   if (map.getLayer(RADAR_FILL)) {
     map.setPaintProperty(RADAR_FILL, "fill-color", dbzFillColor);
     map.setPaintProperty(RADAR_FILL, "fill-outline-color", "rgba(0,0,0,0)");
-      map.setPaintProperty(RADAR_FILL, "fill-opacity", 0.88);
+    map.setPaintProperty(RADAR_FILL, "fill-opacity", 1);
     map.setLayoutProperty(RADAR_FILL, "fill-sort-key", [
       "coalesce",
       ["get", "dbz"],
@@ -600,10 +600,7 @@ function ensureStormLayers(map: maplibregl.Map) {
     map.setPaintProperty(CELL_LINE, "line-opacity", 0.72);
   }
   if (map.getLayer(RADAR_LINE)) {
-    map.setPaintProperty(RADAR_LINE, "line-color", dbzOutlineColor);
-    map.setPaintProperty(RADAR_LINE, "line-width", 0.85);
-    map.setPaintProperty(RADAR_LINE, "line-blur", 0.4);
-    map.setPaintProperty(RADAR_LINE, "line-opacity", 0.55);
+    map.setLayoutProperty(RADAR_LINE, "visibility", "none");
   }
   if (map.getLayer(RADAR_PEAK)) {
     map.setPaintProperty(RADAR_PEAK, "circle-radius", [
@@ -875,7 +872,7 @@ function ensureStormLayers(map: maplibregl.Map) {
       },
       paint: {
         "fill-color": dbzFillColor,
-        "fill-opacity": 0.88,
+        "fill-opacity": 1,
       },
     });
     map.addLayer({
@@ -883,11 +880,14 @@ function ensureStormLayers(map: maplibregl.Map) {
       type: "line",
       source: RADAR_SOURCE,
       filter: ["==", ["geometry-type"], "Polygon"],
+      layout: {
+        visibility: "none",
+      },
       paint: {
         "line-color": dbzOutlineColor,
         "line-width": 0.85,
         "line-blur": 0.4,
-        "line-opacity": 0.55,
+        "line-opacity": 0,
       },
     });
     map.addLayer({
@@ -2128,13 +2128,10 @@ export function MapView({
         showCellDetail,
       );
       // Budoucnost: schovat OPERA — jinak vypadá, že se bouřka „nepohybuje“.
-      setLayerVisibility(
-        map,
-        [RADAR_FILL, RADAR_LINE, RADAR_PEAK],
-        liveRadarOn,
-      );
+      setLayerVisibility(map, [RADAR_FILL, RADAR_PEAK], liveRadarOn);
+      setLayerVisibility(map, [RADAR_LINE], false);
       if (map.getLayer(RADAR_FILL)) {
-        map.setPaintProperty(RADAR_FILL, "fill-opacity", 0.88);
+        map.setPaintProperty(RADAR_FILL, "fill-opacity", 1);
       }
       setLayerVisibility(map, [CELL_FILL, CELL_LINE], showCellFill);
       if (map.getLayer(CELL_FILL)) {

@@ -72,4 +72,18 @@ describe("radarTrackCorridors — pás místo přímky", () => {
       Number(agree.features[0].properties?.halfKm),
     );
   });
+
+  it("early / growing → širší koridor než mature", () => {
+    const mature = radarTrackCorridorsGeoJSONAt(
+      [feature({ phase: "moving", ageMinutes: 40, trueBirth: false })],
+      0,
+    );
+    const early = radarTrackCorridorsGeoJSONAt(
+      [feature({ phase: "growing", ageMinutes: 8, trueBirth: true })],
+      0,
+    );
+    expect(Number(early.features[0].properties?.halfKm)).toBeGreaterThan(
+      Number(mature.features[0].properties?.halfKm),
+    );
+  });
 });

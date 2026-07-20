@@ -163,6 +163,7 @@ export const cs = {
     hailRiskCm: "vyšší šance na kroupy (~{cm} cm)",
     supercellEnv: "prostředí vhodné pro supercelu",
     rain: "déšť cca {lo}–{hi} mm/h",
+    rainShort: "{lo}–{hi} mm/h",
     organized: "organizovanější bouřka",
     heavyRain: "silný liják, nárazy větru, blesky",
     rainWind: "déšť, blesky, krátké nárazy větru",
