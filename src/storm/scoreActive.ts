@@ -120,7 +120,11 @@ export function scoreActiveStorm(
       (hit.atUserDbz != null ? `, ~${hit.atUserDbz.toFixed(0)} dBZ` : "") +
       `)`,
   );
-  reasons.push(`odhad výšky echa ~${cell.echoTopKm.toFixed(1)} km`);
+  if (cell.echoTopSource === "CHMI") {
+    reasons.push(`výška echa ${cell.echoTopKm.toFixed(1)} km (ČHMÚ)`);
+  } else {
+    reasons.push(`odhad výšky echa ~${cell.echoTopKm.toFixed(1)} km`);
+  }
   if (towardN > 0.5) {
     reasons.push(`směr k lokaci (úhel ${cell.approachAngleDeg.toFixed(0)}°)`);
   }

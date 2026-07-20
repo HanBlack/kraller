@@ -36,6 +36,11 @@ RADAR_ONLY_STEPS = [
         [sys.executable, "scripts/opera_fetch_convert.py", "--frames", "6"],
     ),
     (
+        "chmi",
+        "ČHMÚ",
+        [sys.executable, "scripts/chmi_radar.py"],
+    ),
+    (
         "env",
         "env (formation/wind)",
         [sys.executable, "scripts/refresh_env_if_stale.py"],

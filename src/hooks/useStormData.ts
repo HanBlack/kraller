@@ -27,8 +27,10 @@ export type StormDataState = {
   formationScoredPoints: ScoredFormationPoint[];
   lastUpdated: string | null;
   operaTime: string | null;
+  chmiTime: string | null;
   dataSources: {
     opera?: DataSourceStatus;
+    chmi?: DataSourceStatus;
     wind?: DataSourceStatus;
     formation?: DataSourceStatus;
   } | null;
@@ -60,6 +62,7 @@ export function useStormData(
   >([]);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [operaTime, setOperaTime] = useState<string | null>(null);
+  const [chmiTime, setChmiTime] = useState<string | null>(null);
   const [dataSources, setDataSources] = useState<StormDataState["dataSources"]>(
     null,
   );
@@ -105,6 +108,7 @@ export function useStormData(
       }
       setLastUpdated(data.metaUpdatedAt);
       setOperaTime(data.operaTime);
+      setChmiTime(data.chmiTime);
       setDataSources(data.dataSources ?? null);
       setRadarHistory(data.radarHistory);
       bootedRef.current = true;
@@ -134,6 +138,7 @@ export function useStormData(
     formationScoredPoints,
     lastUpdated,
     operaTime,
+    chmiTime,
     dataSources,
     radarHistory,
     booting,

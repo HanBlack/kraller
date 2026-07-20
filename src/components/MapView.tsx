@@ -156,30 +156,46 @@ function emphasizeCountryBorders(map: maplibregl.Map) {
   }
 }
 
-/** Barvy radarových pásem dBZ (OPERA i demo). */
+/** Barvy radarových pásem dBZ (OPERA i demo) — jemnější stupně. */
 const dbzFillColor: maplibregl.ExpressionSpecification = [
   "match",
   ["get", "band"],
+  "light",
+  "rgba(90, 200, 160, 0.28)",
   "echo",
   "rgba(70, 180, 110, 0.38)",
+  "rain",
+  "rgba(160, 210, 70, 0.42)",
   "moderate",
   "rgba(230, 210, 70, 0.48)",
+  "strong",
+  "rgba(245, 170, 50, 0.52)",
   "heavy",
-  "rgba(240, 130, 50, 0.55)",
+  "rgba(240, 130, 50, 0.58)",
+  "extreme",
+  "rgba(220, 50, 80, 0.68)",
   "fade",
   "rgba(90, 140, 110, 0.18)",
-  "rgba(220, 60, 90, 0.65)",
+  "rgba(220, 60, 90, 0.65)", // core / peak
 ];
 
 const dbzOutlineColor: maplibregl.ExpressionSpecification = [
   "match",
   ["get", "band"],
+  "light",
+  "rgba(90, 200, 160, 0.55)",
   "echo",
   "rgba(70, 180, 110, 0.7)",
+  "rain",
+  "rgba(160, 210, 70, 0.7)",
   "moderate",
   "rgba(230, 210, 70, 0.75)",
+  "strong",
+  "rgba(245, 170, 50, 0.8)",
   "heavy",
-  "rgba(240, 130, 50, 0.8)",
+  "rgba(240, 130, 50, 0.85)",
+  "extreme",
+  "rgba(220, 50, 80, 0.9)",
   "fade",
   "rgba(90, 140, 110, 0.4)",
   "rgba(255, 120, 160, 0.9)",
@@ -247,13 +263,21 @@ function activeCellGeoJSON(
         band.forwardOffsetKm,
       );
       const order =
-        band.band === "echo"
+        band.band === "light"
           ? 1
-          : band.band === "moderate"
+          : band.band === "echo"
             ? 2
-            : band.band === "heavy"
+            : band.band === "rain"
               ? 3
-              : 4;
+              : band.band === "moderate"
+                ? 4
+                : band.band === "strong"
+                  ? 5
+                  : band.band === "heavy"
+                    ? 6
+                    : band.band === "extreme"
+                      ? 7
+                      : 8;
 
       feats.push({
         type: "Feature",
@@ -463,6 +487,21 @@ function ensureStormLayers(map: maplibregl.Map) {
   if (map.getLayer(CELL_FILL)) {
     map.setPaintProperty(CELL_FILL, "fill-color", dbzFillColor);
     map.setPaintProperty(CELL_FILL, "fill-outline-color", dbzOutlineColor);
+    map.setPaintProperty(CELL_FILL, "fill-sort-key", [
+      "coalesce",
+      ["get", "dbz"],
+      ["get", "order"],
+      0,
+    ]);
+  }
+  if (map.getLayer(RADAR_FILL)) {
+    map.setPaintProperty(RADAR_FILL, "fill-color", dbzFillColor);
+    map.setPaintProperty(RADAR_FILL, "fill-outline-color", dbzOutlineColor);
+    map.setPaintProperty(RADAR_FILL, "fill-sort-key", [
+      "coalesce",
+      ["get", "dbz"],
+      0,
+    ]);
   }
 
   // Šipka vyrůstá z jádra po směru (anchor bottom)
@@ -691,6 +730,7 @@ function ensureStormLayers(map: maplibregl.Map) {
       paint: {
         "fill-color": dbzFillColor,
         "fill-outline-color": dbzOutlineColor,
+        "fill-sort-key": ["coalesce", ["get", "dbz"], 0],
       },
     });
     map.addLayer({
@@ -700,10 +740,10 @@ function ensureStormLayers(map: maplibregl.Map) {
       filter: [
         "all",
         ["==", ["geometry-type"], "Polygon"],
-        ["==", ["get", "band"], "echo"],
+        ["==", ["get", "band"], "light"],
       ],
       paint: {
-        "line-color": "rgba(120, 200, 150, 0.55)",
+        "line-color": "rgba(90, 200, 160, 0.55)",
         "line-width": 1.2,
         "line-opacity": 0.85,
       },
@@ -843,6 +883,7 @@ function ensureStormLayers(map: maplibregl.Map) {
         paint: {
           "fill-color": dbzFillColor,
           "fill-outline-color": dbzOutlineColor,
+          "fill-sort-key": ["coalesce", ["get", "dbz"], ["get", "order"], 0],
           "fill-opacity": [
             "case",
             ["has", "opacity"],
@@ -870,12 +911,20 @@ function ensureStormLayers(map: maplibregl.Map) {
             [
               "match",
               ["get", "band"],
+              "light",
+              "rgba(90, 200, 160, 0.8)",
               "echo",
               "rgba(70, 180, 110, 0.85)",
+              "rain",
+              "rgba(160, 210, 70, 0.85)",
               "moderate",
               "rgba(230, 210, 70, 0.85)",
+              "strong",
+              "rgba(245, 170, 50, 0.88)",
               "heavy",
               "rgba(240, 130, 50, 0.9)",
+              "extreme",
+              "rgba(220, 50, 80, 0.92)",
               "fade",
               "rgba(90, 140, 110, 0.5)",
               "rgba(220, 60, 90, 0.9)",

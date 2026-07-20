@@ -19,11 +19,14 @@ export type DataSourceStatus = {
 export type DataMeta = {
   updatedAt: string;
   operaTime?: string | null;
+  chmiTime?: string | null;
   opera?: boolean;
+  chmi?: boolean;
   wind?: boolean;
   formation?: boolean;
   sources?: {
     opera?: DataSourceStatus;
+    chmi?: DataSourceStatus;
     wind?: DataSourceStatus;
     formation?: DataSourceStatus;
   };
@@ -41,6 +44,7 @@ export type StormDataBundle = {
   formationScoredPoints: ScoredFormationPoint[];
   metaUpdatedAt: string | null;
   operaTime: string | null;
+  chmiTime: string | null;
   dataSources: DataMeta["sources"] | null;
   radarHistory: RadarHistoryManifest | null;
 };
@@ -57,21 +61,37 @@ async function fetchJson<T>(path: string, cacheBust: number): Promise<T | null> 
   }
 }
 
+/** Sloučí OPERA (EU) + ČHMÚ kontury (přesnější nad CZ). */
+function mergeRadarLayers(
+  opera: FeatureCollection,
+  chmi: FeatureCollection | null,
+): FeatureCollection {
+  if (!chmi?.features?.length) return opera;
+  const operaFeats = opera.features.filter(
+    (f) => f.properties?.source !== "CHMI",
+  );
+  return {
+    type: "FeatureCollection",
+    features: [...operaFeats, ...chmi.features],
+  };
+}
+
 /** Načte radar, buňky, vítr, vznik a metadata. Při chybě vrátí prázdné/fallback hodnoty. */
 export async function loadStormData(
   cacheBust: number,
   fallbackFormation: FormationZone[],
 ): Promise<StormDataBundle> {
-  const [meta, radarData, cellsData, wind, radarHistory] = await Promise.all([
+  const [meta, radarData, chmiRadar, cellsData, wind, radarHistory] = await Promise.all([
     fetchJson<DataMeta>("data/meta.json", cacheBust),
     fetchJson<FeatureCollection>("data/opera/latest.geojson", cacheBust),
+    fetchJson<FeatureCollection>("data/chmi/latest.geojson", cacheBust),
     fetchJson<FeatureCollection>("data/opera/cells.geojson", cacheBust),
     loadWindGrids(cacheBust),
     loadRadarHistoryManifest(cacheBust),
   ]);
 
   const cellsFc = cellsData ?? EMPTY_FC;
-  const radarFc = radarData ?? EMPTY_FC;
+  const radarFc = mergeRadarLayers(radarData ?? EMPTY_FC, chmiRadar);
   const formation = await buildRealFormationZones(cellsFc, cacheBust);
 
   return {
@@ -86,6 +106,7 @@ export async function loadStormData(
     formationScoredPoints: formation.scoredPoints,
     metaUpdatedAt: meta?.updatedAt ?? null,
     operaTime: meta?.operaTime ?? null,
+    chmiTime: meta?.chmiTime ?? null,
     dataSources: meta?.sources ?? null,
     radarHistory,
   };

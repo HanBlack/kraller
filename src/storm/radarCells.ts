@@ -70,6 +70,12 @@ export type CellHistoryPoint = {
 export type TrackedCell = {
   id: string;
   maxDbz: number;
+  /** ČHMÚ Z u jádra (nad CZ), jinak undefined. */
+  chmiDbz?: number;
+  peakDbz?: number;
+  dbzSource?: "CHMI" | "OPERA";
+  echoTopKm?: number;
+  echoTopSource?: "CHMI";
   peak: [number, number];
   polygon: Polygon;
   trackHeadingDeg?: number | null;
@@ -153,14 +159,27 @@ function shiftPolygon(
 }
 
 function bandForDbz(dbz: number): string {
+  if (dbz >= 60) return "extreme";
   if (dbz >= 55) return "heavy";
+  if (dbz >= 50) return "strong";
   if (dbz >= 45) return "moderate";
-  if (dbz >= 32) return "echo";
+  if (dbz >= 40) return "rain";
+  if (dbz >= 35) return "echo";
+  if (dbz >= 30) return "light";
   return "fade";
 }
 
 function echoTopKmEstimate(dbz: number): number {
   return Math.min(15, 7.5 + (dbz - 35) * 0.2);
+}
+
+function effectivePeakDbz(cell: Pick<TrackedCell, "peakDbz" | "chmiDbz" | "maxDbz">): number {
+  return cell.peakDbz ?? cell.chmiDbz ?? cell.maxDbz;
+}
+
+function effectiveEchoTopKm(cell: Pick<TrackedCell, "echoTopKm" | "peakDbz" | "chmiDbz" | "maxDbz">): number {
+  if (cell.echoTopKm != null && cell.echoTopKm > 0) return cell.echoTopKm;
+  return echoTopKmEstimate(effectivePeakDbz(cell));
 }
 
 /** Zvětší / zmenší polygon kolem kotvy (peak) — ať jádro zůstane ve středu vizuálu. */
@@ -257,6 +276,21 @@ export function parseTrackedCells(fc: FeatureCollection): TrackedCell[] {
     cells.push({
       id,
       maxDbz: Number(f.properties.maxDbz ?? 35),
+      chmiDbz:
+        typeof f.properties.chmiDbz === "number"
+          ? Number(f.properties.chmiDbz)
+          : undefined,
+      peakDbz:
+        typeof f.properties.peakDbz === "number"
+          ? Number(f.properties.peakDbz)
+          : undefined,
+      dbzSource: f.properties.dbzSource as "CHMI" | "OPERA" | undefined,
+      echoTopKm:
+        typeof f.properties.echoTopKm === "number"
+          ? Number(f.properties.echoTopKm)
+          : undefined,
+      echoTopSource:
+        f.properties.echoTopSource === "CHMI" ? "CHMI" : undefined,
       peak,
       polygon: f.geometry,
       trackHeadingDeg:
@@ -352,6 +386,8 @@ export function buildRadarProgressFeatures(
   return picked.map((cell) => {
     const [peakLon, peakLat] = cell.peak;
     const motion = cellMotion(cell, windLow, windUpper);
+    const peakDbz = effectivePeakDbz(cell);
+    const echoTopKm = effectiveEchoTopKm(cell);
 
     let distanceToUserKm = 80;
     let approachAngleDeg = 90;
@@ -365,13 +401,15 @@ export function buildRadarProgressFeatures(
       id: cell.id,
       lat: peakLat,
       lon: peakLon,
-      maxDbz: cell.maxDbz,
-      echoTopKm: echoTopKmEstimate(cell.maxDbz),
+      maxDbz: peakDbz,
+      echoTopKm,
+      echoTopSource: cell.echoTopSource,
+      dbzSource: cell.dbzSource,
       speedKmh: motion.speedKmh,
       headingDeg: motion.headingDeg,
       distanceToUserKm,
       approachAngleDeg,
-      fromPlace: "Radar OPERA",
+      fromPlace: cell.dbzSource === "CHMI" ? "Radar ČHMÚ" : "Radar OPERA",
     });
 
     const age = cell.ageMinutes ?? cell.historyMinutes ?? 0;
@@ -407,15 +445,15 @@ export function buildRadarProgressFeatures(
 
     let label: string;
     if (phase === "birth") {
-      label = `${t("storm.born", undefined, locale)} · ${cell.maxDbz.toFixed(0)} dBZ${
+      label = `${t("storm.born", undefined, locale)} · ${peakDbz.toFixed(0)} dBZ${
         growthWhy?.shortLabel ? `\n${growthWhy.shortLabel}` : ""
       }`;
     } else if (phase === "growing") {
-      label = `${t("storm.growing", undefined, locale)} · ${cell.maxDbz.toFixed(0)} dBZ${
+      label = `${t("storm.growing", undefined, locale)} · ${peakDbz.toFixed(0)} dBZ${
         growthWhy?.shortLabel ? `\n${growthWhy.shortLabel}` : ""
       }`;
     } else {
-      label = `${severityLabel(assessment.severity, locale)} · ${cell.maxDbz.toFixed(0)} dBZ${
+      label = `${severityLabel(assessment.severity, locale)} · ${peakDbz.toFixed(0)} dBZ${
         assessment.etaMinutes != null && alert
           ? `\n~${assessment.etaMinutes} min`
           : ""
@@ -433,7 +471,7 @@ export function buildRadarProgressFeatures(
 
     return {
       id: cell.id,
-      maxDbz: cell.maxDbz,
+      maxDbz: peakDbz,
       peak: cell.peak,
       polygon: cell.polygon,
       headingDeg: motion.headingDeg,

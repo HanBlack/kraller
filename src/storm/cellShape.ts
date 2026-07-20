@@ -7,7 +7,15 @@ export type CellBand = {
   /** Spodní práh dBZ této zóny. */
   dbz: number;
   /** Klíč pro barvu / pořadí. */
-  band: "echo" | "moderate" | "heavy" | "core";
+  band:
+    | "light"
+    | "echo"
+    | "rain"
+    | "moderate"
+    | "strong"
+    | "heavy"
+    | "extreme"
+    | "core";
   majorKm: number;
   minorKm: number;
   /** Posun středu zóny ve směru pohybu (km) — jádro často napovědu. */
@@ -73,53 +81,79 @@ export function buildStormCellShape(storm: ActiveStormDemo): StormCellShape {
 
   const bands: CellBand[] = [];
 
-  // Vnější echo (~35 dBZ) — vždy
+  bands.push({
+    dbz: 30,
+    band: "light",
+    majorKm: 16 * s * elongate,
+    minorKm: 10 * s,
+    forwardOffsetKm: -1.5 * s,
+  });
+
   bands.push({
     dbz: 35,
     band: "echo",
-    majorKm: 14 * s * elongate,
-    minorKm: 9 * s,
-    forwardOffsetKm: -1.2 * s,
+    majorKm: 13 * s * elongate,
+    minorKm: 8 * s,
+    forwardOffsetKm: -1.0 * s,
   });
+
+  if (storm.maxDbz >= 38) {
+    bands.push({
+      dbz: 40,
+      band: "rain",
+      majorKm: 11 * s * elongate,
+      minorKm: 6.5 * s,
+      forwardOffsetKm: -0.2 * s,
+    });
+  }
 
   if (storm.maxDbz >= 42) {
     bands.push({
       dbz: 45,
       band: "moderate",
-      majorKm: 9 * s * elongate,
-      minorKm: 5.5 * s,
-      forwardOffsetKm: 0.4 * s,
+      majorKm: 8.5 * s * elongate,
+      minorKm: 5.2 * s,
+      forwardOffsetKm: 0.5 * s,
     });
   }
 
-  if (storm.maxDbz >= 50) {
+  if (storm.maxDbz >= 48) {
     bands.push({
-      dbz: 55,
-      band: "heavy",
-      majorKm: 5 * s * elongate,
-      minorKm: 3.2 * s,
-      forwardOffsetKm: 1.6 * s,
-    });
-  }
-
-  if (storm.maxDbz >= 55) {
-    bands.push({
-      dbz: Math.min(65, Math.round(storm.maxDbz)),
-      band: "core",
-      majorKm: 2.4 * s,
-      minorKm: 1.7 * s,
-      forwardOffsetKm: 2.4 * s,
-    });
-  } else {
-    // Slabší bouře — malé „jádro“ u maxima
-    bands.push({
-      dbz: storm.maxDbz,
-      band: "core",
-      majorKm: 2.8 * s,
-      minorKm: 2.1 * s,
+      dbz: 50,
+      band: "strong",
+      majorKm: 6 * s * elongate,
+      minorKm: 3.8 * s,
       forwardOffsetKm: 1.2 * s,
     });
   }
+
+  if (storm.maxDbz >= 52) {
+    bands.push({
+      dbz: 55,
+      band: "heavy",
+      majorKm: 4.2 * s * elongate,
+      minorKm: 2.8 * s,
+      forwardOffsetKm: 1.8 * s,
+    });
+  }
+
+  if (storm.maxDbz >= 58) {
+    bands.push({
+      dbz: 60,
+      band: "extreme",
+      majorKm: 2.6 * s,
+      minorKm: 1.9 * s,
+      forwardOffsetKm: 2.2 * s,
+    });
+  }
+
+  bands.push({
+    dbz: Math.min(65, Math.round(storm.maxDbz)),
+    band: "core",
+    majorKm: storm.maxDbz >= 55 ? 2.0 * s : 2.6 * s,
+    minorKm: storm.maxDbz >= 55 ? 1.5 * s : 2.0 * s,
+    forwardOffsetKm: storm.maxDbz >= 55 ? 2.5 * s : 1.2 * s,
+  });
 
   const core = bands[bands.length - 1];
   const epicenter = destinationPoint(

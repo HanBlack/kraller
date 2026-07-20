@@ -169,7 +169,16 @@ def parse_nominal_time(meta: dict) -> dt.datetime:
     time_s = str(meta.get("time", ""))
     if len(time_s) == 4:
         time_s = f"{time_s}00"
+    elif len(time_s) == 5:
+        time_s = f"0{time_s}" if len(time_s) < 6 else time_s
+    if len(time_s) < 6:
+        time_s = (time_s + "000000")[:6]
     return dt.datetime.strptime(f"{date_s}{time_s}", "%Y%m%d%H%M%S")
+
+
+def opera_time_str(meta: dict) -> str:
+    """Vždy YYYYMMDDHHMMSS (14 znaků) — kvůli meta.operaTime a historii."""
+    return parse_nominal_time(meta).strftime("%Y%m%d%H%M%S")
 
 
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -315,7 +324,7 @@ def build_frame(dbz: np.ndarray, meta: dict) -> dict:
         "crop": crop,
         "bounds": (r0, r1, c0, c1),
         "time": parse_nominal_time(meta),
-        "time_str": f"{meta.get('date', '')}{meta.get('time', '')}",
+        "time_str": opera_time_str(meta),
         "cells": cells,
     }
 
@@ -478,9 +487,18 @@ def track_cells_over_time(frames: list[dict]) -> list[dict]:
 
 
 def build_radar_contour_features(frame: dict) -> list[dict]:
-    """Pouze echo kontury (bez buněk) pro jeden časový snímek."""
-    levels = [35.0, 45.0, 55.0]
-    band_for = {35.0: "echo", 45.0: "moderate", 55.0: "heavy"}
+    """Echo kontury — jemnější dBZ stupně pro přesnější tvar bouřky."""
+    # Vnější → vnitřní; nested polygons na mapě
+    levels = [30.0, 35.0, 40.0, 45.0, 50.0, 55.0, 60.0]
+    band_for = {
+        30.0: "light",
+        35.0: "echo",
+        40.0: "rain",
+        45.0: "moderate",
+        50.0: "strong",
+        55.0: "heavy",
+        60.0: "extreme",
+    }
     crop = frame["crop"]
     meta = frame["meta"]
     geo = frame["geo"]
