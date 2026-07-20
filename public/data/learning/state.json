@@ -3552,60 +3552,33 @@
       "li": null,
       "freezingLevelM": 3060.0,
       "cinJkg": 0.0
-    }
-  },
-  "intensityPending": {
-    "t:20260720215000:50.45:13.16:30:20260720220000": {
-      "trackKey": "t:20260720215000:50.45:13.16",
-      "horizonMin": 30,
-      "fromTs": "20260720220000",
-      "fromDbz": 39.0,
-      "predDbz": 32.0,
-      "slope": -3.5,
-      "lat": 50.44833528651315,
-      "lon": 13.131540180719396,
-      "surfaceDbz": null,
-      "echoTopKm": null,
-      "fctAgree": null,
-      "envDistKm": 14.9,
-      "cape": 0.0,
-      "capeNow": 0.0,
-      "dew": 10.1,
-      "shear": 6.0,
-      "srh01": 107.2,
-      "cooling": 0.0,
-      "li": null,
-      "freezingLevelM": 2510.0,
-      "cinJkg": 70.0,
-      "steerHdg": 131.7,
-      "steerSpd": 30.7
     },
-    "t:20260720220000:50.45:13.13:30:20260720220000": {
-      "trackKey": "t:20260720220000:50.45:13.13",
-      "horizonMin": 30,
-      "fromTs": "20260720220000",
-      "fromDbz": 39.0,
-      "predDbz": 39.0,
-      "slope": 0.0,
-      "lat": 50.44833528651315,
-      "lon": 13.131540180719396,
-      "surfaceDbz": null,
-      "echoTopKm": null,
-      "fctAgree": null,
-      "envDistKm": 14.9,
-      "cape": 0.0,
-      "capeNow": 0.0,
-      "dew": 10.1,
-      "shear": 6.0,
-      "srh01": 107.2,
-      "cooling": 0.0,
+    "z:47.56:17.91": {
+      "lat": 47.5588,
+      "lon": 17.9074,
+      "score": 37.400000000000006,
+      "fromTs": "20260720224500",
+      "cape": 10.0,
+      "shear": 12.3,
+      "dew": 12.2,
       "li": null,
-      "freezingLevelM": 2510.0,
-      "cinJkg": 70.0,
-      "steerHdg": 131.7,
-      "steerSpd": 30.7
+      "freezingLevelM": 3220.0,
+      "cinJkg": 145.0
+    },
+    "z:47.91:17.33": {
+      "lat": 47.9118,
+      "lon": 17.3333,
+      "score": 57.300000000000004,
+      "fromTs": "20260720224500",
+      "cape": 0.0,
+      "shear": 19.1,
+      "dew": 7.9,
+      "li": null,
+      "freezingLevelM": 3140.0,
+      "cinJkg": 0.0
     }
   },
+  "intensityPending": {},
   "purplePending": {},
   "lastConstants": {
     "MAX_TRUSTED_TRACK_KMH": 70,
@@ -3628,5 +3601,5 @@
     "INTENSIFY_HIT_DBZ": 3.0
   },
   "schemaVersion": 2,
-  "updatedAt": "2026-07-20T22:46:38Z"
+  "updatedAt": "2026-07-20T22:54:06Z"
 }
