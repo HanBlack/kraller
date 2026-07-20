@@ -13,7 +13,10 @@ import type { WindGrid } from "../lib/windField";
 import type { TrackedCell } from "../storm/radarCells";
 import type { RadarHistoryManifest } from "../lib/radarHistory";
 import type { ScoredFormationPoint } from "../storm/formationData";
-import type { RadarRasterMeta } from "../lib/radarRaster";
+import {
+  preloadRadarRaster,
+  type RadarRasterMeta,
+} from "../lib/radarRaster";
 
 export type BootPhase = "data" | "fetch" | "history" | "map" | "refresh" | "done";
 
@@ -93,14 +96,17 @@ export function useStormData(
           })
         : await loadStormData(bust, fallbackFormation);
       if (isBoot) setBootPhase("history");
-      await preloadRadarHistoryFrames(data.radarHistory, Date.now());
+      const [rasterReady] = await Promise.all([
+        preloadRadarRaster(data.radarRaster),
+        preloadRadarHistoryFrames(data.radarHistory, Date.now()),
+      ]);
       if (isBoot) {
         setBootPhase("map");
         await preloadMapStyle();
         setBootPhase("done");
       }
       setRadarData(data.radarData);
-      setRadarRaster(data.radarRaster);
+      setRadarRaster(rasterReady);
       setTrackedCells(data.trackedCells);
       setWindLow(data.windLow);
       setWindUpper(data.windUpper);

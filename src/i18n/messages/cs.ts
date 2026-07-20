@@ -4,7 +4,7 @@ export const cs = {
     bootSub: "Načítám radar a předpověď…",
     bootData: "Načítám radar a předpověď…",
     bootFetch: "Aktualizuji radar…",
-    bootHistory: "Načítám historii…",
+    bootHistory: "Načítám radarový snímek a historii…",
     bootRefresh: "Načítám nejnovější data…",
     bootMap: "Připravuji mapu…",
     bootTiles: "Vykresluji mapu…",
