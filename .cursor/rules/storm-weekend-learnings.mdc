@@ -46,7 +46,7 @@ Field observations from a real storm weekend over the user's location (Vsetín /
 
 ## Implementation order (when building)
 
-1. Formation + wind/intensification env on **same cadence as radar** — DONE: refresh ~30/20 min, formation writes wind, no 6h skip bug
+1. Formation + wind/intensification env on **same cadence as radar** — DONE: refresh ~15/10 min (Live radar 5 min), formation writes wind, no 6h skip bug
 2. Strength at user: core/fringe + mm/h + clear labels
 3. Honest purple intensification (fewer false positives)
 4. Formation less blind (UI: more than 8 zones / activity-linked)

@@ -1,8 +1,8 @@
-"""Obnoví formation (+ wind ze stejného fetch) / wind podle stáří — stejný takt jako Live radar.
+"""Obnoví formation (+ wind ze stejného fetch) / wind podle stáří — Live radar každých ~5 min.
 
-Prah:
-  formation > 30 min → fetch_formation --force (zapíše i wind)
-  jinak wind > 20 min → fetch_wind --force
+Prah (cíl UI ≤ ~15 min):
+  formation > 15 min → fetch_formation --force (zapíše i wind)
+  jinak wind > 10 min → fetch_wind --force
 """
 
 from __future__ import annotations
@@ -17,8 +17,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from data_freshness import age_minutes, read_valid_at  # noqa: E402
 
-FORMATION_REFRESH_MIN = 30.0
-WIND_REFRESH_MIN = 20.0
+FORMATION_REFRESH_MIN = 15.0
+WIND_REFRESH_MIN = 10.0
 WIND = "public/data/wind/low.json"
 FORM = "public/data/formation/grid.json"
 

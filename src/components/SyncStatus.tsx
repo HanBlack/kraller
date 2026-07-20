@@ -3,9 +3,9 @@ import { useI18n } from "../i18n";
 import type { DataSourceStatus } from "../lib/loadStormData";
 import { useStormDataContext } from "../providers/StormDataProvider";
 
-/** Prahy pro UI — formation cíl ~30 min, wind ~20 min. */
-const ENV_WARN_MIN = 35;
-const ENV_STALE_MIN = 55;
+/** Prahy pro UI — formation cíl ~15 min, wind ~10 min. */
+const ENV_WARN_MIN = 18;
+const ENV_STALE_MIN = 28;
 
 function ageMinutes(iso: string, nowMs: number): number {
   return Math.max(0, Math.round((nowMs - new Date(iso).getTime()) / 60_000));
