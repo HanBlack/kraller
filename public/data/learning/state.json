@@ -9,26 +9,26 @@
       "firstTs": "20260720181000",
       "preds": {
         "15": {
-          "predLat": 48.0401,
-          "predLon": 18.3158,
+          "predLat": 48.0411,
+          "predLon": 18.3214,
           "fromTs": "20260720181500",
           "fromLat": 48.0451,
           "fromLon": 18.1803,
-          "heading": 93.1,
-          "speed": 40.4,
+          "heading": 92.4,
+          "speed": 42.0,
           "motionSource": "radar-track",
-          "windAlignDeg": 15.1
+          "windAlignDeg": 14.4
         },
         "30": {
-          "predLat": 48.035,
-          "predLon": 18.4513,
+          "predLat": 48.0369,
+          "predLon": 18.4625,
           "fromTs": "20260720181500",
           "fromLat": 48.0451,
           "fromLon": 18.1803,
-          "heading": 93.1,
-          "speed": 40.4,
+          "heading": 92.4,
+          "speed": 42.0,
           "motionSource": "radar-track",
-          "windAlignDeg": 15.1
+          "windAlignDeg": 14.4
         }
       },
       "dbzSlopePer15": 16.5,
@@ -51,24 +51,24 @@
       "firstTs": "20260720181500",
       "preds": {
         "15": {
-          "predLat": 48.0394,
-          "predLon": 18.3359,
+          "predLat": 48.0401,
+          "predLon": 18.3544,
           "fromTs": "20260720181500",
           "fromLat": 48.0451,
           "fromLon": 18.1803,
-          "heading": 93.1,
-          "speed": 46.3,
+          "heading": 92.4,
+          "speed": 51.8,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         },
         "30": {
-          "predLat": 48.0334,
-          "predLon": 18.4915,
+          "predLat": 48.0349,
+          "predLon": 18.5284,
           "fromTs": "20260720181500",
           "fromLat": 48.0451,
           "fromLon": 18.1803,
-          "heading": 93.1,
-          "speed": 46.3,
+          "heading": 92.4,
+          "speed": 51.8,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         }
@@ -93,26 +93,26 @@
       "firstTs": "20260720164500",
       "preds": {
         "15": {
-          "predLat": 51.5682,
-          "predLon": 17.2079,
+          "predLat": 51.5719,
+          "predLon": 17.2105,
           "fromTs": "20260720181500",
           "fromLat": 51.6167,
           "fromLon": 17.0052,
-          "heading": 111.0,
-          "speed": 60.0,
+          "heading": 109.3,
+          "speed": 60.1,
           "motionSource": "radar-track",
-          "windAlignDeg": 0.2
+          "windAlignDeg": 1.5
         },
         "30": {
-          "predLat": 51.5192,
-          "predLon": 17.4102,
+          "predLat": 51.5267,
+          "predLon": 17.4154,
           "fromTs": "20260720181500",
           "fromLat": 51.6167,
           "fromLon": 17.0052,
-          "heading": 111.0,
-          "speed": 60.0,
+          "heading": 109.3,
+          "speed": 60.1,
           "motionSource": "radar-track",
-          "windAlignDeg": 0.2
+          "windAlignDeg": 1.5
         }
       },
       "dbzSlopePer15": 1.5,
@@ -135,24 +135,24 @@
       "firstTs": "20260720181500",
       "preds": {
         "15": {
-          "predLat": 51.5838,
-          "predLon": 17.1429,
+          "predLat": 51.5862,
+          "predLon": 17.1454,
           "fromTs": "20260720181500",
           "fromLat": 51.6167,
           "fromLon": 17.0052,
-          "heading": 111.0,
-          "speed": 40.8,
+          "heading": 109.3,
+          "speed": 41.1,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         },
         "30": {
-          "predLat": 51.5507,
-          "predLon": 17.2804,
+          "predLat": 51.5554,
+          "predLon": 17.2855,
           "fromTs": "20260720181500",
           "fromLat": 51.6167,
           "fromLon": 17.0052,
-          "heading": 111.0,
-          "speed": 40.8,
+          "heading": 109.3,
+          "speed": 41.1,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         }
@@ -177,24 +177,24 @@
       "firstTs": "20260720161000",
       "preds": {
         "15": {
-          "predLat": 50.8785,
-          "predLon": 14.193,
+          "predLat": 50.8598,
+          "predLon": 14.2023,
           "fromTs": "20260720181500",
           "fromLat": 50.9227,
           "fromLon": 14.0605,
-          "heading": 117.8,
-          "speed": 42.0,
+          "heading": 125.0,
+          "speed": 48.6,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         },
         "30": {
-          "predLat": 50.8342,
-          "predLon": 14.3252,
+          "predLat": 50.7968,
+          "predLon": 14.3437,
           "fromTs": "20260720181500",
           "fromLat": 50.9227,
           "fromLon": 14.0605,
-          "heading": 117.8,
-          "speed": 42.0,
+          "heading": 125.0,
+          "speed": 48.6,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         }
@@ -219,24 +219,24 @@
       "firstTs": "20260720181500",
       "preds": {
         "15": {
-          "predLat": 50.8785,
-          "predLon": 14.193,
+          "predLat": 50.8598,
+          "predLon": 14.2023,
           "fromTs": "20260720181500",
           "fromLat": 50.9227,
           "fromLon": 14.0605,
-          "heading": 117.8,
-          "speed": 42.0,
+          "heading": 125.0,
+          "speed": 48.6,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         },
         "30": {
-          "predLat": 50.8342,
-          "predLon": 14.3252,
+          "predLat": 50.7968,
+          "predLon": 14.3437,
           "fromTs": "20260720181500",
           "fromLat": 50.9227,
           "fromLon": 14.0605,
-          "heading": 117.8,
-          "speed": 42.0,
+          "heading": 125.0,
+          "speed": 48.6,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         }
@@ -261,26 +261,26 @@
       "firstTs": "20260720180000",
       "preds": {
         "15": {
-          "predLat": 51.6683,
-          "predLon": 15.1307,
+          "predLat": 51.6639,
+          "predLon": 15.1287,
           "fromTs": "20260720181500",
           "fromLat": 51.7309,
           "fromLon": 15.0182,
-          "heading": 131.9,
-          "speed": 41.7,
+          "heading": 134.3,
+          "speed": 42.6,
           "motionSource": "wind-fallback",
-          "windAlignDeg": 103.5
+          "windAlignDeg": 101.1
         },
         "30": {
-          "predLat": 51.6056,
-          "predLon": 15.2429,
+          "predLat": 51.5968,
+          "predLon": 15.2389,
           "fromTs": "20260720181500",
           "fromLat": 51.7309,
           "fromLon": 15.0182,
-          "heading": 131.9,
-          "speed": 41.7,
+          "heading": 134.3,
+          "speed": 42.6,
           "motionSource": "wind-fallback",
-          "windAlignDeg": 103.5
+          "windAlignDeg": 101.1
         }
       },
       "dbzSlopePer15": 3.0,
@@ -303,24 +303,24 @@
       "firstTs": "20260720181500",
       "preds": {
         "15": {
-          "predLat": 51.6683,
-          "predLon": 15.1307,
+          "predLat": 51.6639,
+          "predLon": 15.1287,
           "fromTs": "20260720181500",
           "fromLat": 51.7309,
           "fromLon": 15.0182,
-          "heading": 131.9,
-          "speed": 41.7,
+          "heading": 134.3,
+          "speed": 42.6,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         },
         "30": {
-          "predLat": 51.6056,
-          "predLon": 15.2429,
+          "predLat": 51.5968,
+          "predLon": 15.2389,
           "fromTs": "20260720181500",
           "fromLat": 51.7309,
           "fromLon": 15.0182,
-          "heading": 131.9,
-          "speed": 41.7,
+          "heading": 134.3,
+          "speed": 42.6,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         }
@@ -345,26 +345,26 @@
       "firstTs": "20260720174500",
       "preds": {
         "15": {
-          "predLat": 50.9473,
-          "predLon": 14.9153,
+          "predLat": 50.9381,
+          "predLon": 14.9111,
           "fromTs": "20260720181500",
           "fromLat": 51.0048,
           "fromLon": 14.7242,
-          "heading": 115.5,
-          "speed": 59.3,
+          "heading": 119.5,
+          "speed": 60.1,
           "motionSource": "radar-track",
-          "windAlignDeg": 16.6
+          "windAlignDeg": 20.6
         },
         "30": {
-          "predLat": 50.8895,
-          "predLon": 15.106,
+          "predLat": 50.8712,
+          "predLon": 15.0974,
           "fromTs": "20260720181500",
           "fromLat": 51.0048,
           "fromLon": 14.7242,
-          "heading": 115.5,
-          "speed": 59.3,
+          "heading": 119.5,
+          "speed": 60.1,
           "motionSource": "radar-track",
-          "windAlignDeg": 16.6
+          "windAlignDeg": 20.6
         }
       },
       "dbzSlopePer15": -3.75,
@@ -387,24 +387,24 @@
       "firstTs": "20260720181500",
       "preds": {
         "15": {
-          "predLat": 50.9627,
-          "predLon": 14.8643,
+          "predLat": 50.9536,
+          "predLon": 14.8679,
           "fromTs": "20260720181500",
           "fromLat": 51.0048,
           "fromLon": 14.7242,
-          "heading": 115.5,
-          "speed": 43.5,
+          "heading": 119.5,
+          "speed": 46.2,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         },
         "30": {
-          "predLat": 50.9204,
-          "predLon": 15.0042,
+          "predLat": 50.9022,
+          "predLon": 15.0113,
           "fromTs": "20260720181500",
           "fromLat": 51.0048,
           "fromLon": 14.7242,
-          "heading": 115.5,
-          "speed": 43.5,
+          "heading": 119.5,
+          "speed": 46.2,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         }
@@ -429,24 +429,24 @@
       "firstTs": "20260720181500",
       "preds": {
         "15": {
-          "predLat": 50.8974,
-          "predLon": 14.1347,
+          "predLat": 50.8782,
+          "predLon": 14.1466,
           "fromTs": "20260720181500",
           "fromLat": 50.9427,
           "fromLon": 14.0053,
-          "heading": 119.0,
-          "speed": 41.5,
+          "heading": 125.9,
+          "speed": 48.9,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         },
         "30": {
-          "predLat": 50.852,
-          "predLon": 14.2638,
+          "predLat": 50.8135,
+          "predLon": 14.2874,
           "fromTs": "20260720181500",
           "fromLat": 50.9427,
           "fromLon": 14.0053,
-          "heading": 119.0,
-          "speed": 41.5,
+          "heading": 125.9,
+          "speed": 48.9,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         }
@@ -471,24 +471,24 @@
       "firstTs": "20260720181500",
       "preds": {
         "15": {
-          "predLat": 50.3937,
-          "predLon": 13.2123,
+          "predLat": 50.3925,
+          "predLon": 13.2195,
           "fromTs": "20260720181500",
           "fromLat": 50.4401,
           "fromLon": 13.1028,
-          "heading": 123.6,
-          "speed": 37.3,
+          "heading": 122.6,
+          "speed": 39.3,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         },
         "30": {
-          "predLat": 50.3472,
-          "predLon": 13.3216,
+          "predLat": 50.3447,
+          "predLon": 13.3359,
           "fromTs": "20260720181500",
           "fromLat": 50.4401,
           "fromLon": 13.1028,
-          "heading": 123.6,
-          "speed": 37.3,
+          "heading": 122.6,
+          "speed": 39.3,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         }
@@ -513,24 +513,24 @@
       "firstTs": "20260720180500",
       "preds": {
         "15": {
-          "predLat": 51.6582,
-          "predLon": 16.6178,
+          "predLat": 51.6583,
+          "predLon": 16.6171,
           "fromTs": "20260720181500",
           "fromLat": 51.7037,
           "fromLon": 16.452,
           "heading": 113.8,
-          "speed": 50.0,
+          "speed": 49.8,
           "motionSource": "radar-track",
           "windAlignDeg": 18.7
         },
         "30": {
-          "predLat": 51.6124,
-          "predLon": 16.7833,
+          "predLat": 51.6128,
+          "predLon": 16.7818,
           "fromTs": "20260720181500",
           "fromLat": 51.7037,
           "fromLon": 16.452,
           "heading": 113.8,
-          "speed": 50.0,
+          "speed": 49.8,
           "motionSource": "radar-track",
           "windAlignDeg": 18.7
         }
@@ -555,24 +555,24 @@
       "firstTs": "20260720181500",
       "preds": {
         "15": {
-          "predLat": 51.6662,
-          "predLon": 16.5885,
+          "predLat": 51.6669,
+          "predLon": 16.586,
           "fromTs": "20260720181500",
           "fromLat": 51.7037,
           "fromLon": 16.452,
           "heading": 113.8,
-          "speed": 41.1,
+          "speed": 40.4,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         },
         "30": {
-          "predLat": 51.6286,
-          "predLon": 16.7247,
+          "predLat": 51.63,
+          "predLon": 16.7198,
           "fromTs": "20260720181500",
           "fromLat": 51.7037,
           "fromLon": 16.452,
           "heading": 113.8,
-          "speed": 41.1,
+          "speed": 40.4,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         }
@@ -597,26 +597,26 @@
       "firstTs": "20260720165500",
       "preds": {
         "15": {
-          "predLat": 50.8985,
-          "predLon": 12.5719,
+          "predLat": 50.8982,
+          "predLon": 12.5632,
           "fromTs": "20260720181500",
           "fromLat": 50.9507,
           "fromLon": 12.4824,
-          "heading": 132.7,
-          "speed": 34.2,
-          "motionSource": "wind-fallback",
-          "windAlignDeg": 38.0
+          "heading": 135.8,
+          "speed": 32.5,
+          "motionSource": "radar-track",
+          "windAlignDeg": 34.9
         },
         "30": {
-          "predLat": 50.8462,
-          "predLon": 12.6612,
+          "predLat": 50.8457,
+          "predLon": 12.6438,
           "fromTs": "20260720181500",
           "fromLat": 50.9507,
           "fromLon": 12.4824,
-          "heading": 132.7,
-          "speed": 34.2,
-          "motionSource": "wind-fallback",
-          "windAlignDeg": 38.0
+          "heading": 135.8,
+          "speed": 32.5,
+          "motionSource": "radar-track",
+          "windAlignDeg": 34.9
         }
       },
       "dbzSlopePer15": 0.38,
@@ -639,24 +639,24 @@
       "firstTs": "20260720181500",
       "preds": {
         "15": {
-          "predLat": 50.8985,
-          "predLon": 12.5719,
+          "predLat": 50.891,
+          "predLon": 12.5744,
           "fromTs": "20260720181500",
           "fromLat": 50.9507,
           "fromLon": 12.4824,
-          "heading": 132.7,
-          "speed": 34.2,
+          "heading": 135.8,
+          "speed": 37.0,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         },
         "30": {
-          "predLat": 50.8462,
-          "predLon": 12.6612,
+          "predLat": 50.8312,
+          "predLon": 12.6661,
           "fromTs": "20260720181500",
           "fromLat": 50.9507,
           "fromLon": 12.4824,
-          "heading": 132.7,
-          "speed": 34.2,
+          "heading": 135.8,
+          "speed": 37.0,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         }
@@ -681,26 +681,26 @@
       "firstTs": "20260720164000",
       "preds": {
         "15": {
-          "predLat": 51.4699,
-          "predLon": 13.8885,
+          "predLat": 51.4674,
+          "predLon": 13.8871,
           "fromTs": "20260720181500",
           "fromLat": 51.5162,
           "fromLon": 13.8253,
-          "heading": 139.6,
-          "speed": 27.0,
+          "heading": 141.7,
+          "speed": 27.7,
           "motionSource": "radar-track",
-          "windAlignDeg": 9.8
+          "windAlignDeg": 7.7
         },
         "30": {
-          "predLat": 51.4235,
-          "predLon": 13.9516,
+          "predLat": 51.4185,
+          "predLon": 13.9488,
           "fromTs": "20260720181500",
           "fromLat": 51.5162,
           "fromLon": 13.8253,
-          "heading": 139.6,
-          "speed": 27.0,
+          "heading": 141.7,
+          "speed": 27.7,
           "motionSource": "radar-track",
-          "windAlignDeg": 9.8
+          "windAlignDeg": 7.7
         }
       },
       "dbzSlopePer15": 0.0,
@@ -723,24 +723,24 @@
       "firstTs": "20260720181500",
       "preds": {
         "15": {
-          "predLat": 51.4482,
-          "predLon": 13.9181,
+          "predLat": 51.4424,
+          "predLon": 13.9187,
           "fromTs": "20260720181500",
           "fromLat": 51.5162,
           "fromLon": 13.8253,
-          "heading": 139.6,
-          "speed": 39.7,
+          "heading": 141.7,
+          "speed": 41.8,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         },
         "30": {
-          "predLat": 51.3801,
-          "predLon": 14.0106,
+          "predLat": 51.3685,
+          "predLon": 14.0117,
           "fromTs": "20260720181500",
           "fromLat": 51.5162,
           "fromLon": 13.8253,
-          "heading": 139.6,
-          "speed": 39.7,
+          "heading": 141.7,
+          "speed": 41.8,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         }
@@ -765,26 +765,26 @@
       "firstTs": "20260720181500",
       "preds": {
         "15": {
-          "predLat": 50.8762,
-          "predLon": 11.882,
+          "predLat": 50.8738,
+          "predLon": 11.8812,
           "fromTs": "20260720181500",
           "fromLat": 50.9093,
           "fromLon": 11.8262,
-          "heading": 133.2,
-          "speed": 21.5,
+          "heading": 135.6,
+          "speed": 22.1,
           "motionSource": "radar-track",
-          "windAlignDeg": 21.7
+          "windAlignDeg": 19.3
         },
         "30": {
-          "predLat": 50.8431,
-          "predLon": 11.9377,
+          "predLat": 50.8383,
+          "predLon": 11.9361,
           "fromTs": "20260720181500",
           "fromLat": 50.9093,
           "fromLon": 11.8262,
-          "heading": 133.2,
-          "speed": 21.5,
+          "heading": 135.6,
+          "speed": 22.1,
           "motionSource": "radar-track",
-          "windAlignDeg": 21.7
+          "windAlignDeg": 19.3
         }
       },
       "dbzSlopePer15": 0.75,
@@ -807,24 +807,24 @@
       "firstTs": "20260720181500",
       "preds": {
         "15": {
-          "predLat": 50.8634,
-          "predLon": 11.9036,
+          "predLat": 50.8582,
+          "predLon": 11.9054,
           "fromTs": "20260720181500",
           "fromLat": 50.9093,
           "fromLon": 11.8262,
-          "heading": 133.2,
-          "speed": 29.8,
+          "heading": 135.6,
+          "speed": 31.8,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         },
         "30": {
-          "predLat": 50.8174,
-          "predLon": 11.9809,
+          "predLat": 50.807,
+          "predLon": 11.9845,
           "fromTs": "20260720181500",
           "fromLat": 50.9093,
           "fromLon": 11.8262,
-          "heading": 133.2,
-          "speed": 29.8,
+          "heading": 135.6,
+          "speed": 31.8,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         }
@@ -849,24 +849,24 @@
       "firstTs": "20260720181500",
       "preds": {
         "15": {
-          "predLat": 50.9064,
-          "predLon": 13.1909,
+          "predLat": 50.9048,
+          "predLon": 13.1938,
           "fromTs": "20260720181500",
           "fromLat": 50.9629,
           "fromLon": 13.0811,
           "heading": 129.2,
-          "speed": 39.7,
+          "speed": 40.8,
           "motionSource": "radar-track",
           "windAlignDeg": 7.7
         },
         "30": {
-          "predLat": 50.8498,
-          "predLon": 13.3005,
+          "predLat": 50.8465,
+          "predLon": 13.3063,
           "fromTs": "20260720181500",
           "fromLat": 50.9629,
           "fromLon": 13.0811,
           "heading": 129.2,
-          "speed": 39.7,
+          "speed": 40.8,
           "motionSource": "radar-track",
           "windAlignDeg": 7.7
         }
@@ -891,24 +891,24 @@
       "firstTs": "20260720181500",
       "preds": {
         "15": {
-          "predLat": 50.9109,
-          "predLon": 13.1822,
+          "predLat": 50.9057,
+          "predLon": 13.192,
           "fromTs": "20260720181500",
           "fromLat": 50.9629,
           "fromLon": 13.0811,
           "heading": 129.2,
-          "speed": 36.6,
+          "speed": 40.2,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         },
         "30": {
-          "predLat": 50.8589,
-          "predLon": 13.283,
+          "predLat": 50.8484,
+          "predLon": 13.3027,
           "fromTs": "20260720181500",
           "fromLat": 50.9629,
           "fromLon": 13.0811,
           "heading": 129.2,
-          "speed": 36.6,
+          "speed": 40.2,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         }
@@ -933,26 +933,26 @@
       "firstTs": "20260720180000",
       "preds": {
         "15": {
-          "predLat": 51.0254,
-          "predLon": 12.1926,
+          "predLat": 51.0191,
+          "predLon": 12.1869,
           "fromTs": "20260720181500",
           "fromLat": 51.0659,
           "fromLon": 12.132,
-          "heading": 136.7,
-          "speed": 24.7,
+          "heading": 143.5,
+          "speed": 25.9,
           "motionSource": "radar-track",
-          "windAlignDeg": 11.2
+          "windAlignDeg": 18.0
         },
         "30": {
-          "predLat": 50.9849,
-          "predLon": 12.2531,
+          "predLat": 50.9723,
+          "predLon": 12.2418,
           "fromTs": "20260720181500",
           "fromLat": 51.0659,
           "fromLon": 12.132,
-          "heading": 136.7,
-          "speed": 24.7,
+          "heading": 143.5,
+          "speed": 25.9,
           "motionSource": "radar-track",
-          "windAlignDeg": 11.2
+          "windAlignDeg": 18.0
         }
       },
       "dbzSlopePer15": -0.38,
@@ -975,24 +975,24 @@
       "firstTs": "20260720181500",
       "preds": {
         "15": {
-          "predLat": 51.0135,
-          "predLon": 12.2105,
+          "predLat": 51.0011,
+          "predLon": 12.208,
           "fromTs": "20260720181500",
           "fromLat": 51.0659,
           "fromLon": 12.132,
-          "heading": 136.7,
-          "speed": 32.0,
+          "heading": 143.5,
+          "speed": 35.8,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         },
         "30": {
-          "predLat": 50.961,
-          "predLon": 12.2888,
+          "predLat": 50.9363,
+          "predLon": 12.2839,
           "fromTs": "20260720181500",
           "fromLat": 51.0659,
           "fromLon": 12.132,
-          "heading": 136.7,
-          "speed": 32.0,
+          "heading": 143.5,
+          "speed": 35.8,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         }
@@ -1017,23 +1017,23 @@
       "firstTs": "20260720181500",
       "preds": {
         "15": {
-          "predLat": 51.5187,
-          "predLon": 17.0034,
+          "predLat": 51.5202,
+          "predLon": 17.0043,
           "fromTs": "20260720181500",
           "fromLat": 51.5531,
           "fromLon": 16.8649,
-          "heading": 111.7,
+          "heading": 110.7,
           "speed": 41.3,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         },
         "30": {
-          "predLat": 51.4841,
-          "predLon": 17.1417,
+          "predLat": 51.4871,
+          "predLon": 17.1435,
           "fromTs": "20260720181500",
           "fromLat": 51.5531,
           "fromLon": 16.8649,
-          "heading": 111.7,
+          "heading": 110.7,
           "speed": 41.3,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
@@ -1059,24 +1059,24 @@
       "firstTs": "20260720181500",
       "preds": {
         "15": {
-          "predLat": 51.5587,
-          "predLon": 15.0186,
+          "predLat": 51.5547,
+          "predLon": 15.0162,
           "fromTs": "20260720181500",
           "fromLat": 51.6188,
           "fromLon": 14.9044,
-          "heading": 130.2,
-          "speed": 41.3,
+          "heading": 132.6,
+          "speed": 42.0,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         },
         "30": {
-          "predLat": 51.4986,
-          "predLon": 15.1325,
+          "predLat": 51.4905,
+          "predLon": 15.1278,
           "fromTs": "20260720181500",
           "fromLat": 51.6188,
           "fromLon": 14.9044,
-          "heading": 130.2,
-          "speed": 41.3,
+          "heading": 132.6,
+          "speed": 42.0,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         }
@@ -4729,6 +4729,126 @@
       "li": null,
       "freezingLevelM": 3070.0,
       "cinJkg": 0.0
+    },
+    "z:47.91:17.91": {
+      "lat": 47.9118,
+      "lon": 17.9074,
+      "score": 52.2,
+      "fromTs": "20260720181500",
+      "cape": 150.0,
+      "shear": 14.9,
+      "dew": 11.6,
+      "li": null,
+      "freezingLevelM": 3160.0,
+      "cinJkg": 28.0
+    },
+    "z:47.91:18.48": {
+      "lat": 47.9118,
+      "lon": 18.4815,
+      "score": 42.8,
+      "fromTs": "20260720181500",
+      "cape": 40.0,
+      "shear": 13.6,
+      "dew": 9.4,
+      "li": null,
+      "freezingLevelM": 3140.0,
+      "cinJkg": 16.0
+    },
+    "z:48.26:16.19": {
+      "lat": 48.2647,
+      "lon": 16.1852,
+      "score": 51.599999999999994,
+      "fromTs": "20260720181500",
+      "cape": 0.0,
+      "shear": 17.2,
+      "dew": 6.2,
+      "li": null,
+      "freezingLevelM": 3230.0,
+      "cinJkg": 0.0
+    },
+    "z:48.26:17.91": {
+      "lat": 48.2647,
+      "lon": 17.9074,
+      "score": 44.8,
+      "fromTs": "20260720181500",
+      "cape": 20.0,
+      "shear": 14.6,
+      "dew": 10.1,
+      "li": null,
+      "freezingLevelM": 2870.0,
+      "cinJkg": 31.0
+    },
+    "z:48.26:18.48": {
+      "lat": 48.2647,
+      "lon": 18.4815,
+      "score": 42.599999999999994,
+      "fromTs": "20260720181500",
+      "cape": 0.0,
+      "shear": 14.2,
+      "dew": 7.6,
+      "li": null,
+      "freezingLevelM": 2980.0,
+      "cinJkg": 16.0
+    },
+    "z:48.62:17.91": {
+      "lat": 48.6176,
+      "lon": 17.9074,
+      "score": 33.0,
+      "fromTs": "20260720181500",
+      "cape": 0.0,
+      "shear": 11.0,
+      "dew": 5.3,
+      "li": null,
+      "freezingLevelM": 2810.0,
+      "cinJkg": 0.0
+    },
+    "z:49.32:16.19": {
+      "lat": 49.3235,
+      "lon": 16.1852,
+      "score": 32.400000000000006,
+      "fromTs": "20260720181500",
+      "cape": 0.0,
+      "shear": 10.8,
+      "dew": 2.0,
+      "li": null,
+      "freezingLevelM": 2720.0,
+      "cinJkg": 0.0
+    },
+    "z:49.68:15.04": {
+      "lat": 49.6765,
+      "lon": 15.037,
+      "score": 34.5,
+      "fromTs": "20260720181500",
+      "cape": 30.0,
+      "shear": 11.0,
+      "dew": 6.6,
+      "li": null,
+      "freezingLevelM": 2600.0,
+      "cinJkg": 31.0
+    },
+    "z:49.68:17.33": {
+      "lat": 49.6765,
+      "lon": 17.3333,
+      "score": 34.8,
+      "fromTs": "20260720181500",
+      "cape": 0.0,
+      "shear": 11.6,
+      "dew": 5.4,
+      "li": null,
+      "freezingLevelM": 2650.0,
+      "cinJkg": 0.0
+    },
+    "z:49.68:19.63": {
+      "lat": 49.6765,
+      "lon": 19.6296,
+      "score": 34.8,
+      "fromTs": "20260720181500",
+      "cape": 30.0,
+      "shear": 11.1,
+      "dew": 7.8,
+      "li": null,
+      "freezingLevelM": 2670.0,
+      "cinJkg": 20.0
     }
   },
   "intensityPending": {
@@ -11650,5 +11770,5 @@
     "INTENSIFY_HIT_DBZ": 3.0
   },
   "schemaVersion": 2,
-  "updatedAt": "2026-07-20T18:21:40Z"
+  "updatedAt": "2026-07-20T18:24:58Z"
 }
