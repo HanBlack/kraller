@@ -1,0 +1,12 @@
+name = "kraller-radar-trigger"
+main = "src/index.js"
+compatibility_date = "2024-12-01"
+
+# Spolehlivější než GitHub Actions schedule — každých 5 min
+[triggers]
+crons = ["*/5 * * * *"]
+
+[vars]
+GITHUB_REPO = "HanBlack/kraller"
+WORKFLOW_FILE = "live-radar.yml"
+GITHUB_REF = "main"

@@ -57,10 +57,14 @@ Build musí dostat `VITE_DATA_ROOT`, aby produkce četla z R2.
 - V prohlížeči: `https://pub-xxx.r2.dev/data/meta.json`
 - V appce SyncStatus: radar by měl být **≤10 min** starý
 
+## Spolehlivý trigger (povinné pro ≤ 7 min)
+
+GitHub `schedule` sám nestačí. Nasaď **Cloudflare Cron Worker** — viz **[RADAR-TRIGGER.md](./RADAR-TRIGGER.md)**.
+
 ## Co dělá pipeline
 
 ```
-cron 5 min → fetch OPERA + ČHMÚ → upload R2 → (volitelně git backup meta)
+Cloudflare Cron 5 min → Live radar (GHA) → fetch OPERA + ČHMÚ → upload R2 → (git backup)
 ```
 
 - **Publish site** se nespouští při pushi jen `public/data/` (žádný zbytečný build).

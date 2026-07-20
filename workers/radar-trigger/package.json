@@ -1,0 +1,11 @@
+{
+  "name": "kraller-radar-trigger",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^4.24.0"
+  }
+}

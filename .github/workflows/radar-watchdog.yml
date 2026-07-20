@@ -1,0 +1,89 @@
+# Záloha: pokud meta na R2 starší než 7 min, spustí Live radar.
+# Primární spolehlivý trigger: workers/radar-trigger (Cloudflare Cron).
+
+name: Radar watchdog
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/3 * * * *"
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: radar-watchdog
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check meta age on R2
+        id: age
+        env:
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+          MAX_AGE_MIN: "7"
+        run: |
+          python3 <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+          from datetime import datetime, timezone
+
+          base = (os.environ.get("R2_PUBLIC_URL") or "").strip().rstrip("/")
+          max_age = float(os.environ.get("MAX_AGE_MIN", "7"))
+          if not base:
+              print("R2_PUBLIC_URL missing — skip watchdog")
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+                  f.write("stale=false\n")
+              sys.exit(0)
+
+          url = f"{base}/data/meta.json"
+          try:
+              with urllib.request.urlopen(url, timeout=20) as resp:
+                  meta = json.load(resp)
+          except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+              print(f"meta fetch failed: {exc}")
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+                  f.write("stale=true\nreason=fetch_failed\n")
+              sys.exit(0)
+
+          updated = meta.get("updatedAt")
+          if not updated:
+              print("meta.updatedAt missing")
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+                  f.write("stale=true\nreason=no_timestamp\n")
+              sys.exit(0)
+
+          ts = datetime.fromisoformat(str(updated).replace("Z", "+00:00"))
+          age_min = (datetime.now(timezone.utc) - ts).total_seconds() / 60
+          print(f"meta.updatedAt={updated} age_min={age_min:.1f} threshold={max_age}")
+
+          stale = age_min > max_age
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              f.write(f"stale={'true' if stale else 'false'}\n")
+              f.write(f"age_min={age_min:.1f}\n")
+          PY
+
+      - name: Dispatch Live radar when stale
+        if: steps.age.outputs.stale == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const age = '${{ steps.age.outputs.age_min }}';
+            core.info(`Meta stale (${age} min) — dispatching Live radar`);
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'live-radar.yml',
+              ref: context.ref.replace('refs/heads/', '') || 'main',
+            });
+
+      - name: OK
+        if: steps.age.outputs.stale != 'true'
+        run: echo "Meta fresh (${{ steps.age.outputs.age_min }} min) — no dispatch"
