@@ -796,8 +796,8 @@
 }
 
 .birth-blob.extreme {
-  background: rgba(210, 45, 70, 0.75);
-  border-color: rgba(240, 70, 95, 0.92);
+  background: rgba(185, 40, 210, 0.8);
+  border-color: rgba(230, 120, 255, 0.95);
 }
 
 .birth-blob.echo-strong {
@@ -1268,12 +1268,13 @@
 }
 
 .swatch-dbz.extreme {
-  background: rgba(210, 45, 70, 0.9);
+  background: rgba(185, 40, 210, 0.92);
+  box-shadow: inset 0 0 0 1px rgba(255, 220, 255, 0.45);
 }
 
 .swatch-dbz.core {
-  background: rgba(210, 45, 70, 0.92);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+  background: rgba(215, 40, 65, 0.9);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
 }
 
 .swatch.weak,

@@ -85,6 +85,9 @@ export function MapLegend({
                 <li>
                   <span className="swatch-dbz core" /> {t("legend.core")}
                 </li>
+                <li>
+                  <span className="swatch-dbz extreme" /> {t("legend.extreme")}
+                </li>
               </ul>
               <p className="legend-note">{t("legend.radarGuide")}</p>
               <p className="legend-note">{t("legend.radarNote")}</p>
