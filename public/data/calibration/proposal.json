@@ -1,18 +1,18 @@
 {
-  "generatedAt": "2026-07-20T22:15:15Z",
+  "generatedAt": "2026-07-20T23:27:42Z",
   "sampleCounts": {
     "track": 91,
-    "formation": 1845,
-    "birth_features": 459,
+    "formation": 2114,
+    "birth_features": 461,
     "intensity": 5041,
     "intensify": 802,
-    "demise": 1909,
-    "track_sample_events": 3890,
+    "demise": 1910,
+    "track_sample_events": 3896,
     "withSurfaceDbz": 1278,
     "withFct": 490,
-    "withFreezingLevel": 3840,
+    "withFreezingLevel": 3846,
     "withHailProxy": 0,
-    "total": 10147
+    "total": 10419
   },
   "readyForApply": true,
   "proposals": [
@@ -44,7 +44,7 @@
         }
       },
       "confidence": "medium",
-      "n": 459,
+      "n": 461,
       "medianBirthDbzTrue": 37.0,
       "medianBirthDbzFalse": 41.5,
       "reason": "oddělení trueBirth vs příjezd podle birthDbz"
@@ -54,56 +54,56 @@
       "current": 28,
       "proposed": 22,
       "confidence": "high",
-      "n": 1845,
+      "n": 2114,
       "evidence": [
         {
           "thr": 22,
-          "n": 1845,
-          "precision": 6.7,
+          "n": 2114,
+          "precision": 5.9,
           "recall": 100.0,
-          "f1": 0.126
+          "f1": 0.111
         },
         {
           "thr": 26,
-          "n": 1845,
-          "precision": 6.7,
+          "n": 2114,
+          "precision": 5.9,
           "recall": 100.0,
-          "f1": 0.126
+          "f1": 0.111
         },
         {
           "thr": 28,
-          "n": 1845,
-          "precision": 6.7,
+          "n": 2114,
+          "precision": 5.9,
           "recall": 100.0,
-          "f1": 0.126
+          "f1": 0.111
         },
         {
           "thr": 32,
-          "n": 1654,
-          "precision": 5.6,
+          "n": 1903,
+          "precision": 4.9,
           "recall": 75.0,
-          "f1": 0.105
+          "f1": 0.092
         },
         {
           "thr": 36,
-          "n": 1428,
-          "precision": 4.8,
+          "n": 1657,
+          "precision": 4.2,
           "recall": 55.6,
-          "f1": 0.089
+          "f1": 0.077
         },
         {
           "thr": 40,
-          "n": 1148,
-          "precision": 3.7,
+          "n": 1345,
+          "precision": 3.1,
           "recall": 33.9,
-          "f1": 0.066
+          "f1": 0.057
         },
         {
           "thr": 45,
-          "n": 797,
-          "precision": 3.0,
+          "n": 958,
+          "precision": 2.5,
           "recall": 19.4,
-          "f1": 0.052
+          "f1": 0.044
         }
       ],
       "reason": "max F1 precision/recall formation hit"
@@ -162,9 +162,9 @@
     "hint": "upřímná fialová — nízký hitRate → vyšší alertScoreMin / suppress"
   },
   "demise": {
-    "n": 1909,
+    "n": 1910,
     "reasons": {
-      "merge_or_jump": 1844,
+      "merge_or_jump": 1845,
       "fade": 65
     },
     "medianLifeMin": 0.0,
