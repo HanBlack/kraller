@@ -17,7 +17,10 @@
     "data:radar": "python scripts/update_data.py --radar-only",
     "data:watch": "python scripts/watch_data.py",
     "data:verify": "python scripts/verify_data.py",
-    "data:calibrate": "python scripts/calibrate_nowcast.py"
+    "data:calibrate": "python scripts/calibrate_nowcast.py",
+    "data:learning": "python scripts/emit_learning.py",
+    "data:learning-summary": "python scripts/summarize_learning.py",
+    "data:propose-calibration": "python scripts/propose_calibration.py"
   },
   "dependencies": {
     "maplibre-gl": "^5.24.0",

@@ -550,7 +550,7 @@ def export_radar_history(frames: list[dict], history_dir: str) -> str:
 
 
 # Rolling archive pro kalibraci (~3 h při 5min krocích) — UI slider to nečte
-ARCHIVE_MAX_SLOTS = 36  # 36 × 5 min ≈ 3 h
+ARCHIVE_MAX_SLOTS = 72  # 72 × 5 min ≈ 6 h (pro learning + backtest)
 
 
 def export_radar_archive(

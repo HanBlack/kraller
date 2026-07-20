@@ -221,6 +221,20 @@
   opacity: 0.9;
 }
 
+.sync-status-env {
+  font-size: 0.66rem;
+  opacity: 0.85;
+  color: #a8c4d8;
+}
+
+.sync-status-env.is-warn {
+  color: #e8c070;
+}
+
+.sync-status-env.is-stale {
+  color: #ffb090;
+}
+
 .sync-status-hint {
   font-size: 0.66rem;
   color: #ffc4a0;

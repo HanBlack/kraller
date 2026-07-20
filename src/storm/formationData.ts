@@ -33,13 +33,17 @@ const FORMATION_GRID_URL = "data/formation/grid.json";
 /** Menší clustery = přesnější pozice maxima. */
 const CLUSTER_KM = 20;
 /** Práh zóny — pod tím jen mřížkové tečky, ne kruh „Vznik“. */
-const MIN_ZONE_SCORE = 32;
-const FALLBACK_MIN_SCORE = 36;
-const MIN_FALLBACK_ZONES = 3;
-const MAX_ZONES = 8;
+const MIN_ZONE_SCORE = 28;
+const FALLBACK_MIN_SCORE = 32;
+const MIN_FALLBACK_ZONES = 4;
+/** Více zón = méně slepých míst (víkend AT→CZ). */
+const MAX_ZONES = 14;
 /** U vyzrálejších buněk zónu Vznik schovej (už je echo). */
 const RADAR_EXCLUDE_KM = 18;
 const RADAR_EXCLUDE_MIN_AGE_MIN = 12;
+/** Tečky setupu pod prahem hlavních zón (viditelný kontext). */
+const HEAT_MIN_SCORE = 22;
+const HEAT_MAX_POINTS = 48;
 
 export async function loadFormationGrid(
   cacheBust?: number,
@@ -219,6 +223,38 @@ export function applyFormationLinks(
       linkedCellKm: Math.round(link.distanceKm),
     };
   });
+}
+
+/** Slabší tečky setupu — kde může něco vzniknout mimo top zóny. */
+export function formationHeatGeoJSON(
+  points: ScoredFormationPoint[],
+  radarCells: FeatureCollection | null,
+): FeatureCollection {
+  const peaks = radarCells ? radarPeakCoords(radarCells) : [];
+  const ranked = points
+    .filter(
+      (p) =>
+        p.assessment.score >= HEAT_MIN_SCORE &&
+        isViableFormationEnv(p.environment) &&
+        !nearRadar(p.lat, p.lon, peaks),
+    )
+    .sort((a, b) => b.assessment.score - a.assessment.score)
+    .slice(0, HEAT_MAX_POINTS);
+
+  return {
+    type: "FeatureCollection",
+    features: ranked.map((p) => ({
+      type: "Feature" as const,
+      properties: {
+        score: Math.round(p.assessment.score),
+        severity: p.assessment.severity,
+      },
+      geometry: {
+        type: "Point" as const,
+        coordinates: [p.lon, p.lat],
+      },
+    })),
+  };
 }
 
 export async function buildRealFormationZones(

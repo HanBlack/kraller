@@ -47,11 +47,12 @@ HOURLY = ",".join(
 BATCH_SIZE = 80
 BATCH_PAUSE_S = 5.0
 CAPE_HORIZON_H = 6  # max CAPE teď…+6 h pro potenciál vzniku
-# Cílová frekvence obnovy (CAPE se nemění každých 5 min)
-FORMATION_MAX_AGE_MIN = 60
-# Při 429 / cooldownu použít existující grid až do této stáří
+# Cílová frekvence obnovy — stejný pipeline jako radar (~25–30 min)
+FORMATION_MAX_AGE_MIN = 30
+# Při 429 / cooldownu / výpadku použít existující grid až do této stáří
 FORMATION_KEEP_MAX_AGE_MIN = 360
 OUT_PATH = os.path.join("public", "data", "formation", "grid.json")
+WRITE_WIND_FROM_FORMATION = True  # jeden Open-Meteo fetch → i wind/*.json
 
 
 def lat_lons() -> tuple[list[float], list[float]]:
@@ -207,10 +208,9 @@ def main() -> int:
 
     now = datetime.now(timezone.utc)
     if not args.force:
+        # Běžný skip jen když je grid čerstvý (≤ FORMATION_MAX_AGE_MIN).
+        # FORMATION_KEEP_MAX_AGE_MIN NENÍ běžný skip — jen 429/cooldown/fallback níže.
         if _use_existing_grid(now, "čerstvý", FORMATION_MAX_AGE_MIN):
-            return 0
-        # Máme použitelný grid — nevolat API (obchází 429)
-        if _use_existing_grid(now, "OK", FORMATION_KEEP_MAX_AGE_MIN):
             return 0
         if in_cooldown() or not wait_if_cooldown("Formation"):
             if _use_existing_grid(now, "cooldown", FORMATION_KEEP_MAX_AGE_MIN):
@@ -244,6 +244,61 @@ def _use_existing_grid(now: datetime, reason: str, max_minutes: float) -> bool:
         flush=True,
     )
     return True
+
+
+def _uv_at_level(
+    point: dict, now: datetime, speed_key: str, dir_key: str
+) -> tuple[float, float, int]:
+    h = point["hourly"]
+    times = h.get("time") or []
+    idx = current_hour_index(times, now) if times else 0
+    sp = series_at(h.get(speed_key) or [], idx, 0.0)
+    di = series_at(h.get(dir_key) or [], idx)
+    return (*wind_to_uv(sp, di), idx)
+
+
+def _write_wind_from_raw(
+    coords: list[tuple[float, float]], raw_points: list[dict], now: datetime
+) -> None:
+    """Ze stejné Open-Meteo odpovědi zapíše wind/low.json + upper.json (bez dalšího API)."""
+    from fetch_wind import write_wind  # noqa: WPS433 — lazy, bez cyklického importu při load
+
+    low_u: list[float] = []
+    low_v: list[float] = []
+    up_u: list[float] = []
+    up_v: list[float] = []
+    hour_idx = 0
+    for point in raw_points:
+        u850, v850, hour_idx = _uv_at_level(
+            point, now, "wind_speed_850hPa", "wind_direction_850hPa"
+        )
+        u500, v500, _ = _uv_at_level(
+            point, now, "wind_speed_500hPa", "wind_direction_500hPa"
+        )
+        low_u.append(u850)
+        low_v.append(v850)
+        up_u.append(u500)
+        up_v.append(v500)
+
+    valid = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    base = {
+        "west": WEST,
+        "south": SOUTH,
+        "east": EAST,
+        "north": NORTH,
+        "cols": COLS,
+        "rows": ROWS,
+        "source": f"Open-Meteo/{MODEL}+formation",
+        "hourIndex": hour_idx,
+        "validAt": valid,
+    }
+    low = {**base, "level": "850hPa", "u": low_u, "v": low_v}
+    upper = {**base, "level": "500hPa", "u": up_u, "v": up_v}
+    write_wind(low, upper)
+    print(
+        f"  wind from formation fetch ({COLS}x{ROWS}, hour={hour_idx}) — bez 2. API",
+        flush=True,
+    )
 
 
 def _fetch_and_write(now: datetime) -> int:
@@ -303,6 +358,13 @@ def _fetch_and_write(now: datetime) -> int:
         json.dump(out, f)
 
     print(f"Wrote {OUT_PATH} ({len(out_points)} points)")
+
+    if WRITE_WIND_FROM_FORMATION:
+        try:
+            _write_wind_from_raw(coords, raw_points, now)
+        except Exception as e:
+            print(f"  wind from formation selhalo ({e}) — wind nechávám", flush=True)
+
     return 0
 
 
