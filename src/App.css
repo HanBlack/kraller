@@ -17,11 +17,7 @@
   place-content: center;
   gap: 0.35rem;
   pointer-events: none;
-  background: radial-gradient(
-    ellipse at 50% 40%,
-    rgba(12, 18, 28, 0.55),
-    rgba(8, 12, 18, 0.72)
-  );
+  background: #0a1018;
 }
 
 .boot-screen-title {
