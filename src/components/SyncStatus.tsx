@@ -47,7 +47,7 @@ function sourceAge(
 /** Kompaktní čas poslední synchronizace dat — viditelný i při sbaleném panelu. */
 export function SyncStatus() {
   const { t, dateLocale } = useI18n();
-  const { lastUpdated, operaTime, dataSources, loading } = useStormDataContext();
+  const { lastUpdated, operaTime, chmiTime, dataSources, loading } = useStormDataContext();
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -58,7 +58,8 @@ export function SyncStatus() {
   if (!lastUpdated && !loading) return null;
 
   const age = lastUpdated ? ageMinutes(lastUpdated, now) : null;
-  const radarAge = operaTime ? ageMinutes(operaTime, now) : null;
+  const radarIso = chmiTime ?? operaTime;
+  const radarAge = radarIso ? ageMinutes(radarIso, now) : null;
   const windAge = sourceAge(dataSources, "wind", now);
   const formAge = sourceAge(dataSources, "formation", now);
 
@@ -112,9 +113,11 @@ export function SyncStatus() {
         ) : null}
         {t("sync.updated", { when })}
       </span>
-      {operaTime && (
+      {radarIso && (
         <span className="sync-status-radar">
-          {t("sync.radar", { time: formatClock(operaTime, dateLocale) })}
+          {chmiTime
+            ? t("sync.radarChmi", { time: formatClock(chmiTime, dateLocale) })
+            : t("sync.radar", { time: formatClock(radarIso, dateLocale) })}
           {radarAge != null && radarAge > 0
             ? t("sync.radarAge", { min: radarAge })
             : ""}

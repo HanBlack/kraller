@@ -9,31 +9,104 @@ from typing import Any
 
 OUT = os.path.join("public", "data", "meta.json")
 CELLS = os.path.join("public", "data", "opera", "cells.geojson")
+LATEST = os.path.join("public", "data", "opera", "latest.geojson")
+ARCHIVE_MANIFEST = os.path.join("public", "data", "opera", "archive", "manifest.json")
+CHMI_META = os.path.join("public", "data", "chmi", "meta.json")
 
 SOURCE_FILES = {
-    "opera": os.path.join("public", "data", "opera", "latest.geojson"),
+    "opera": LATEST,
+    "chmi": CHMI_META,
     "wind": os.path.join("public", "data", "wind", "low.json"),
     "formation": os.path.join("public", "data", "formation", "grid.json"),
 }
 
 
-def opera_product_time() -> str | None:
-    """Čas snímku OPERA z cells.geojson (YYYYMMDDHHMMSS → ISO UTC)."""
-    if not os.path.isfile(CELLS):
+def normalize_opera_time(raw: Any) -> str | None:
+    """YYYYMMDDHHMMSS / ISO → ISO UTC. Snese i 12 znaků (bez sekund)."""
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    if not s:
+        return None
+    # ISO už hotové
+    if "T" in s and len(s) >= 16:
+        try:
+            return (
+                dt.datetime.fromisoformat(s.replace("Z", "+00:00"))
+                .astimezone(dt.timezone.utc)
+                .strftime("%Y-%m-%dT%H:%M:%SZ")
+            )
+        except ValueError:
+            pass
+    digits = "".join(ch for ch in s if ch.isdigit())
+    if len(digits) < 12:
+        return None
+    digits = (digits + "00")[:14]
+    try:
+        return (
+            f"{digits[0:4]}-{digits[4:6]}-{digits[6:8]}T"
+            f"{digits[8:10]}:{digits[10:12]}:{digits[12:14]}Z"
+        )
+    except (IndexError, ValueError):
+        return None
+
+
+def _time_from_geojson(path: str) -> str | None:
+    if not os.path.isfile(path):
         return None
     try:
-        with open(CELLS, encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
-        for feat in data.get("features", []):
-            raw = feat.get("properties", {}).get("time")
-            if not raw or len(str(raw)) < 14:
-                continue
-            s = str(raw)[:14]
-            return (
-                f"{s[0:4]}-{s[4:6]}-{s[6:8]}T{s[8:10]}:{s[10:12]}:{s[12:14]}Z"
-            )
+        for feat in data.get("features") or []:
+            t = normalize_opera_time((feat.get("properties") or {}).get("time"))
+            if t:
+                return t
     except (OSError, json.JSONDecodeError, TypeError, ValueError):
         return None
+    return None
+
+
+def _time_from_archive_manifest() -> str | None:
+    if not os.path.isfile(ARCHIVE_MANIFEST):
+        return None
+    try:
+        with open(ARCHIVE_MANIFEST, encoding="utf-8") as f:
+            data = json.load(f)
+        frames = data.get("frames") or []
+        if not frames:
+            return None
+        return normalize_opera_time(frames[-1].get("time"))
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return None
+
+
+def chmi_product_time(prev_meta: dict[str, Any] | None = None) -> str | None:
+    if os.path.isfile(CHMI_META):
+        try:
+            with open(CHMI_META, encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                t = normalize_opera_time(data.get("validAt") or data.get("productTime"))
+                if t:
+                    return t
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+            pass
+    if prev_meta:
+        return normalize_opera_time(prev_meta.get("chmiTime"))
+    return None
+
+
+def opera_product_time(prev_meta: dict[str, Any] | None = None) -> str | None:
+    """Čas snímku OPERA — cells → latest → archive → předchozí meta."""
+    for path in (CELLS, LATEST):
+        t = _time_from_geojson(path)
+        if t:
+            return t
+    t = _time_from_archive_manifest()
+    if t:
+        return t
+    if prev_meta:
+        return normalize_opera_time(prev_meta.get("operaTime"))
     return None
 
 
@@ -120,8 +193,10 @@ def write_meta(run_results: dict[str, dict[str, Any]] | None = None) -> dict[str
 
     meta = {
         "updatedAt": now,
-        "operaTime": opera_product_time(),
+        "operaTime": opera_product_time(prev),
+        "chmiTime": chmi_product_time(prev),
         "opera": os.path.isfile(SOURCE_FILES["opera"]),
+        "chmi": os.path.isfile(SOURCE_FILES["chmi"]),
         "wind": os.path.isfile(SOURCE_FILES["wind"]),
         "formation": os.path.isfile(SOURCE_FILES["formation"]),
         "sources": sources,
@@ -129,7 +204,7 @@ def write_meta(run_results: dict[str, dict[str, Any]] | None = None) -> dict[str
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(meta, f, indent=2)
-    print(f"Wrote {OUT} (operaTime={meta.get('operaTime')})")
+    print(f"Wrote {OUT} (operaTime={meta.get('operaTime')}, chmiTime={meta.get('chmiTime')})")
     return meta
 
 

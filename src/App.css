@@ -765,9 +765,19 @@
   height: 1.35rem;
 }
 
-.birth-blob.echo-strong {
-  background: rgba(90, 190, 110, 0.5);
-  border-color: rgba(140, 230, 160, 0.85);
+.birth-blob.light {
+  background: rgba(90, 200, 160, 0.4);
+  border-color: rgba(110, 210, 170, 0.75);
+}
+
+.birth-blob.echo {
+  background: rgba(70, 160, 100, 0.35);
+  border-color: rgba(120, 210, 150, 0.75);
+}
+
+.birth-blob.rain {
+  background: rgba(150, 200, 70, 0.45);
+  border-color: rgba(180, 220, 90, 0.85);
 }
 
 .birth-blob.moderate {
@@ -775,9 +785,24 @@
   border-color: rgba(230, 210, 90, 0.85);
 }
 
+.birth-blob.strong {
+  background: rgba(245, 170, 50, 0.5);
+  border-color: rgba(250, 190, 80, 0.9);
+}
+
 .birth-blob.heavy {
   background: rgba(230, 120, 60, 0.5);
   border-color: rgba(240, 150, 80, 0.9);
+}
+
+.birth-blob.extreme {
+  background: rgba(220, 50, 80, 0.55);
+  border-color: rgba(240, 90, 120, 0.9);
+}
+
+.birth-blob.echo-strong {
+  background: rgba(90, 190, 110, 0.5);
+  border-color: rgba(140, 230, 160, 0.85);
 }
 
 .birth-blob.empty {
@@ -1218,20 +1243,36 @@
   border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
+.swatch-dbz.light {
+  background: rgba(90, 200, 160, 0.55);
+}
+
 .swatch-dbz.echo {
   background: rgba(70, 180, 110, 0.65);
+}
+
+.swatch-dbz.rain {
+  background: rgba(160, 210, 70, 0.7);
 }
 
 .swatch-dbz.moderate {
   background: rgba(230, 210, 70, 0.75);
 }
 
+.swatch-dbz.strong {
+  background: rgba(245, 170, 50, 0.8);
+}
+
 .swatch-dbz.heavy {
-  background: rgba(240, 130, 50, 0.8);
+  background: rgba(240, 130, 50, 0.85);
+}
+
+.swatch-dbz.extreme {
+  background: rgba(220, 50, 80, 0.9);
 }
 
 .swatch-dbz.core {
-  background: rgba(220, 60, 90, 0.9);
+  background: rgba(220, 60, 90, 0.95);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
 }
 

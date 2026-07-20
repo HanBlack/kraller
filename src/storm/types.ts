@@ -35,6 +35,10 @@ export type RadarCellSignals = {
   lon: number;
   maxDbz: number;
   echoTopKm: number;
+  /** Skutečná výška echa z ČHMÚ — jinak proxy z dBZ. */
+  echoTopSource?: "CHMI";
+  /** Zdroj dBZ u jádra. */
+  dbzSource?: "CHMI" | "OPERA";
   /** Rychlost pohybu (km/h). */
   speedKmh: number;
   /** Azimut pohybu ve stupních (0 = sever, 90 = východ). */

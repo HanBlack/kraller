@@ -1,10 +1,12 @@
-# Deploy po pushi kódu. Obnova radaru: live-radar.yml (samo-smyčka).
+# Deploy po pushi kódu. Obnova radaru: live-radar.yml → Cloudflare R2.
 
 name: Publish site
 
 on:
   push:
     branches: [main, master]
+    paths-ignore:
+      - "public/data/**"
   workflow_dispatch:
     inputs:
       full_update:
@@ -55,6 +57,8 @@ jobs:
         run: npm run data:update
 
       - name: Build site
+        env:
+          VITE_DATA_ROOT: ${{ secrets.VITE_DATA_ROOT }}
         run: |
           npm ci
           npm run build
