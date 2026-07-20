@@ -13,6 +13,7 @@ import {
   frameForOffset,
   loadRadarHistoryFrame,
 } from "../lib/radarHistory";
+import { filterRadarForCzFocus } from "../lib/radarDisplay";
 import { useStormDataContext } from "../providers/StormDataProvider";
 import { MAP_STYLE_URL } from "../lib/preloadBoot";
 import {
@@ -1596,8 +1597,9 @@ export function MapView({
   }, [radarHistory, timeOffsetMinutes]);
 
   const displayRadarData = useMemo(() => {
-    if (isHistoryView && historicalRadar) return historicalRadar;
-    return radarData;
+    const raw =
+      isHistoryView && historicalRadar ? historicalRadar : radarData;
+    return filterRadarForCzFocus(raw);
   }, [isHistoryView, historicalRadar, radarData]);
 
   useEffect(() => {

@@ -17,26 +17,44 @@ type Particle = {
 
 /**
  * Pixely / (m·s⁻¹) / s — zoom-invariant.
- * Dříve 30 (= příliš „rychlé“ GUI); 12 ≈ klidnější tok, směr pořád čitelný.
- * 5 m/s → ~60 px/s → ~1 px/frame při 60 FPS.
+ * 850 je pomalejší než 500; cap dřív srovnával obě vrstvy (~95 % 500 hitlo strop).
  */
-const SPEED_TO_PX = 12;
+const SPEED_TO_PX_LOW = 10;
+const SPEED_TO_PX_UPPER = 13;
+const SPEED_TO_PX_STEER = 11;
+const MAX_MOVE_PX_LOW = 2.4;
+const MAX_MOVE_PX_UPPER = 6.2;
+const MAX_MOVE_PX_STEER = 4.6;
 const MAX_AGE = 110;
 const MIN_PARTICLES = 400;
 const MAX_PARTICLES = 750;
 const DENSITY_PER_KPX = 0.58;
 
-function colorForSpeed(speedMs: number, mode: "low" | "upper"): string {
+function colorForSpeed(speedMs: number, mode: "low" | "upper" | "steer"): string {
   if (mode === "low") {
     if (speedMs < 3) return "rgba(155, 200, 220, 0.75)";
     if (speedMs < 7) return "rgba(125, 195, 215, 0.8)";
     if (speedMs < 12) return "rgba(145, 210, 190, 0.82)";
     return "rgba(210, 205, 155, 0.85)";
   }
+  if (mode === "steer") {
+    if (speedMs < 8) return "rgba(170, 185, 210, 0.75)";
+    if (speedMs < 16) return "rgba(180, 175, 205, 0.8)";
+    if (speedMs < 22) return "rgba(195, 170, 195, 0.82)";
+    return "rgba(205, 175, 170, 0.85)";
+  }
   if (speedMs < 10) return "rgba(185, 170, 215, 0.75)";
   if (speedMs < 18) return "rgba(195, 160, 210, 0.8)";
   if (speedMs < 24) return "rgba(210, 165, 190, 0.82)";
   return "rgba(215, 180, 165, 0.85)";
+}
+
+function speedScale(mode: WindLayerMode): { toPx: number; maxMove: number } {
+  if (mode === "low") return { toPx: SPEED_TO_PX_LOW, maxMove: MAX_MOVE_PX_LOW };
+  if (mode === "upper") {
+    return { toPx: SPEED_TO_PX_UPPER, maxMove: MAX_MOVE_PX_UPPER };
+  }
+  return { toPx: SPEED_TO_PX_STEER, maxMove: MAX_MOVE_PX_STEER };
 }
 
 /**
@@ -284,9 +302,10 @@ export class WindParticleOverlay {
     dx /= dlen;
     dy /= dlen;
 
+    const moveScale = speedScale(this.mode);
     const movePx = Math.min(
-      3.2,
-      Math.max(0.28, sample.speed * SPEED_TO_PX * dt),
+      moveScale.maxMove,
+      Math.max(0.28, sample.speed * moveScale.toPx * dt),
     );
 
     const nextScreen = this.map.unproject([
@@ -335,8 +354,8 @@ export class WindParticleOverlay {
     const dt = Math.min(0.05, Math.max(0.012, rawDt));
 
     const g = this.grid;
-    const mode =
-      this.mode === "upper" || this.mode === "steer" ? "upper" : "low";
+    const colorMode: "low" | "upper" | "steer" =
+      this.mode === "off" ? "steer" : this.mode;
     const w = this.cssW;
     const h = this.cssH;
     const ctx = this.ctx;
@@ -361,10 +380,10 @@ export class WindParticleOverlay {
       }
 
       const segLen = Math.hypot(nextX - prevX, nextY - prevY);
-      if (segLen < 0.12 || segLen > 18) continue;
+      if (segLen < 0.12 || segLen > 22) continue;
 
       const life = 1 - p.age / p.maxAge;
-      ctx.strokeStyle = colorForSpeed(speed, mode);
+      ctx.strokeStyle = colorForSpeed(speed, colorMode);
       ctx.globalAlpha = 0.16 + 0.24 * life;
       ctx.beginPath();
       ctx.moveTo(prevX, prevY);

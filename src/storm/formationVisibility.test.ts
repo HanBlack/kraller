@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { formationHeatGeoJSON } from "./formationData";
+import {
+  clusterFormationZones,
+  formationHeatGeoJSON,
+} from "./formationData";
 import { formationGridGeoJSON } from "./formationVisual";
 import type { ScoredFormationPoint } from "./formationData";
 import { scoreFormation } from "./scoreFormation";
@@ -14,12 +17,12 @@ function pt(
     capeJkg: cape,
     capeNowJkg: cape * 0.7,
     dewpointC: 14,
-    shear0to6Ms: 10,
-    srh01: 60,
+    shear0to6Ms: 14,
+    srh01: 80,
     cloudTopCoolingCPer15min: -1,
-    liftedIndexC: 0,
+    liftedIndexC: -1,
     steerHeadingDeg: 30,
-    steerSpeedKmh: 30,
+    steerSpeedKmh: 35,
   };
   return {
     lat,
@@ -56,6 +59,28 @@ describe("formation visibility — méně slepý vznik", () => {
     expect(heat.features.length).toBeGreaterThan(0);
     for (const f of heat.features) {
       expect(Number(f.properties?.score)).toBeGreaterThanOrEqual(22);
+    }
+  });
+
+  it("zóny Vznik jen v ČR — AT body bez kruhu/popisku", () => {
+    const zones = clusterFormationZones(grid, null);
+    expect(zones.length).toBeGreaterThan(0);
+    for (const z of zones) {
+      expect(z.lat).toBeGreaterThan(48.4);
+      expect(z.name).not.toMatch(/Rakousko|Vídn|Polsko/i);
+    }
+  });
+
+  it("heat tečky daleko mimo ČR neukazuje", () => {
+    const heat = formationHeatGeoJSON(grid, null);
+    for (const f of heat.features) {
+      const coords =
+        f.geometry.type === "Point"
+          ? (f.geometry.coordinates as [number, number])
+          : [0, 0];
+      const lat = coords[1];
+      // AT 48.2 by neměl projít (margin 40 km)
+      expect(lat).toBeGreaterThan(48.35);
     }
   });
 });
