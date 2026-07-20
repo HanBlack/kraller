@@ -120,6 +120,8 @@ const RADAR_SOURCE = "opera-radar-source";
 const RADAR_FILL = "opera-radar-fill";
 const RADAR_LINE = "opera-radar-line";
 const RADAR_PEAK = "opera-radar-peak";
+const RADAR_RASTER_SOURCE = "opera-radar-raster";
+const RADAR_RASTER = "opera-radar-raster-layer";
 const ACT_SOURCE = "active-storms";
 const ACT_HALO = "active-halo";
 const ACT_CORE = "active-core";
@@ -857,6 +859,30 @@ function ensureStormLayers(map: maplibregl.Map) {
     });
   }
 
+  if (!map.getSource(RADAR_RASTER_SOURCE)) {
+    // Placeholder 1×1 — updateImage při načtení latest.png
+    map.addSource(RADAR_RASTER_SOURCE, {
+      type: "image",
+      url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+      coordinates: [
+        [12, 51],
+        [19, 51],
+        [19, 48.5],
+        [12, 48.5],
+      ],
+    });
+    map.addLayer({
+      id: RADAR_RASTER,
+      type: "raster",
+      source: RADAR_RASTER_SOURCE,
+      layout: { visibility: "none" },
+      paint: {
+        "raster-opacity": 0.9,
+        "raster-fade-duration": 0,
+      },
+    });
+  }
+
   if (!map.getSource(RADAR_SOURCE)) {
     map.addSource(RADAR_SOURCE, {
       type: "geojson",
@@ -1533,6 +1559,7 @@ export function MapView({
   });
   const {
     radarData,
+    radarRaster,
     trackedCells,
     windLow,
     windUpper,
@@ -1548,7 +1575,8 @@ export function MapView({
   const forecastMinutes = Math.max(0, timeOffsetMinutes);
   const isHistoryView = timeOffsetMinutes < 0;
   const windGrid = windLow;
-  const operaReady = radarData.features.length > 0;
+  const useLiveRaster = Boolean(radarRaster) && !isHistoryView;
+  const operaReady = radarData.features.length > 0 || Boolean(radarRaster);
   const onSelectRef = useRef(onSelect);
   const onWindSourceRef = useRef(onWindSource);
   const onFormationSourceRef = useRef(onFormationSource);
@@ -1599,8 +1627,18 @@ export function MapView({
   const displayRadarData = useMemo(() => {
     const raw =
       isHistoryView && historicalRadar ? historicalRadar : radarData;
-    return filterRadarForCzFocus(raw);
-  }, [isHistoryView, historicalRadar, radarData]);
+    const focused = filterRadarForCzFocus(raw);
+    // Live raster: kontury schovej — nech jen peaky pro hit-test
+    if (useLiveRaster) {
+      return {
+        type: "FeatureCollection" as const,
+        features: focused.features.filter(
+          (f) => f.properties?.kind === "peak" || f.geometry?.type === "Point",
+        ),
+      };
+    }
+    return focused;
+  }, [isHistoryView, historicalRadar, radarData, useLiveRaster]);
 
   useEffect(() => {
     radarDataRef.current = displayRadarData;
@@ -1612,12 +1650,30 @@ export function MapView({
     const map = mapRef.current;
     if (!map) return;
     const apply = () => {
+      ensureStormLayers(map);
       (map.getSource(RADAR_SOURCE) as maplibregl.GeoJSONSource | undefined)?.setData(
         radarDataRef.current,
       );
+      if (radarRaster && useLiveRaster) {
+        const src = map.getSource(RADAR_RASTER_SOURCE) as
+          | maplibregl.ImageSource
+          | undefined;
+        src?.updateImage({
+          url: radarRaster.url,
+          coordinates: radarRaster.coordinates,
+        });
+      }
     };
     return whenStyleReady(map, apply);
-  }, [displayRadarData, windLow, windUpper, windReal, formationReal]);
+  }, [
+    displayRadarData,
+    windLow,
+    windUpper,
+    windReal,
+    formationReal,
+    radarRaster,
+    useLiveRaster,
+  ]);
 
   const radarProgress = useMemo(
     () =>
@@ -2091,8 +2147,12 @@ export function MapView({
         forecastMinutes > 0 && !isHistoryView && useRadarProgress;
       const showCellsNow =
         (showProgressNow || showForecastCells) && useRadarProgress;
-      const hasOpera = operaReady && radarDataRef.current.features.length > 0;
+      const hasOpera =
+        useLiveRaster ||
+        (operaReady && radarDataRef.current.features.length > 0);
       const liveRadarOn = showRadar && hasOpera && !showForecastCells;
+      const showRaster = liveRadarOn && useLiveRaster;
+      const showContourFill = liveRadarOn && !useLiveRaster;
       // Detail (zrod / zesílení / ghost) jen po výběru buňky — mapa zůstane čitelná.
       const showCellDetail =
         showProgressNow && useRadarProgress && selectedRadarId != null;
@@ -2127,8 +2187,9 @@ export function MapView({
         [INTENS_FILL, INTENS_LINE, INTENS_MARK, INTENS_LABEL, INTENS_HALO],
         showCellDetail,
       );
-      // Budoucnost: schovat OPERA — jinak vypadá, že se bouřka „nepohybuje“.
-      setLayerVisibility(map, [RADAR_FILL, RADAR_PEAK], liveRadarOn);
+      setLayerVisibility(map, [RADAR_RASTER], showRaster);
+      setLayerVisibility(map, [RADAR_FILL], showContourFill);
+      setLayerVisibility(map, [RADAR_PEAK], liveRadarOn);
       setLayerVisibility(map, [RADAR_LINE], false);
       if (map.getLayer(RADAR_FILL)) {
         map.setPaintProperty(RADAR_FILL, "fill-opacity", 1);
@@ -2156,6 +2217,7 @@ export function MapView({
     isHistoryView,
     locale,
     selected,
+    useLiveRaster,
   ]);
 
   useEffect(() => {

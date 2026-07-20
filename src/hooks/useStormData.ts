@@ -13,11 +13,13 @@ import type { WindGrid } from "../lib/windField";
 import type { TrackedCell } from "../storm/radarCells";
 import type { RadarHistoryManifest } from "../lib/radarHistory";
 import type { ScoredFormationPoint } from "../storm/formationData";
+import type { RadarRasterMeta } from "../lib/radarRaster";
 
 export type BootPhase = "data" | "fetch" | "history" | "map" | "refresh" | "done";
 
 export type StormDataState = {
   radarData: FeatureCollection;
+  radarRaster: RadarRasterMeta | null;
   trackedCells: TrackedCell[];
   windLow: WindGrid | null;
   windUpper: WindGrid | null;
@@ -50,6 +52,7 @@ export function useStormData(
     type: "FeatureCollection",
     features: [],
   });
+  const [radarRaster, setRadarRaster] = useState<RadarRasterMeta | null>(null);
   const [trackedCells, setTrackedCells] = useState<TrackedCell[]>([]);
   const [windLow, setWindLow] = useState<WindGrid | null>(null);
   const [windUpper, setWindUpper] = useState<WindGrid | null>(null);
@@ -97,6 +100,7 @@ export function useStormData(
         setBootPhase("done");
       }
       setRadarData(data.radarData);
+      setRadarRaster(data.radarRaster);
       setTrackedCells(data.trackedCells);
       setWindLow(data.windLow);
       setWindUpper(data.windUpper);
@@ -129,6 +133,7 @@ export function useStormData(
 
   return {
     radarData,
+    radarRaster,
     trackedCells,
     windLow,
     windUpper,

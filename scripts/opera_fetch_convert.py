@@ -10,8 +10,9 @@ import h5py
 import numpy as np
 import requests
 from pyproj import Transformer
-from scipy.ndimage import center_of_mass, label
+from scipy.ndimage import center_of_mass, gaussian_filter, label
 from skimage import measure
+from PIL import Image
 
 S3_ENDPOINT = "https://s3.waw3-1.cloudferro.com"
 BUCKET = "openradar-24h"
@@ -273,6 +274,104 @@ def _chaikin_closed(ring: list[list[float]], iterations: int = 1) -> list[list[f
             nxt.append([0.25 * a[0] + 0.75 * b[0], 0.25 * a[1] + 0.75 * b[1]])
         pts = nxt
     return pts
+
+
+# Profesionální radarová paleta (RainViewer-ish) — spojité RGB, ne kontury.
+_DBZ_STOPS = np.array([18, 25, 30, 35, 40, 45, 50, 55, 60, 65, 75], dtype=np.float64)
+_DBZ_RGB = np.array(
+    [
+        [40, 40, 90],
+        [50, 70, 180],
+        [40, 160, 200],
+        [30, 180, 90],
+        [160, 210, 40],
+        [240, 220, 40],
+        [250, 150, 30],
+        [230, 50, 40],
+        [200, 30, 120],
+        [180, 40, 200],
+        [255, 200, 255],
+    ],
+    dtype=np.float64,
+)
+
+
+def _dbz_to_rgba(dbz: np.ndarray) -> np.ndarray:
+    """Spojité barvy + měkká alfa (bez ostrých schodů mezi pásy)."""
+    z = np.nan_to_num(dbz, nan=0.0).astype(np.float64)
+    rgb = np.zeros(z.shape + (3,), dtype=np.float64)
+    for c in range(3):
+        rgb[..., c] = np.interp(z, _DBZ_STOPS, _DBZ_RGB[:, c])
+
+    alpha = np.zeros_like(z, dtype=np.float64)
+    # Fade-in okraje — jako profesionální radar, ne stencil
+    soft = (z >= 18) & (z < 28)
+    mid = (z >= 28) & (z < 45)
+    hard = z >= 45
+    alpha[soft] = 0.12 + 0.45 * ((z[soft] - 18) / 10.0)
+    alpha[mid] = 0.57 + 0.18 * ((z[mid] - 28) / 17.0)
+    alpha[hard] = np.clip(0.75 + 0.15 * ((z[hard] - 45) / 25.0), 0.0, 0.9)
+    alpha[z < 18] = 0.0
+
+    out = np.zeros(z.shape + (4,), dtype=np.uint8)
+    out[..., :3] = np.clip(rgb, 0, 255).astype(np.uint8)
+    out[..., 3] = np.clip(alpha * 255.0, 0, 255).astype(np.uint8)
+    return out
+
+
+def crop_corner_coordinates(frame: dict) -> list[list[float]]:
+    """MapLibre image: TL, TR, BR, BL v WGS84."""
+    r0, r1, c0, c1 = frame["bounds"]
+    meta = frame["meta"]
+    geo = frame["geo"]
+    tl = pixel_to_lonlat(r0 - 0.5, c0 - 0.5, meta, geo)
+    tr = pixel_to_lonlat(r0 - 0.5, c1 + 0.5, meta, geo)
+    br = pixel_to_lonlat(r1 + 0.5, c1 + 0.5, meta, geo)
+    bl = pixel_to_lonlat(r1 + 0.5, c0 - 0.5, meta, geo)
+    return [
+        [tl[0], tl[1]],
+        [tr[0], tr[1]],
+        [br[0], br[1]],
+        [bl[0], bl[1]],
+    ]
+
+
+def write_radar_raster(
+    frame: dict,
+    png_path: str,
+    meta_path: str,
+    blur_sigma: float = 0.9,
+) -> dict:
+    """PNG heatmap ze gridu — plynulé přechody (ne GeoJSON kontury)."""
+    crop = frame["crop"].astype(np.float64)
+    # Lehký blur = měkké přechody mezi intenzitami
+    filled = np.where(np.isfinite(crop), crop, 0.0)
+    if blur_sigma > 0:
+        filled = gaussian_filter(filled, sigma=blur_sigma, mode="nearest")
+        filled = np.where(np.isfinite(crop) & (crop >= 15), filled, 0.0)
+
+    rgba = _dbz_to_rgba(filled)
+    os.makedirs(os.path.dirname(png_path) or ".", exist_ok=True)
+    Image.fromarray(rgba, mode="RGBA").save(png_path, optimize=True)
+
+    coordinates = crop_corner_coordinates(frame)
+    rel_png = png_path.replace("\\", "/")
+    if "public/" in rel_png:
+        rel_png = rel_png.split("public/", 1)[1]
+    elif not rel_png.startswith("data/"):
+        rel_png = f"data/opera/{os.path.basename(png_path)}"
+
+    meta = {
+        "url": rel_png,
+        "coordinates": coordinates,
+        "time": frame["time_str"],
+        "minDbz": 18,
+        "blurSigma": blur_sigma,
+    }
+    with open(meta_path, "w", encoding="utf-8") as f:
+        json.dump(meta, f, indent=2)
+    print(f"Radar raster: {png_path} ({rgba.shape[1]}x{rgba.shape[0]})")
+    return meta
 
 
 def track_cells(
@@ -777,6 +876,13 @@ def convert_to_geojson(
         json.dump({"type": "FeatureCollection", "features": radar_features}, f)
     with open(cells_out, "w", encoding="utf-8") as f:
         json.dump({"type": "FeatureCollection", "features": cell_features}, f)
+
+    raster_dir = os.path.dirname(radar_out) or "."
+    write_radar_raster(
+        latest,
+        os.path.join(raster_dir, "latest.png"),
+        os.path.join(raster_dir, "latest-raster.json"),
+    )
 
     print(f"Cells tracked: {len(cells)}")
     for c in cells[:5]:

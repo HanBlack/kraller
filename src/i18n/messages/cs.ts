@@ -98,7 +98,7 @@ export const cs = {
     extreme: "extrém · 65+ (supercela)",
     core: "jádro · silná bouřka",
     radarGuide:
-      "Barvy plynule přecházejí: zelená okraj → žlutá déšť → oranžová silné → červená jádro → fialová extrém (65+)",
+      "Spojitý radar: plynulé barvy (zelená → žlutá → oranžová → červená → fialová), bez ostrých kontur",
     radarNote: "Data: EUMETNET OPERA · CC BY 4.0",
     trackTitle: "Šipka + koridor",
     echoGrow: "echo / roste",
