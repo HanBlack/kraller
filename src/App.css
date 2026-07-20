@@ -746,8 +746,8 @@
 .birth-blob {
   display: block;
   border-radius: 40% 45% 42% 48%;
-  border: 1.5px solid rgba(70, 215, 175, 0.7);
-  background: rgba(40, 190, 155, 0.5);
+  border: 1.5px solid rgba(80, 200, 160, 0.65);
+  background: rgba(55, 185, 140, 0.45);
 }
 
 .birth-blob.sm {
@@ -766,43 +766,43 @@
 }
 
 .birth-blob.light {
-  background: rgba(40, 190, 155, 0.5);
-  border-color: rgba(70, 215, 175, 0.75);
+  background: rgba(55, 185, 140, 0.45);
+  border-color: rgba(80, 200, 160, 0.7);
 }
 
 .birth-blob.echo {
-  background: rgba(34, 200, 95, 0.55);
-  border-color: rgba(70, 225, 120, 0.8);
+  background: rgba(55, 185, 140, 0.5);
+  border-color: rgba(80, 200, 160, 0.75);
 }
 
 .birth-blob.rain {
-  background: rgba(95, 215, 55, 0.58);
-  border-color: rgba(130, 235, 75, 0.82);
+  background: rgba(220, 195, 55, 0.55);
+  border-color: rgba(235, 210, 70, 0.8);
 }
 
 .birth-blob.moderate {
-  background: rgba(245, 220, 35, 0.65);
-  border-color: rgba(255, 235, 70, 0.88);
+  background: rgba(220, 195, 55, 0.6);
+  border-color: rgba(235, 210, 70, 0.85);
 }
 
 .birth-blob.strong {
-  background: rgba(255, 165, 30, 0.7);
-  border-color: rgba(255, 190, 60, 0.9);
+  background: rgba(235, 125, 40, 0.65);
+  border-color: rgba(245, 150, 60, 0.88);
 }
 
 .birth-blob.heavy {
-  background: rgba(245, 95, 28, 0.75);
-  border-color: rgba(255, 130, 55, 0.92);
+  background: rgba(235, 125, 40, 0.7);
+  border-color: rgba(245, 150, 60, 0.9);
 }
 
 .birth-blob.extreme {
-  background: rgba(225, 35, 55, 0.8);
-  border-color: rgba(255, 75, 95, 0.95);
+  background: rgba(210, 45, 70, 0.75);
+  border-color: rgba(240, 70, 95, 0.92);
 }
 
 .birth-blob.echo-strong {
-  background: rgba(34, 200, 95, 0.65);
-  border-color: rgba(95, 230, 120, 0.88);
+  background: rgba(55, 185, 140, 0.6);
+  border-color: rgba(90, 210, 160, 0.85);
 }
 
 .birth-blob.empty {
@@ -1244,36 +1244,36 @@
 }
 
 .swatch-dbz.light {
-  background: rgba(90, 200, 160, 0.55);
+  background: rgba(55, 185, 140, 0.55);
 }
 
 .swatch-dbz.echo {
-  background: rgba(70, 180, 110, 0.65);
+  background: rgba(55, 185, 140, 0.55);
 }
 
 .swatch-dbz.rain {
-  background: rgba(160, 210, 70, 0.7);
+  background: rgba(220, 195, 55, 0.7);
 }
 
 .swatch-dbz.moderate {
-  background: rgba(230, 210, 70, 0.75);
+  background: rgba(220, 195, 55, 0.7);
 }
 
 .swatch-dbz.strong {
-  background: rgba(245, 170, 50, 0.8);
+  background: rgba(235, 125, 40, 0.8);
 }
 
 .swatch-dbz.heavy {
-  background: rgba(240, 130, 50, 0.85);
+  background: rgba(235, 125, 40, 0.8);
 }
 
 .swatch-dbz.extreme {
-  background: rgba(220, 50, 80, 0.9);
+  background: rgba(210, 45, 70, 0.9);
 }
 
 .swatch-dbz.core {
-  background: rgba(220, 60, 90, 0.95);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  background: rgba(210, 45, 70, 0.92);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
 }
 
 .swatch.weak,

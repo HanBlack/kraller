@@ -77,27 +77,16 @@ export function MapLegend({
                   <span className="swatch-dbz light" /> {t("legend.light")}
                 </li>
                 <li>
-                  <span className="swatch-dbz echo" /> {t("legend.echo")}
-                </li>
-                <li>
                   <span className="swatch-dbz rain" /> {t("legend.rain")}
-                </li>
-                <li>
-                  <span className="swatch-dbz moderate" /> {t("legend.moderate")}
-                </li>
-                <li>
-                  <span className="swatch-dbz strong" /> {t("legend.strong")}
                 </li>
                 <li>
                   <span className="swatch-dbz heavy" /> {t("legend.heavy")}
                 </li>
                 <li>
-                  <span className="swatch-dbz extreme" /> {t("legend.extreme")}
-                </li>
-                <li>
                   <span className="swatch-dbz core" /> {t("legend.core")}
                 </li>
               </ul>
+              <p className="legend-note">{t("legend.radarGuide")}</p>
               <p className="legend-note">{t("legend.radarNote")}</p>
             </div>
           )}
