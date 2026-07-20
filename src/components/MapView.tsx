@@ -1827,8 +1827,8 @@ export function MapView({
       center: CZ_CENTER,
       zoom: 6.6,
       maxBounds: [
-        [10.5, 47.5],
-        [20.5, 52.2],
+        [6.2, 45.9],
+        [23.2, 53.0],
       ],
       attributionControl: { compact: true },
     });

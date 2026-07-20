@@ -26,9 +26,9 @@ from openmeteo_client import (
 )
 from openmeteo_hour import current_hour_index
 
-# Oblast ČR + okolí (DE/PL/AT) — sever za Cottbus
-WEST, SOUTH, EAST, NORTH = 11.0, 47.5, 20.2, 52.3
-COLS, ROWS = 24, 17
+# Střední Evropa: CH … východní SK (stejný bbox jako vítr)
+WEST, SOUTH, EAST, NORTH = 7.0, 46.5, 22.5, 52.5
+COLS, ROWS = 28, 18
 
 # ICON seamless = blízké Windy/DWD pro střední Evropu (CAPE, LI)
 MODEL = "icon_seamless"
