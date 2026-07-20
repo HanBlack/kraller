@@ -23,6 +23,7 @@ import { bandRadiiKm } from "./hitAtUser";
 import { stormConfig } from "./config";
 import type { ActiveStormAssessment } from "./types";
 import type { UserLocation } from "../types";
+import { smoothPolygon } from "../lib/geoSmooth";
 
 function parseHistoryTime(raw: string): Date | null {
   if (!raw || String(raw).length < 14) return null;
@@ -543,7 +544,7 @@ export function radarCellsGeoJSONAt(
             decaying,
             opacity: dbz < 30 ? 0.35 : dbz < 40 ? 0.55 : dbz < 50 ? 0.7 : 0.82,
           },
-          geometry: scaled,
+          geometry: smoothPolygon(scaled, 1),
         };
       })
       .filter((f): f is NonNullable<typeof f> => f != null),

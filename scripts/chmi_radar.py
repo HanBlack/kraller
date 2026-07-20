@@ -91,13 +91,31 @@ def contour_coords(
     geo: dict,
 ) -> list[list[float]]:
     coords: list[list[float]] = []
-    step_pts = max(1, contour.shape[0] // 60)
+    step_pts = max(1, contour.shape[0] // 120)
     for row_f, col_f in contour[::step_pts]:
         lon, lat = pixel_to_lonlat(float(row_f), float(col_f), meta, geo)
         coords.append([lon, lat])
+    if len(coords) >= 4:
+        coords = _chaikin_closed(coords, iterations=1)
     if coords and coords[0] != coords[-1]:
         coords.append(coords[0])
     return coords
+
+
+def _chaikin_closed(ring: list[list[float]], iterations: int = 1) -> list[list[float]]:
+    pts = ring[:-1] if ring and ring[0] == ring[-1] else list(ring)
+    if len(pts) < 3:
+        return ring
+    for _ in range(iterations):
+        nxt: list[list[float]] = []
+        n = len(pts)
+        for i in range(n):
+            a = pts[i]
+            b = pts[(i + 1) % n]
+            nxt.append([0.75 * a[0] + 0.25 * b[0], 0.75 * a[1] + 0.25 * b[1]])
+            nxt.append([0.25 * a[0] + 0.75 * b[0], 0.25 * a[1] + 0.75 * b[1]])
+        pts = nxt
+    return pts
 
 
 def build_contour_features(

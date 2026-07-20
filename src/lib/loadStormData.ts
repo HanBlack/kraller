@@ -1,5 +1,6 @@
 import type { FeatureCollection } from "geojson";
 import { fetchDataJson } from "./dataUrls";
+import { smoothPolygonFeatures } from "./geoSmooth";
 import { loadWindGrids } from "./windField";
 import { buildRealFormationZones } from "../storm/formationData";
 import type { ScoredFormationPoint } from "../storm/formationData";
@@ -85,7 +86,10 @@ export async function loadStormData(
   ]);
 
   const cellsFc = cellsData ?? EMPTY_FC;
-  const radarFc = mergeRadarLayers(radarData ?? EMPTY_FC, chmiRadar);
+  const radarFc = smoothPolygonFeatures(
+    mergeRadarLayers(radarData ?? EMPTY_FC, chmiRadar),
+    1,
+  );
   const formation = await buildRealFormationZones(cellsFc, cacheBust);
 
   return {

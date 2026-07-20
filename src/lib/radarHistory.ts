@@ -1,6 +1,7 @@
 import type { FeatureCollection } from "geojson";
 import { t, type Locale } from "../i18n";
 import { fetchData, fetchDataJson } from "./dataUrls";
+import { smoothPolygonFeatures } from "./geoSmooth";
 
 export type RadarHistoryFrame = {
   index: number;
@@ -67,7 +68,10 @@ export async function loadRadarHistoryFrame(
   try {
     const res = await fetchData(frame.path, cacheBust);
     if (!res) return EMPTY_FC;
-    const fc = (await res.json()) as FeatureCollection;
+    const fc = smoothPolygonFeatures(
+      (await res.json()) as FeatureCollection,
+      1,
+    );
     frameCache.set(key, fc);
     return fc;
   } catch {

@@ -188,54 +188,72 @@ const dbzValue: maplibregl.ExpressionSpecification = [
 ];
 
 /**
- * 5 úrovní síly — pořád jednoduché, ale extrém (65+ / supercela) musí křičet.
- * okraj → déšť → silné → jádro → extrém
+ * 5 úrovní síly s plynulými přechody (interpolate) — pořád přesné mapování dBZ.
+ * okraj → déšť → silné → jádro → extrém (65+)
  */
 const dbzFillColor: maplibregl.ExpressionSpecification = [
-  "step",
+  "interpolate",
+  ["linear"],
   dbzValue,
-  "rgba(70, 175, 165, 0.28)",
+  25,
+  "rgba(70, 175, 165, 0.22)",
   30,
-  "rgba(55, 185, 140, 0.40)", // okraj
+  "rgba(55, 185, 140, 0.38)",
+  38,
+  "rgba(120, 195, 90, 0.48)",
   40,
-  "rgba(220, 195, 55, 0.58)", // déšť
+  "rgba(220, 195, 55, 0.56)",
+  48,
+  "rgba(235, 160, 45, 0.64)",
   50,
-  "rgba(235, 125, 40, 0.72)", // silné
+  "rgba(235, 125, 40, 0.72)",
+  56,
+  "rgba(225, 75, 50, 0.80)",
   58,
-  "rgba(215, 40, 65, 0.86)", // jádro / silná bouřka
+  "rgba(215, 40, 65, 0.86)",
+  63,
+  "rgba(200, 40, 140, 0.90)",
   65,
-  "rgba(185, 40, 210, 0.92)", // extrém / supercela
+  "rgba(185, 40, 210, 0.93)",
+  72,
+  "rgba(210, 90, 240, 0.95)",
 ];
 
 const dbzOutlineColor: maplibregl.ExpressionSpecification = [
-  "step",
+  "interpolate",
+  ["linear"],
   dbzValue,
-  "rgba(100, 195, 185, 0.4)",
+  25,
+  "rgba(100, 195, 185, 0.35)",
   30,
-  "rgba(80, 200, 160, 0.5)",
+  "rgba(80, 200, 160, 0.48)",
   40,
-  "rgba(235, 210, 70, 0.65)",
+  "rgba(235, 210, 70, 0.62)",
   50,
-  "rgba(245, 150, 60, 0.75)",
+  "rgba(245, 150, 60, 0.72)",
   58,
-  "rgba(245, 70, 95, 0.88)",
+  "rgba(245, 70, 95, 0.85)",
   65,
-  "rgba(230, 120, 255, 0.95)",
+  "rgba(230, 120, 255, 0.94)",
+  72,
+  "rgba(245, 170, 255, 0.96)",
 ];
 
 const dbzFillOpacity: maplibregl.ExpressionSpecification = [
-  "step",
+  "interpolate",
+  ["linear"],
   dbzValue,
-  0.42,
-  30,
+  25,
+  0.4,
+  35,
   0.55,
-  40,
-  0.7,
-  50,
+  45,
+  0.68,
+  55,
   0.82,
-  58,
+  62,
   0.9,
-  65,
+  70,
   0.96,
 ];
 
@@ -258,13 +276,15 @@ const cellLineWidth: maplibregl.ExpressionSpecification = [
   ["==", ["get", "threatens"], 1],
   1.6,
   [
-    "step",
+    "interpolate",
+    ["linear"],
     dbzValue,
-    1.0,
+    30,
+    0.9,
     58,
-    1.25,
+    1.2,
     65,
-    1.55,
+    1.5,
   ],
 ];
 /** Barva stopy / šipky podle síly (oranžová = míří k uživateli). */
@@ -575,14 +595,14 @@ function ensureStormLayers(map: maplibregl.Map) {
   if (map.getLayer(CELL_LINE)) {
     map.setPaintProperty(CELL_LINE, "line-color", cellLineColor);
     map.setPaintProperty(CELL_LINE, "line-width", cellLineWidth);
-    map.setPaintProperty(CELL_LINE, "line-blur", 0.2);
-    map.setPaintProperty(CELL_LINE, "line-opacity", 0.8);
+    map.setPaintProperty(CELL_LINE, "line-blur", 0.35);
+    map.setPaintProperty(CELL_LINE, "line-opacity", 0.72);
   }
   if (map.getLayer(RADAR_LINE)) {
     map.setPaintProperty(RADAR_LINE, "line-color", dbzOutlineColor);
-    map.setPaintProperty(RADAR_LINE, "line-width", 0.95);
-    map.setPaintProperty(RADAR_LINE, "line-blur", 0.2);
-    map.setPaintProperty(RADAR_LINE, "line-opacity", 0.6);
+    map.setPaintProperty(RADAR_LINE, "line-width", 0.85);
+    map.setPaintProperty(RADAR_LINE, "line-blur", 0.4);
+    map.setPaintProperty(RADAR_LINE, "line-opacity", 0.55);
   }
   if (map.getLayer(RADAR_PEAK)) {
     map.setPaintProperty(RADAR_PEAK, "circle-radius", [
@@ -864,9 +884,9 @@ function ensureStormLayers(map: maplibregl.Map) {
       filter: ["==", ["geometry-type"], "Polygon"],
       paint: {
         "line-color": dbzOutlineColor,
-        "line-width": 0.95,
-        "line-blur": 0.2,
-        "line-opacity": 0.6,
+        "line-width": 0.85,
+        "line-blur": 0.4,
+        "line-opacity": 0.55,
       },
     });
     map.addLayer({
@@ -1039,8 +1059,8 @@ function ensureStormLayers(map: maplibregl.Map) {
         paint: {
           "line-color": cellLineColor,
           "line-width": cellLineWidth,
-          "line-blur": 0.2,
-          "line-opacity": 0.8,
+          "line-blur": 0.35,
+          "line-opacity": 0.72,
         },
       },
       beforeTrack,
