@@ -336,15 +336,15 @@ def crop_corner_coordinates(frame: dict) -> list[list[float]]:
     ]
 
 
-def warp_crop_to_lonlat(
+def warp_crop_to_web_mercator(
     frame: dict,
     blur_sigma: float = 0.9,
 ) -> tuple[np.ndarray, list[list[float]]]:
     """
-    LAEA crop → pravidelný lon/lat grid.
+    LAEA crop → grid lineární ve Web Mercator (EPSG:3857).
 
-    MapLibre image source umí jen bilinearní quad. Když PNG zůstane v projekci
-    a rohy jsou kosý čtyřúhelník, peaky (přesné WGS84) sedí mimo vizuální jádro.
+    MapLibre image source mapuje texturu bilineárně v mercator prostoru.
+    Equirectangular (lineární lat) PNG → jádra systematicky ujíždějí od peaků.
     """
     crop = frame["crop"].astype(np.float64)
     h, w = crop.shape
@@ -366,23 +366,43 @@ def warp_crop_to_lonlat(
     west, east = min(lons), max(lons)
     south, north = min(lats), max(lats)
 
-    # Stejné rozlišení jako crop (px ≈ stejná hustota)
-    out_w = max(32, w)
-    out_h = max(32, h)
-    lon_1d = west + (np.arange(out_w, dtype=np.float64) + 0.5) / out_w * (
-        east - west
+    wgs_to_merc = Transformer.from_crs(
+        "EPSG:4326", "EPSG:3857", always_xy=True
     )
-    lat_1d = north - (np.arange(out_h, dtype=np.float64) + 0.5) / out_h * (
-        north - south
+    merc_to_wgs = Transformer.from_crs(
+        "EPSG:3857", "EPSG:4326", always_xy=True
     )
-    lon_grid, lat_grid = np.meshgrid(lon_1d, lat_1d)
-
-    wgs_to_proj = Transformer.from_crs(
+    wgs_to_laea = Transformer.from_crs(
         "EPSG:4326",
         meta["projdef"],
         always_xy=True,
     )
-    px, py = wgs_to_proj.transform(lon_grid, lat_grid)
+
+    corner_ll = [
+        (west, north),
+        (east, north),
+        (east, south),
+        (west, south),
+    ]
+    merc_xy = [wgs_to_merc.transform(lon, lat) for lon, lat in corner_ll]
+    mx_left = min(p[0] for p in merc_xy)
+    mx_right = max(p[0] for p in merc_xy)
+    my_bot = min(p[1] for p in merc_xy)
+    my_top = max(p[1] for p in merc_xy)
+
+    out_w = max(32, w)
+    out_h = max(32, h)
+    mx_1d = mx_left + (np.arange(out_w, dtype=np.float64) + 0.5) / out_w * (
+        mx_right - mx_left
+    )
+    # řádek 0 = sever = větší mercator Y
+    my_1d = my_top - (np.arange(out_h, dtype=np.float64) + 0.5) / out_h * (
+        my_top - my_bot
+    )
+    mx_grid, my_grid = np.meshgrid(mx_1d, my_1d)
+    lon_grid, lat_grid = merc_to_wgs.transform(mx_grid, my_grid)
+
+    px, py = wgs_to_laea.transform(lon_grid, lat_grid)
     col_full = (np.asarray(px, dtype=np.float64) - ul_x) / xscale - 0.5
     row_full = (ul_y - np.asarray(py, dtype=np.float64)) / yscale - 0.5
     row_c = row_full - r0
@@ -404,6 +424,7 @@ def warp_crop_to_lonlat(
     )
     sampled = np.where(valid, sampled, 0.0)
 
+    # Rohy pořád v lon/lat — MapLibre je převede do mercator stejně jako náš grid
     coordinates = [
         [west, north],
         [east, north],
@@ -419,8 +440,10 @@ def write_radar_raster(
     meta_path: str,
     blur_sigma: float = 0.9,
 ) -> dict:
-    """PNG heatmap ve WGS84 — peaky sedí v jádru, ne vedle blobu."""
-    dbz_ll, coordinates = warp_crop_to_lonlat(frame, blur_sigma=blur_sigma)
+    """PNG heatmap v Web Mercator UV — peaky sedí ve vizuálním jádru."""
+    dbz_ll, coordinates = warp_crop_to_web_mercator(
+        frame, blur_sigma=blur_sigma
+    )
     rgba = _dbz_to_rgba(dbz_ll)
     os.makedirs(os.path.dirname(png_path) or ".", exist_ok=True)
     Image.fromarray(rgba, mode="RGBA").save(png_path, optimize=True)
@@ -437,12 +460,13 @@ def write_radar_raster(
         "time": frame["time_str"],
         "minDbz": 18,
         "blurSigma": blur_sigma,
-        "crs": "EPSG:4326",
+        "crs": "EPSG:3857",
+        "uv": "web-mercator",
     }
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(meta_out, f, indent=2)
     print(
-        f"Radar raster (WGS84): {png_path} "
+        f"Radar raster (WebMercator UV): {png_path} "
         f"({rgba.shape[1]}x{rgba.shape[0]})"
     )
     return meta_out
