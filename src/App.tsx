@@ -47,10 +47,10 @@ export default function App() {
   const { t } = useI18n();
   const { booting, bootPhase } = useStormDataContext();
   const [location, setLocation] = useState<UserLocation | null>(null);
-  const [showFormation, setShowFormation] = useState(true);
+  const [showFormation, setShowFormation] = useState(false);
   const [showProgress, setShowProgress] = useState(true);
   const [showRadar, setShowRadar] = useState(true);
-  const [windMode, setWindMode] = useState<WindLayerMode>("steer");
+  const [windMode, setWindMode] = useState<WindLayerMode>("off");
   const [selected, setSelected] = useState<SelectedStorm | null>(null);
   const [windReal, setWindReal] = useState(false);
   const [formationReal, setFormationReal] = useState(false);

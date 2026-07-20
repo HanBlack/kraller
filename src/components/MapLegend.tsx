@@ -98,15 +98,6 @@ export function MapLegend({
               <p className="legend-title">{t("legend.trackTitle")}</p>
               <ul className="legend-list">
                 <li>
-                  <span className="swatch-dbz echo" /> {t("legend.echoGrow")}
-                </li>
-                <li>
-                  <span className="swatch-dbz heavy" /> {t("legend.heavyCore")}
-                </li>
-                <li>
-                  <span className="swatch birth" /> {t("legend.birth")}
-                </li>
-                <li>
                   <span className="legend-arrow" aria-hidden>
                     ▲
                   </span>
@@ -114,6 +105,9 @@ export function MapLegend({
                 </li>
                 <li>
                   <span className="swatch threat" /> {t("legend.threatens")}
+                </li>
+                <li>
+                  <span className="swatch birth" /> {t("legend.birth")}
                 </li>
                 <li>
                   <span className="swatch intens" /> {t("legend.intensify")}

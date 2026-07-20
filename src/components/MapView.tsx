@@ -1309,10 +1309,10 @@ function ensureStormLayers(map: maplibregl.Map) {
         "fill-color": [
           "case",
           ["==", ["get", "threatens"], 1],
-          "rgba(255, 140, 80, 0.18)",
-          "rgba(120, 170, 220, 0.12)",
+          "rgba(255, 150, 90, 0.11)",
+          "rgba(130, 175, 220, 0.07)",
         ],
-        "fill-opacity": 0.9,
+        "fill-opacity": 1,
       },
     });
   }
@@ -1983,15 +1983,28 @@ export function MapView({
 
     const apply = () => {
       ensureStormLayers(map);
+      const selectedRadarId =
+        selected?.kind === "radar" ? selected.feature.id : null;
+      const detailCells = selectedRadarId
+        ? radarProgressEnriched.filter((f) => f.id === selectedRadarId)
+        : [];
+      const detailIntens = selectedRadarId
+        ? new Map(
+            [...intensForecasts.entries()].filter(
+              ([id]) => id === selectedRadarId,
+            ),
+          )
+        : new Map();
+
       if (useRadarProgress) {
         (map.getSource(GHOST_SOURCE) as maplibregl.GeoJSONSource)?.setData(
-          radarCellsGhostGeoJSONAt(radarProgressEnriched, forecastMinutes),
+          radarCellsGhostGeoJSONAt(detailCells, forecastMinutes),
         );
         (map.getSource(BIRTH_TRAIL_SOURCE) as maplibregl.GeoJSONSource)?.setData(
-          birthTrailGeoJSON(radarProgressEnriched),
+          birthTrailGeoJSON(detailCells),
         );
         (map.getSource(BIRTH_MARK_SOURCE) as maplibregl.GeoJSONSource)?.setData(
-          birthMarkersGeoJSON(radarProgressEnriched, locale),
+          birthMarkersGeoJSON(detailCells, locale),
         );
         (map.getSource(CELL_SOURCE) as maplibregl.GeoJSONSource)?.setData(
           radarCellsGeoJSONAt(
@@ -2018,15 +2031,15 @@ export function MapView({
           radarArrowsGeoJSONAt(radarProgressEnriched, forecastMinutes),
         );
         (map.getSource(INTENS_SOURCE) as maplibregl.GeoJSONSource)?.setData(
-          intensificationCorridorsGeoJSON(intensForecasts),
+          intensificationCorridorsGeoJSON(detailIntens),
         );
         (map.getSource(INTENS_MARK_SOURCE) as maplibregl.GeoJSONSource)?.setData(
-          intensificationMarkersGeoJSON(intensForecasts),
+          intensificationMarkersGeoJSON(detailIntens),
         );
         (map.getSource(INTENS_HALO_SOURCE) as maplibregl.GeoJSONSource)?.setData(
           intensificationActiveHaloGeoJSON(
-            radarProgressEnriched,
-            intensForecasts,
+            detailCells,
+            detailIntens,
             forecastMinutes,
           ),
         );
@@ -2079,21 +2092,29 @@ export function MapView({
       const showCellsNow =
         (showProgressNow || showForecastCells) && useRadarProgress;
       const hasOpera = operaReady && radarDataRef.current.features.length > 0;
+      const liveRadarOn = showRadar && hasOpera && !showForecastCells;
+      // Detail (zrod / zesílení / ghost) jen po výběru buňky — mapa zůstane čitelná.
+      const showCellDetail =
+        showProgressNow && useRadarProgress && selectedRadarId != null;
+      // Buňkový fill pod radarem = duplicita; jen forecast nebo když je radar vypnutý.
+      const showCellFill =
+        showForecastCells || (showCellsNow && !liveRadarOn);
 
       setLayerVisibility(
         map,
-        [ACT_HALO, ACT_CORE, ACT_LABEL],
+        [ACT_HALO, ACT_CORE],
         showCellsNow,
       );
+      setLayerVisibility(map, [ACT_LABEL], showCellDetail);
       setLayerVisibility(
         map,
         [GHOST_FILL, GHOST_LINE],
-        showProgressNow && useRadarProgress && !showForecastCells,
+        showCellDetail && !showForecastCells,
       );
       setLayerVisibility(
         map,
         [BIRTH_TRAIL, BIRTH_MARK, BIRTH_LABEL],
-        showProgressNow && useRadarProgress,
+        showCellDetail,
       );
       // Stopa + šipka: Progress, nebo automaticky v +min
       setLayerVisibility(
@@ -2104,31 +2125,23 @@ export function MapView({
       setLayerVisibility(
         map,
         [INTENS_FILL, INTENS_LINE, INTENS_MARK, INTENS_LABEL, INTENS_HALO],
-        showProgressNow && useRadarProgress,
+        showCellDetail,
       );
       // Budoucnost: schovat OPERA — jinak vypadá, že se bouřka „nepohybuje“.
       setLayerVisibility(
         map,
         [RADAR_FILL, RADAR_LINE, RADAR_PEAK],
-        showRadar && hasOpera && !showForecastCells,
+        liveRadarOn,
       );
       if (map.getLayer(RADAR_FILL)) {
         map.setPaintProperty(RADAR_FILL, "fill-opacity", 0.88);
       }
-      setLayerVisibility(
-        map,
-        [CELL_FILL, CELL_LINE],
-        showCellsNow,
-      );
+      setLayerVisibility(map, [CELL_FILL, CELL_LINE], showCellFill);
       if (map.getLayer(CELL_FILL)) {
         map.setPaintProperty(
           CELL_FILL,
           "fill-opacity",
-          showForecastCells
-            ? 0.82
-            : showRadar && hasOpera
-              ? 0.38
-              : dbzFillOpacity,
+          showForecastCells ? 0.82 : dbzFillOpacity,
         );
       }
     };
@@ -2145,6 +2158,7 @@ export function MapView({
     forecastMinutes,
     isHistoryView,
     locale,
+    selected,
   ]);
 
   useEffect(() => {
