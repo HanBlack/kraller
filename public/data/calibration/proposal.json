@@ -1,51 +1,52 @@
 {
-  "generatedAt": "2026-07-20T11:16:07Z",
+  "generatedAt": "2026-07-20T13:21:08Z",
   "sampleCounts": {
-    "track": 4,
-    "formation": 397,
-    "birth_features": 27,
-    "intensity": 31,
-    "intensify": 12,
-    "demise": 46,
-    "track_sample_events": 126,
-    "withSurfaceDbz": 30,
-    "withFct": 12,
-    "withFreezingLevel": 76,
+    "track": 54,
+    "formation": 464,
+    "birth_features": 101,
+    "intensity": 647,
+    "intensify": 116,
+    "demise": 301,
+    "track_sample_events": 718,
+    "withSurfaceDbz": 264,
+    "withFct": 95,
+    "withFreezingLevel": 668,
     "withHailProxy": 0,
-    "total": 517
+    "total": 1683
   },
-  "readyForApply": false,
+  "readyForApply": true,
   "proposals": [
     {
       "param": "MAX_WIND_ALIGN_DEG",
       "current": 35,
       "proposed": 35,
       "confidence": "low",
-      "reason": "málo samples s windAlign (0 < 20)",
-      "n": 0
+      "reason": "málo samples s windAlign (2 < 20)",
+      "n": 2
     },
     {
       "param": "MAX_SEGMENT_JITTER_DEG",
       "current": 40,
-      "proposed": 40,
-      "confidence": "low",
-      "n": 22,
-      "reason": "málo jitter samples"
+      "proposed": 55,
+      "confidence": "medium",
+      "n": 185,
+      "p85Jitter": 90.2,
+      "reason": "p85 segmentJitter u rozumných rychlostí"
     },
     {
       "param": "TRUE_BIRTH_MAX_DBZ",
       "current": 38,
-      "proposed": 40,
+      "proposed": 39,
       "also": {
         "TRUE_BIRTH_MAX_AGE_MIN": {
           "current": 18,
-          "proposed": 18
+          "proposed": 10
         }
       },
-      "confidence": "low",
-      "n": 27,
-      "medianBirthDbzTrue": 37.75,
-      "medianBirthDbzFalse": 42.0,
+      "confidence": "medium",
+      "n": 101,
+      "medianBirthDbzTrue": 37.0,
+      "medianBirthDbzFalse": 40.5,
       "reason": "oddělení trueBirth vs příjezd podle birthDbz"
     },
     {
@@ -53,56 +54,56 @@
       "current": 28,
       "proposed": 22,
       "confidence": "high",
-      "n": 397,
+      "n": 464,
       "evidence": [
         {
           "thr": 22,
-          "n": 397,
-          "precision": 0.0,
-          "recall": 0.0,
-          "f1": 0.0
+          "n": 464,
+          "precision": 14.4,
+          "recall": 100.0,
+          "f1": 0.252
         },
         {
           "thr": 26,
-          "n": 397,
-          "precision": 0.0,
-          "recall": 0.0,
-          "f1": 0.0
+          "n": 464,
+          "precision": 14.4,
+          "recall": 100.0,
+          "f1": 0.252
         },
         {
           "thr": 28,
-          "n": 397,
-          "precision": 0.0,
-          "recall": 0.0,
-          "f1": 0.0
+          "n": 464,
+          "precision": 14.4,
+          "recall": 100.0,
+          "f1": 0.252
         },
         {
           "thr": 32,
-          "n": 372,
-          "precision": 0.0,
-          "recall": 0.0,
-          "f1": 0.0
+          "n": 425,
+          "precision": 12.5,
+          "recall": 79.1,
+          "f1": 0.215
         },
         {
           "thr": 36,
-          "n": 335,
-          "precision": 0.0,
-          "recall": 0.0,
-          "f1": 0.0
+          "n": 373,
+          "precision": 10.2,
+          "recall": 56.7,
+          "f1": 0.173
         },
         {
           "thr": 40,
-          "n": 279,
-          "precision": 0.0,
-          "recall": 0.0,
-          "f1": 0.0
+          "n": 301,
+          "precision": 7.3,
+          "recall": 32.8,
+          "f1": 0.12
         },
         {
           "thr": 45,
-          "n": 179,
-          "precision": 0.0,
-          "recall": 0.0,
-          "f1": 0.0
+          "n": 193,
+          "precision": 7.3,
+          "recall": 20.9,
+          "f1": 0.108
         }
       ],
       "reason": "max F1 precision/recall formation hit"
@@ -127,13 +128,13 @@
       "param": "intensification.alertScoreMin",
       "current": 32,
       "proposed": 40,
-      "confidence": "medium",
-      "n": 12,
-      "hitRate": 0.083,
-      "nHit": 1,
-      "nMiss": 11,
+      "confidence": "high",
+      "n": 116,
+      "hitRate": 0.129,
+      "nHit": 15,
+      "nMiss": 101,
       "file": "src/storm/config.ts",
-      "reason": "hit rate 8% — příliš false positive, zpřísnit",
+      "reason": "hit rate 13% — příliš false positive, zpřísnit",
       "alsoReview": {
         "param": "intensification.suppressIfGrowthDbzBelow",
         "current": -1.5,
@@ -151,24 +152,24 @@
     }
   ],
   "intensity": {
-    "n": 31,
-    "medianAbsErrDbz": 3.3,
+    "n": 647,
+    "medianAbsErrDbz": 3.5,
     "hint": "slope z historie; při velké chybě doladit intensifikaci / env weight"
   },
   "intensifyPurple": {
-    "n": 12,
-    "hitRate": 0.083,
+    "n": 116,
+    "hitRate": 0.129,
     "hint": "upřímná fialová — nízký hitRate → vyšší alertScoreMin / suppress"
   },
   "demise": {
-    "n": 46,
+    "n": 301,
     "reasons": {
-      "merge_or_jump": 44,
-      "fade": 2
+      "merge_or_jump": 295,
+      "fade": 6
     },
     "medianLifeMin": 0.0,
     "nWithHailProxy": 0,
-    "nAfterPurple": 8
+    "nAfterPurple": 12
   },
   "applyHint": "Po review propsat: src/storm/stormTrackRules.ts (motion/birth), src/storm/formationData.ts (MIN_ZONE_SCORE), src/storm/config.ts (hail / intensification), scripts/chmi_radar.py (FCT_AGREE_MAX_DEG), ACTIVE_CONSTANTS v scripts/emit_learning.py",
   "tuneInDays": "Po ~2 dnech bouřek: npm run data:learning-summary && npm run data:propose-calibration → public/data/calibration/proposal.json"
