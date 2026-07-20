@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "../i18n";
+import type { DataSourceStatus } from "../lib/loadStormData";
 import { useStormDataContext } from "../providers/StormDataProvider";
 
 /** Prahy pro UI — formation cíl ~30 min, wind ~20 min. */
@@ -35,11 +36,11 @@ function formatFull(iso: string, dateLocale: string): string {
 }
 
 function sourceAge(
-  sources: { wind?: { updatedAt?: string }; formation?: { updatedAt?: string } } | null,
+  sources: { wind?: DataSourceStatus; formation?: DataSourceStatus } | null,
   key: "wind" | "formation",
   nowMs: number,
 ): number | null {
-  const iso = sources?.[key]?.updatedAt;
+  const iso = sources?.[key]?.updatedAt ?? undefined;
   if (!iso) return null;
   return ageMinutes(iso, nowMs);
 }
