@@ -516,6 +516,15 @@
   color: var(--muted);
 }
 
+.location-watch-hero {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+  color: #fff4e6;
+}
+
 .location-watch-body {
   margin: 0;
   font-size: 0.92rem;
@@ -567,6 +576,14 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: #f0d5a8;
+}
+
+.to-you-hero {
+  margin: 0 0 0.35rem;
+  font-size: 1.02rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #fff4e6;
 }
 
 .to-you-body {

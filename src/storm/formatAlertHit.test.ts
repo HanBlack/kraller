@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { formatStormAlert, formatStormAlertDetail } from "../lib/formatAlert";
+import {
+  formatStormAlert,
+  formatStormAlertDetail,
+  formatStormAlertHero,
+} from "../lib/formatAlert";
 import { alertFromActive } from "./buildAlert";
 import { scoreActiveStorm } from "./scoreActive";
 import type { RadarCellSignals } from "./types";
@@ -69,6 +73,23 @@ describe("formatStormAlert — síla u adresy před příchodem", () => {
     expect(msg).toMatch(/Silná bouřka/);
     expect(msg).toMatch(/25/);
     expect(msg).toMatch(/Hrozenkov/);
+  });
+
+  it("hero: síla · zásah · mm/h před příchodem", () => {
+    const alert: StormAlert = {
+      severity: "strong",
+      etaMinutes: 25,
+      fromPlace: "Brno",
+      toPlace: "Hrozenkov",
+      maxDbz: 56,
+      atUserDbz: 56,
+      hitType: "core",
+      rainMmPerHour: [28, 46],
+    };
+    const hero = formatStormAlertHero(alert, "cs");
+    expect(hero).toMatch(/Silná bouřka/);
+    expect(hero).toMatch(/zásah jádra/i);
+    expect(hero).toMatch(/28–46 mm\/h|28-46 mm\/h/);
   });
 
   it("EN hit labels existují", () => {

@@ -34,16 +34,24 @@ const FORMATION_GRID_URL = "data/formation/grid.json";
 const CLUSTER_KM = 20;
 /** Práh zóny — pod tím jen mřížkové tečky, ne kruh „Vznik“. */
 const MIN_ZONE_SCORE = 28;
+/** Když je v okolí mladé echo, ukaž i slabší setup (míň slepých míst). */
+const MIN_ZONE_SCORE_ACTIVE = 22;
 const FALLBACK_MIN_SCORE = 32;
 const MIN_FALLBACK_ZONES = 4;
 /** Více zón = méně slepých míst (víkend AT→CZ). */
-const MAX_ZONES = 14;
+const MAX_ZONES = 22;
+/** Rezerva slotů pro zóny u mladé aktivity (ne jen globální top-N). */
+const ACTIVITY_RESERVED = 6;
 /** U vyzrálejších buněk zónu Vznik schovej (už je echo). */
 const RADAR_EXCLUDE_KM = 18;
 const RADAR_EXCLUDE_MIN_AGE_MIN = 12;
+/** Mladé echo / růst — zóny v okolí mají prioritu. */
+const ACTIVITY_MAX_AGE_MIN = 25;
+const ACTIVITY_BOOST_KM = 55;
+const ACTIVITY_SCORE_BOOST = 10;
 /** Tečky setupu pod prahem hlavních zón (viditelný kontext). */
-const HEAT_MIN_SCORE = 22;
-const HEAT_MAX_POINTS = 48;
+const HEAT_MIN_SCORE = 20;
+const HEAT_MAX_POINTS = 64;
 
 export async function loadFormationGrid(
   cacheBust?: number,
@@ -110,6 +118,36 @@ function nearRadar(lat: number, lon: number, peaks: RadarPeak[]): boolean {
   return false;
 }
 
+function hasYoungRadarActivity(peaks: RadarPeak[]): boolean {
+  return peaks.some((p) => p.ageMinutes <= ACTIVITY_MAX_AGE_MIN);
+}
+
+/** Boost skóre u zón blízko mladého echa — activity-linked, ne jen top-N. */
+function activityScoreBoost(
+  lat: number,
+  lon: number,
+  peaks: RadarPeak[],
+): number {
+  let best = 0;
+  for (const p of peaks) {
+    if (p.ageMinutes > ACTIVITY_MAX_AGE_MIN) continue;
+    const d = distanceKm(lat, lon, p.lat, p.lon);
+    if (d <= ACTIVITY_BOOST_KM) {
+      const near = 1 - d / ACTIVITY_BOOST_KM;
+      best = Math.max(best, ACTIVITY_SCORE_BOOST * near);
+    }
+  }
+  return best;
+}
+
+function nearYoungActivity(
+  lat: number,
+  lon: number,
+  peaks: RadarPeak[],
+): boolean {
+  return activityScoreBoost(lat, lon, peaks) > 0;
+}
+
 /** Zóna Vznik jen v ČR (+ krátký okraj hranice) — mimo to popisky zbytečně šumí. */
 const ZONE_CZ_MARGIN_KM = 8;
 
@@ -151,6 +189,8 @@ export function clusterFormationZones(
   radarCells: FeatureCollection | null,
 ): FormationZone[] {
   const peaks = radarCells ? radarPeakCoords(radarCells) : [];
+  const activeWx = hasYoungRadarActivity(peaks);
+  const minScore = activeWx ? MIN_ZONE_SCORE_ACTIVE : MIN_ZONE_SCORE;
   const visible = points.filter(
     (p) =>
       isInCzechiaApprox(p.lat, p.lon, ZONE_CZ_MARGIN_KM) &&
@@ -160,22 +200,27 @@ export function clusterFormationZones(
     .filter(
       (p) =>
         isViableFormationEnv(p.environment) &&
-        p.assessment.score >= MIN_ZONE_SCORE,
+        p.assessment.score >= minScore,
     )
-    .sort((a, b) => b.assessment.score - a.assessment.score);
+    .map((p, idx) => ({
+      p,
+      idx,
+      rank:
+        p.assessment.score + activityScoreBoost(p.lat, p.lon, peaks),
+    }))
+    .sort((a, b) => b.rank - a.rank);
 
   const used = new Set<number>();
   const zones: FormationZone[] = [];
+  const activityZones: FormationZone[] = [];
 
-  for (let i = 0; i < candidates.length; i++) {
+  for (const { p: seed, idx: i } of candidates) {
     if (used.has(i)) continue;
-    const seed = candidates[i];
     const cluster = [seed];
     used.add(i);
 
-    for (let j = i + 1; j < candidates.length; j++) {
+    for (const { p: other, idx: j } of candidates) {
       if (used.has(j)) continue;
-      const other = candidates[j];
       if (distanceKm(seed.lat, seed.lon, other.lat, other.lon) <= CLUSTER_KM) {
         cluster.push(other);
         used.add(j);
@@ -185,10 +230,21 @@ export function clusterFormationZones(
     const zone = pointToZone(cluster, "");
     // Mimo ČR a steering sem nedojde (např. Vídeň → východ) = neukazovat
     if (!zoneRelevantToCz(zone)) continue;
-    zones.push(zone);
+    if (nearYoungActivity(zone.lat, zone.lon, peaks)) {
+      activityZones.push(zone);
+    } else {
+      zones.push(zone);
+    }
   }
 
-  if (zones.length === 0) {
+  // Nejdřív activity-linked (rezerva), pak zbytek podle skóre
+  const merged = [
+    ...activityZones.slice(0, ACTIVITY_RESERVED),
+    ...zones,
+    ...activityZones.slice(ACTIVITY_RESERVED),
+  ];
+
+  if (merged.length === 0) {
     const fallback = visible
       .filter(
         (p) =>
@@ -200,12 +256,12 @@ export function clusterFormationZones(
     for (const point of fallback) {
       const zone = pointToZone([point], "-fb");
       if (!zoneRelevantToCz(zone)) continue;
-      zones.push(zone);
-      if (zones.length >= MIN_FALLBACK_ZONES) break;
+      merged.push(zone);
+      if (merged.length >= MIN_FALLBACK_ZONES) break;
     }
   }
 
-  return zones.slice(0, MAX_ZONES);
+  return merged.slice(0, MAX_ZONES);
 }
 
 export function applyFormationLinks(

@@ -3,11 +3,9 @@ import { useEffect, useState } from "react";
 import { BirthTimeline } from "./BirthTimeline";
 
 import {
-
   formatStormAlert,
-
   formatStormAlertDetail,
-
+  formatStormAlertHero,
 } from "../lib/formatAlert";
 
 import { headingLabel } from "../lib/direction";
@@ -317,6 +315,8 @@ function RadarLifecycleDetail({
             {t("storm.toYou", { place: location?.placeName ?? "" })}
 
           </p>
+
+          <p className="to-you-hero">{formatStormAlertHero(toYou, locale)}</p>
 
           <p className="to-you-body">{formatStormAlert(toYou, locale)}</p>
 

@@ -761,12 +761,21 @@ export function radarTrackCorridorsGeoJSONAt(
     const { fringeKm } = bandRadiiKm(f.maxDbz);
     // Šířka roste s horizontem (chaotické jádro dál = větší pás)
     let halfKm = Math.min(
-      14,
+      16,
       Math.max(3.5, fringeKm * (1 + forecastMinutes / 90)),
     );
+    // Early / růst: peak skáče — širší nejistota (šipka = steering, ne tenká čára)
+    if (
+      f.phase === "birth" ||
+      f.phase === "growing" ||
+      f.ageMinutes < 20 ||
+      f.trueBirth
+    ) {
+      halfKm = Math.min(18, halfKm * 1.4);
+    }
     // ČHMÚ FCT vs naše stopa — nesouhlas → širší koridor (ne měnit heading)
     if (f.fctDisagree) {
-      halfKm = Math.min(18, halfKm * 1.45);
+      halfKm = Math.min(20, halfKm * 1.45);
     }
     const mid = destinationPoint(
       here[1],
