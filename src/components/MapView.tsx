@@ -2189,7 +2189,12 @@ export function MapView({
       );
       setLayerVisibility(map, [RADAR_RASTER], showRaster);
       setLayerVisibility(map, [RADAR_FILL], showContourFill);
-      setLayerVisibility(map, [RADAR_PEAK], liveRadarOn);
+      // Peak z GeoJSON jen když není progress tečka (jinak dvojitá mimo jádro)
+      setLayerVisibility(
+        map,
+        [RADAR_PEAK],
+        liveRadarOn && !showCellsNow,
+      );
       setLayerVisibility(map, [RADAR_LINE], false);
       if (map.getLayer(RADAR_FILL)) {
         map.setPaintProperty(RADAR_FILL, "fill-opacity", 1);

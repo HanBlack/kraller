@@ -10,7 +10,7 @@ import h5py
 import numpy as np
 import requests
 from pyproj import Transformer
-from scipy.ndimage import center_of_mass, gaussian_filter, label
+from scipy.ndimage import center_of_mass, gaussian_filter, label, map_coordinates
 from skimage import measure
 from PIL import Image
 
@@ -320,7 +320,7 @@ def _dbz_to_rgba(dbz: np.ndarray) -> np.ndarray:
 
 
 def crop_corner_coordinates(frame: dict) -> list[list[float]]:
-    """MapLibre image: TL, TR, BR, BL v WGS84."""
+    """4 rohy cropu v WGS84 (pro bbox; MapLibre image chce obdélník — viz warp)."""
     r0, r1, c0, c1 = frame["bounds"]
     meta = frame["meta"]
     geo = frame["geo"]
@@ -336,42 +336,116 @@ def crop_corner_coordinates(frame: dict) -> list[list[float]]:
     ]
 
 
+def warp_crop_to_lonlat(
+    frame: dict,
+    blur_sigma: float = 0.9,
+) -> tuple[np.ndarray, list[list[float]]]:
+    """
+    LAEA crop → pravidelný lon/lat grid.
+
+    MapLibre image source umí jen bilinearní quad. Když PNG zůstane v projekci
+    a rohy jsou kosý čtyřúhelník, peaky (přesné WGS84) sedí mimo vizuální jádro.
+    """
+    crop = frame["crop"].astype(np.float64)
+    h, w = crop.shape
+    r0, _, c0, _ = frame["bounds"]
+    meta = frame["meta"]
+    geo = frame["geo"]
+    ul_x, ul_y = geo["ul"]
+    xscale = float(geo["xscale"])
+    yscale = float(geo["yscale"])
+
+    filled = np.where(np.isfinite(crop), crop, 0.0)
+    if blur_sigma > 0:
+        filled = gaussian_filter(filled, sigma=blur_sigma, mode="nearest")
+        filled = np.where(np.isfinite(crop) & (crop >= 15), filled, 0.0)
+
+    corners = crop_corner_coordinates(frame)
+    lons = [c[0] for c in corners]
+    lats = [c[1] for c in corners]
+    west, east = min(lons), max(lons)
+    south, north = min(lats), max(lats)
+
+    # Stejné rozlišení jako crop (px ≈ stejná hustota)
+    out_w = max(32, w)
+    out_h = max(32, h)
+    lon_1d = west + (np.arange(out_w, dtype=np.float64) + 0.5) / out_w * (
+        east - west
+    )
+    lat_1d = north - (np.arange(out_h, dtype=np.float64) + 0.5) / out_h * (
+        north - south
+    )
+    lon_grid, lat_grid = np.meshgrid(lon_1d, lat_1d)
+
+    wgs_to_proj = Transformer.from_crs(
+        "EPSG:4326",
+        meta["projdef"],
+        always_xy=True,
+    )
+    px, py = wgs_to_proj.transform(lon_grid, lat_grid)
+    col_full = (np.asarray(px, dtype=np.float64) - ul_x) / xscale - 0.5
+    row_full = (ul_y - np.asarray(py, dtype=np.float64)) / yscale - 0.5
+    row_c = row_full - r0
+    col_c = col_full - c0
+
+    sampled = map_coordinates(
+        filled,
+        [row_c, col_c],
+        order=1,
+        mode="constant",
+        cval=0.0,
+        prefilter=False,
+    )
+    valid = (
+        (row_c >= 0)
+        & (row_c <= h - 1)
+        & (col_c >= 0)
+        & (col_c <= w - 1)
+    )
+    sampled = np.where(valid, sampled, 0.0)
+
+    coordinates = [
+        [west, north],
+        [east, north],
+        [east, south],
+        [west, south],
+    ]
+    return sampled, coordinates
+
+
 def write_radar_raster(
     frame: dict,
     png_path: str,
     meta_path: str,
     blur_sigma: float = 0.9,
 ) -> dict:
-    """PNG heatmap ze gridu — plynulé přechody (ne GeoJSON kontury)."""
-    crop = frame["crop"].astype(np.float64)
-    # Lehký blur = měkké přechody mezi intenzitami
-    filled = np.where(np.isfinite(crop), crop, 0.0)
-    if blur_sigma > 0:
-        filled = gaussian_filter(filled, sigma=blur_sigma, mode="nearest")
-        filled = np.where(np.isfinite(crop) & (crop >= 15), filled, 0.0)
-
-    rgba = _dbz_to_rgba(filled)
+    """PNG heatmap ve WGS84 — peaky sedí v jádru, ne vedle blobu."""
+    dbz_ll, coordinates = warp_crop_to_lonlat(frame, blur_sigma=blur_sigma)
+    rgba = _dbz_to_rgba(dbz_ll)
     os.makedirs(os.path.dirname(png_path) or ".", exist_ok=True)
     Image.fromarray(rgba, mode="RGBA").save(png_path, optimize=True)
 
-    coordinates = crop_corner_coordinates(frame)
     rel_png = png_path.replace("\\", "/")
     if "public/" in rel_png:
         rel_png = rel_png.split("public/", 1)[1]
     elif not rel_png.startswith("data/"):
         rel_png = f"data/opera/{os.path.basename(png_path)}"
 
-    meta = {
+    meta_out = {
         "url": rel_png,
         "coordinates": coordinates,
         "time": frame["time_str"],
         "minDbz": 18,
         "blurSigma": blur_sigma,
+        "crs": "EPSG:4326",
     }
     with open(meta_path, "w", encoding="utf-8") as f:
-        json.dump(meta, f, indent=2)
-    print(f"Radar raster: {png_path} ({rgba.shape[1]}x{rgba.shape[0]})")
-    return meta
+        json.dump(meta_out, f, indent=2)
+    print(
+        f"Radar raster (WGS84): {png_path} "
+        f"({rgba.shape[1]}x{rgba.shape[0]})"
+    )
+    return meta_out
 
 
 def track_cells(
