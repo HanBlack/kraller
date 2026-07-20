@@ -746,8 +746,8 @@
 .birth-blob {
   display: block;
   border-radius: 40% 45% 42% 48%;
-  border: 1.5px solid rgba(120, 210, 150, 0.75);
-  background: rgba(70, 160, 100, 0.35);
+  border: 1.5px solid rgba(90, 210, 150, 0.55);
+  background: rgba(48, 185, 125, 0.4);
 }
 
 .birth-blob.sm {
@@ -766,43 +766,43 @@
 }
 
 .birth-blob.light {
-  background: rgba(90, 200, 160, 0.4);
-  border-color: rgba(110, 210, 170, 0.75);
+  background: rgba(48, 185, 125, 0.4);
+  border-color: rgba(90, 210, 150, 0.65);
 }
 
 .birth-blob.echo {
-  background: rgba(70, 160, 100, 0.35);
-  border-color: rgba(120, 210, 150, 0.75);
+  background: rgba(55, 195, 85, 0.42);
+  border-color: rgba(100, 215, 110, 0.7);
 }
 
 .birth-blob.rain {
-  background: rgba(150, 200, 70, 0.45);
-  border-color: rgba(180, 220, 90, 0.85);
+  background: rgba(145, 210, 50, 0.48);
+  border-color: rgba(170, 225, 80, 0.75);
 }
 
 .birth-blob.moderate {
-  background: rgba(210, 190, 70, 0.45);
-  border-color: rgba(230, 210, 90, 0.85);
+  background: rgba(230, 215, 50, 0.52);
+  border-color: rgba(240, 225, 90, 0.8);
 }
 
 .birth-blob.strong {
-  background: rgba(245, 170, 50, 0.5);
-  border-color: rgba(250, 190, 80, 0.9);
+  background: rgba(245, 170, 40, 0.55);
+  border-color: rgba(255, 190, 70, 0.85);
 }
 
 .birth-blob.heavy {
-  background: rgba(230, 120, 60, 0.5);
-  border-color: rgba(240, 150, 80, 0.9);
+  background: rgba(235, 95, 35, 0.58);
+  border-color: rgba(250, 130, 60, 0.88);
 }
 
 .birth-blob.extreme {
-  background: rgba(220, 50, 80, 0.55);
-  border-color: rgba(240, 90, 120, 0.9);
+  background: rgba(215, 40, 65, 0.62);
+  border-color: rgba(240, 70, 95, 0.9);
 }
 
 .birth-blob.echo-strong {
-  background: rgba(90, 190, 110, 0.5);
-  border-color: rgba(140, 230, 160, 0.85);
+  background: rgba(55, 195, 85, 0.52);
+  border-color: rgba(100, 215, 120, 0.8);
 }
 
 .birth-blob.empty {

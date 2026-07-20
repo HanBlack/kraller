@@ -156,49 +156,127 @@ function emphasizeCountryBorders(map: maplibregl.Map) {
   }
 }
 
-/** Barvy radarových pásem dBZ (OPERA i demo) — jemnější stupně. */
-const dbzFillColor: maplibregl.ExpressionSpecification = [
-  "match",
-  ["get", "band"],
-  "light",
-  "rgba(90, 200, 160, 0.28)",
-  "echo",
-  "rgba(70, 180, 110, 0.38)",
-  "rain",
-  "rgba(160, 210, 70, 0.42)",
-  "moderate",
-  "rgba(230, 210, 70, 0.48)",
-  "strong",
-  "rgba(245, 170, 50, 0.52)",
-  "heavy",
-  "rgba(240, 130, 50, 0.58)",
-  "extreme",
-  "rgba(220, 50, 80, 0.68)",
-  "fade",
-  "rgba(90, 140, 110, 0.18)",
-  "rgba(220, 60, 90, 0.65)", // core / peak
+/**
+ * dBZ hodnota pro barvy — preferuje properties.dbz, jinak band (stejné prahy jako bandForDbz).
+ */
+const dbzValue: maplibregl.ExpressionSpecification = [
+  "coalesce",
+  ["get", "dbz"],
+  [
+    "match",
+    ["get", "band"],
+    "fade",
+    25,
+    "light",
+    30,
+    "echo",
+    35,
+    "rain",
+    40,
+    "moderate",
+    45,
+    "strong",
+    50,
+    "heavy",
+    55,
+    "extreme",
+    60,
+    "core",
+    62,
+    45,
+  ],
 ];
 
+/** NEXRAD-style spojitá paleta — 45 vs 55 vs 60+ musí jít číst. */
+const dbzFillColor: maplibregl.ExpressionSpecification = [
+  "interpolate",
+  ["linear"],
+  dbzValue,
+  25,
+  "rgba(64, 170, 165, 0.20)",
+  30,
+  "rgba(48, 185, 125, 0.28)",
+  35,
+  "rgba(55, 195, 85, 0.34)",
+  40,
+  "rgba(145, 210, 50, 0.40)",
+  45,
+  "rgba(230, 215, 50, 0.48)",
+  50,
+  "rgba(245, 170, 40, 0.55)",
+  55,
+  "rgba(235, 95, 35, 0.62)",
+  60,
+  "rgba(215, 40, 65, 0.70)",
+  65,
+  "rgba(195, 35, 155, 0.74)",
+  70,
+  "rgba(170, 45, 205, 0.78)",
+];
+
+/** Jemnější kontury — světlejší, nižší alpha než výplň. */
 const dbzOutlineColor: maplibregl.ExpressionSpecification = [
-  "match",
-  ["get", "band"],
-  "light",
-  "rgba(90, 200, 160, 0.55)",
-  "echo",
-  "rgba(70, 180, 110, 0.7)",
-  "rain",
-  "rgba(160, 210, 70, 0.7)",
-  "moderate",
-  "rgba(230, 210, 70, 0.75)",
-  "strong",
-  "rgba(245, 170, 50, 0.8)",
-  "heavy",
-  "rgba(240, 130, 50, 0.85)",
-  "extreme",
-  "rgba(220, 50, 80, 0.9)",
-  "fade",
-  "rgba(90, 140, 110, 0.4)",
-  "rgba(255, 120, 160, 0.9)",
+  "interpolate",
+  ["linear"],
+  dbzValue,
+  25,
+  "rgba(110, 200, 195, 0.35)",
+  30,
+  "rgba(90, 210, 150, 0.42)",
+  35,
+  "rgba(100, 215, 110, 0.48)",
+  40,
+  "rgba(170, 225, 80, 0.52)",
+  45,
+  "rgba(240, 225, 90, 0.58)",
+  50,
+  "rgba(255, 190, 70, 0.65)",
+  55,
+  "rgba(250, 130, 60, 0.72)",
+  60,
+  "rgba(240, 70, 95, 0.80)",
+  65,
+  "rgba(230, 90, 185, 0.85)",
+  70,
+  "rgba(210, 110, 230, 0.88)",
+];
+
+/** Opacity výplně podle síly — slabé echo průhlednější. */
+const dbzFillOpacity: maplibregl.ExpressionSpecification = [
+  "interpolate",
+  ["linear"],
+  dbzValue,
+  25,
+  0.38,
+  35,
+  0.52,
+  45,
+  0.66,
+  55,
+  0.78,
+  65,
+  0.88,
+];
+
+/** Kontura buňky — intensifying / decaying / threat mají prioritu. */
+const cellLineColor: maplibregl.ExpressionSpecification = [
+  "case",
+  ["==", ["get", "intensifying"], 1],
+  "rgba(200, 120, 255, 0.92)",
+  ["==", ["get", "decaying"], 1],
+  "rgba(140, 160, 180, 0.65)",
+  ["==", ["get", "threatens"], 1],
+  "rgba(255, 107, 61, 0.8)",
+  dbzOutlineColor,
+];
+
+const cellLineWidth: maplibregl.ExpressionSpecification = [
+  "case",
+  ["==", ["get", "intensifying"], 1],
+  2.2,
+  ["==", ["get", "threatens"], 1],
+  1.6,
+  1.0,
 ];
 /** Barva stopy / šipky podle síly (oranžová = míří k uživateli). */
 const trackColorExpr: maplibregl.ExpressionSpecification = [
@@ -486,7 +564,8 @@ function ensureStormLayers(map: maplibregl.Map) {
   // HMR / starý styl: buňky musí mít barevné dBZ, ne šedou výplň
   if (map.getLayer(CELL_FILL)) {
     map.setPaintProperty(CELL_FILL, "fill-color", dbzFillColor);
-    map.setPaintProperty(CELL_FILL, "fill-outline-color", dbzOutlineColor);
+    map.setPaintProperty(CELL_FILL, "fill-outline-color", "rgba(0,0,0,0)");
+    map.setPaintProperty(CELL_FILL, "fill-opacity", dbzFillOpacity);
     map.setLayoutProperty(CELL_FILL, "fill-sort-key", [
       "coalesce",
       ["get", "dbz"],
@@ -496,12 +575,43 @@ function ensureStormLayers(map: maplibregl.Map) {
   }
   if (map.getLayer(RADAR_FILL)) {
     map.setPaintProperty(RADAR_FILL, "fill-color", dbzFillColor);
-    map.setPaintProperty(RADAR_FILL, "fill-outline-color", dbzOutlineColor);
+    map.setPaintProperty(RADAR_FILL, "fill-outline-color", "rgba(0,0,0,0)");
+    map.setPaintProperty(RADAR_FILL, "fill-opacity", 0.78);
     map.setLayoutProperty(RADAR_FILL, "fill-sort-key", [
       "coalesce",
       ["get", "dbz"],
       0,
     ]);
+  }
+  if (map.getLayer(CELL_LINE)) {
+    map.setPaintProperty(CELL_LINE, "line-color", cellLineColor);
+    map.setPaintProperty(CELL_LINE, "line-width", cellLineWidth);
+    map.setPaintProperty(CELL_LINE, "line-blur", 0.55);
+    map.setPaintProperty(CELL_LINE, "line-opacity", 0.75);
+  }
+  if (map.getLayer(RADAR_LINE)) {
+    map.setPaintProperty(RADAR_LINE, "line-color", dbzOutlineColor);
+    map.setPaintProperty(RADAR_LINE, "line-width", 0.9);
+    map.setPaintProperty(RADAR_LINE, "line-blur", 0.65);
+    map.setPaintProperty(RADAR_LINE, "line-opacity", 0.55);
+  }
+  if (map.getLayer(RADAR_PEAK)) {
+    map.setPaintProperty(RADAR_PEAK, "circle-radius", [
+      "interpolate",
+      ["linear"],
+      ["coalesce", ["get", "dbz"], 50],
+      50,
+      3,
+      60,
+      4.5,
+      70,
+      6,
+    ]);
+    map.setPaintProperty(RADAR_PEAK, "circle-color", "rgba(255, 245, 250, 0.55)");
+    map.setPaintProperty(RADAR_PEAK, "circle-stroke-width", 1.4);
+    map.setPaintProperty(RADAR_PEAK, "circle-stroke-color", "rgba(210, 50, 90, 0.75)");
+    map.setPaintProperty(RADAR_PEAK, "circle-opacity", 0.85);
+    map.setPaintProperty(RADAR_PEAK, "circle-blur", 0.35);
   }
 
   // Šipka vyrůstá z jádra po směru (anchor bottom)
@@ -735,22 +845,19 @@ function ensureStormLayers(map: maplibregl.Map) {
       },
       paint: {
         "fill-color": dbzFillColor,
-        "fill-outline-color": dbzOutlineColor,
+        "fill-opacity": 0.78,
       },
     });
     map.addLayer({
       id: RADAR_LINE,
       type: "line",
       source: RADAR_SOURCE,
-      filter: [
-        "all",
-        ["==", ["geometry-type"], "Polygon"],
-        ["==", ["get", "band"], "light"],
-      ],
+      filter: ["==", ["geometry-type"], "Polygon"],
       paint: {
-        "line-color": "rgba(90, 200, 160, 0.55)",
-        "line-width": 1.2,
-        "line-opacity": 0.85,
+        "line-color": dbzOutlineColor,
+        "line-width": 0.9,
+        "line-blur": 0.65,
+        "line-opacity": 0.55,
       },
     });
     map.addLayer({
@@ -762,18 +869,19 @@ function ensureStormLayers(map: maplibregl.Map) {
         "circle-radius": [
           "interpolate",
           ["linear"],
-          ["get", "dbz"],
+          ["coalesce", ["get", "dbz"], 50],
           50,
-          4,
+          3,
           60,
-          6,
+          4.5,
           70,
-          8,
+          6,
         ],
-        "circle-color": "#fff6f0",
-        "circle-stroke-width": 2,
-        "circle-stroke-color": "rgba(220, 60, 90, 0.95)",
-        "circle-opacity": 0.95,
+        "circle-color": "rgba(255, 245, 250, 0.55)",
+        "circle-stroke-width": 1.4,
+        "circle-stroke-color": "rgba(210, 50, 90, 0.75)",
+        "circle-opacity": 0.85,
+        "circle-blur": 0.35,
       },
     });
   }
@@ -890,13 +998,7 @@ function ensureStormLayers(map: maplibregl.Map) {
         },
         paint: {
           "fill-color": dbzFillColor,
-          "fill-outline-color": dbzOutlineColor,
-          "fill-opacity": [
-            "case",
-            ["has", "opacity"],
-            ["get", "opacity"],
-            0.85,
-          ],
+          "fill-opacity": dbzFillOpacity,
         },
       },
       beforeTrack,
@@ -907,43 +1009,10 @@ function ensureStormLayers(map: maplibregl.Map) {
         type: "line",
         source: CELL_SOURCE,
         paint: {
-          "line-color": [
-            "case",
-            ["==", ["get", "intensifying"], 1],
-            "rgba(200, 120, 255, 0.95)",
-            ["==", ["get", "decaying"], 1],
-            "rgba(140, 160, 180, 0.75)",
-            ["==", ["get", "threatens"], 1],
-            "rgba(255, 107, 61, 0.85)",
-            [
-              "match",
-              ["get", "band"],
-              "light",
-              "rgba(90, 200, 160, 0.8)",
-              "echo",
-              "rgba(70, 180, 110, 0.85)",
-              "rain",
-              "rgba(160, 210, 70, 0.85)",
-              "moderate",
-              "rgba(230, 210, 70, 0.85)",
-              "strong",
-              "rgba(245, 170, 50, 0.88)",
-              "heavy",
-              "rgba(240, 130, 50, 0.9)",
-              "extreme",
-              "rgba(220, 50, 80, 0.92)",
-              "fade",
-              "rgba(90, 140, 110, 0.5)",
-              "rgba(220, 60, 90, 0.9)",
-            ],
-          ],
-          "line-width": [
-            "case",
-            ["==", ["get", "intensifying"], 1],
-            2.4,
-            1.4,
-          ],
-          "line-opacity": 0.85,
+          "line-color": cellLineColor,
+          "line-width": cellLineWidth,
+          "line-blur": 0.55,
+          "line-opacity": 0.75,
         },
       },
       beforeTrack,
@@ -1945,7 +2014,7 @@ export function MapView({
         showRadar && hasOpera && !showForecastCells,
       );
       if (map.getLayer(RADAR_FILL)) {
-        map.setPaintProperty(RADAR_FILL, "fill-opacity", 0.75);
+        map.setPaintProperty(RADAR_FILL, "fill-opacity", 0.78);
       }
       setLayerVisibility(
         map,
@@ -1959,8 +2028,8 @@ export function MapView({
           showForecastCells
             ? 0.82
             : showRadar && hasOpera
-              ? 0.35
-              : ["case", ["has", "opacity"], ["get", "opacity"], 0.85],
+              ? 0.38
+              : dbzFillOpacity,
         );
       }
     };
