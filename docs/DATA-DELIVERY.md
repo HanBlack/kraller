@@ -11,6 +11,21 @@ Web čte data z R2 CDN (~5–7 min od snímku), ne z pomalého git raw cache.
 2. Název např. `kraller-data`
 3. Bucket → **Settings** → **Public access** → povolit **R2.dev subdomain**  
    Dostaneš URL typu `https://pub-xxxxxxxx.r2.dev`
+4. Bucket → **Settings** → **CORS policy** → přidej pravidlo (nebo nech nastavit upload skript):
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://kraller.eu", "https://www.kraller.eu"],
+    "AllowedMethods": ["GET", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+Bez CORS prohlížeč z `kraller.eu` na R2 data nesáhne (chyba „chybí hlavička Access-Control-Allow-Origin“).  
+`upload_data_r2.py` CORS nastaví automaticky při každém uploadu.
 
 ### 2. API token pro upload
 

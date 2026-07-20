@@ -1,5 +1,5 @@
 import type { FeatureCollection } from "geojson";
-import { dataUrl } from "./dataUrls";
+import { fetchDataJson } from "./dataUrls";
 import { loadWindGrids } from "./windField";
 import { buildRealFormationZones } from "../storm/formationData";
 import type { ScoredFormationPoint } from "../storm/formationData";
@@ -52,13 +52,7 @@ export type StormDataBundle = {
 const EMPTY_FC: FeatureCollection = { type: "FeatureCollection", features: [] };
 
 async function fetchJson<T>(path: string, cacheBust: number): Promise<T | null> {
-  try {
-    const res = await fetch(dataUrl(path, cacheBust), { cache: "no-store" });
-    if (!res.ok) return null;
-    return (await res.json()) as T;
-  } catch {
-    return null;
-  }
+  return fetchDataJson<T>(path, cacheBust);
 }
 
 /** Sloučí OPERA (EU) + ČHMÚ kontury (přesnější nad CZ). */

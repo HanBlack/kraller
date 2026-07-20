@@ -1,5 +1,5 @@
 import type { FeatureCollection } from "geojson";
-import { dataUrl } from "../lib/dataUrls";
+import { fetchDataJson } from "../lib/dataUrls";
 import { czechRegionLabel, pathReachesCzechia } from "../lib/czechRegion";
 import { distanceKm } from "../lib/geo";
 import type { FormationZone } from "./demo";
@@ -48,17 +48,12 @@ const HEAT_MAX_POINTS = 48;
 export async function loadFormationGrid(
   cacheBust?: number,
 ): Promise<FormationGridJson | null> {
-  try {
-    const res = await fetch(dataUrl(FORMATION_GRID_URL, cacheBust), {
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as FormationGridJson;
-    if (!data.points?.length) return null;
-    return data;
-  } catch {
-    return null;
-  }
+  const data = await fetchDataJson<FormationGridJson>(
+    FORMATION_GRID_URL,
+    cacheBust,
+  );
+  if (!data?.points?.length) return null;
+  return data;
 }
 
 export function scoreFormationGrid(

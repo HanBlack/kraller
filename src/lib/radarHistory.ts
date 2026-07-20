@@ -1,6 +1,6 @@
 import type { FeatureCollection } from "geojson";
 import { t, type Locale } from "../i18n";
-import { dataUrl } from "./dataUrls";
+import { fetchData, fetchDataJson } from "./dataUrls";
 
 export type RadarHistoryFrame = {
   index: number;
@@ -30,17 +30,12 @@ function frameCacheKey(frame: RadarHistoryFrame, cacheBust?: number): string {
 export async function loadRadarHistoryManifest(
   cacheBust?: number,
 ): Promise<RadarHistoryManifest | null> {
-  try {
-    const res = await fetch(dataUrl("data/opera/history/manifest.json", cacheBust), {
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as RadarHistoryManifest;
-    if (!data.frames?.length) return null;
-    return data;
-  } catch {
-    return null;
-  }
+  const data = await fetchDataJson<RadarHistoryManifest>(
+    "data/opera/history/manifest.json",
+    cacheBust,
+  );
+  if (!data?.frames?.length) return null;
+  return data;
 }
 
 /** Najde snímek nejbližší zadanému offsetu (záporné = minulost). */
@@ -70,8 +65,8 @@ export async function loadRadarHistoryFrame(
   if (cached) return cached;
 
   try {
-    const res = await fetch(dataUrl(frame.path, cacheBust), { cache: "no-store" });
-    if (!res.ok) return EMPTY_FC;
+    const res = await fetchData(frame.path, cacheBust);
+    if (!res) return EMPTY_FC;
     const fc = (await res.json()) as FeatureCollection;
     frameCache.set(key, fc);
     return fc;

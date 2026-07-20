@@ -204,7 +204,7 @@ export function windGridFromJson(data: WindGridJson): WindGrid {
   };
 }
 
-import { dataUrl } from "./dataUrls";
+import { fetchData } from "./dataUrls";
 
 const WIND_LOW_URL = "data/wind/low.json";
 const WIND_UPPER_URL = "data/wind/upper.json";
@@ -217,10 +217,10 @@ export async function loadWindGrids(cacheBust?: number): Promise<{
 }> {
   try {
     const [lowRes, upperRes] = await Promise.all([
-      fetch(dataUrl(WIND_LOW_URL, cacheBust), { cache: "no-store" }),
-      fetch(dataUrl(WIND_UPPER_URL, cacheBust), { cache: "no-store" }),
+      fetchData(WIND_LOW_URL, cacheBust),
+      fetchData(WIND_UPPER_URL, cacheBust),
     ]);
-    if (!lowRes.ok || !upperRes.ok) throw new Error("wind fetch failed");
+    if (!lowRes || !upperRes) throw new Error("wind fetch failed");
     const lowJson = (await lowRes.json()) as WindGridJson;
     const upperJson = (await upperRes.json()) as WindGridJson;
     if (!lowJson.u?.length || !upperJson.u?.length) throw new Error("empty wind");
