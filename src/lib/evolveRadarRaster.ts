@@ -112,7 +112,9 @@ export async function renderEvolvedRadarRaster(
     outCanvas.height = height;
     const octx = outCanvas.getContext("2d");
     if (!octx) return meta;
-    octx.putImageData(new ImageData(outData, width, height), 0, 0);
+    const imageData = octx.createImageData(width, height);
+    imageData.data.set(outData);
+    octx.putImageData(imageData, 0, 0);
 
     const blob = await new Promise<Blob | null>((resolve) => {
       outCanvas.toBlob((b) => resolve(b), "image/png");
