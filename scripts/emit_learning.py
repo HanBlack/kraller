@@ -55,8 +55,8 @@ ACTIVE_CONSTANTS = {
     "HAIL_LIKELY_ECHO_TOP_KM": 10,
     "HAIL_MIN_ABOVE_FZL_KM": 1.5,
     "FCT_AGREE_MAX_DEG": 35,
-    "INTENSIFY_ALERT_SCORE_MIN": 32,
-    "INTENSIFY_SUPPRESS_GROWTH_DBZ": -1.5,
+    "INTENSIFY_ALERT_SCORE_MIN": 46,
+    "INTENSIFY_SUPPRESS_GROWTH_DBZ": 0,
     "INTENSIFY_HIT_DBZ": 3.0,  # act − from ≥ 3 = hit po purple candidate
 }
 
@@ -355,20 +355,20 @@ def purple_candidate(
     """
     Proxy „ukázali bychom fialovou“ — bez plného intensification.ts.
     Cíl: skórovat hit vs demise po kandidátovi.
+    (Po kalibraci 2026-07: přísnější — hit rate ~20 % byl moc nízký.)
     """
     growth = cell.get("growthDbz")
     if growth is not None and float(growth) < ACTIVE_CONSTANTS["INTENSIFY_SUPPRESS_GROWTH_DBZ"]:
         return False, "suppressed_decay"
     dbz = float(cell.get("maxDbz") or 0)
-    if dbz < 38 or dbz >= 60:
+    if dbz < 40 or dbz >= 58:
         return False, "dbz_range"
     slope = float(trend.get("dbzSlopePer15") or 0)
     cape = float((env or {}).get("cape") or 0)
     shear = float((env or {}).get("shear") or 0)
-    # silné echo + slabý trend + nízké CAPE → ne kandidát
-    if slope < 0.5 and cape < 200:
+    if slope < 0.5 and cape < 280:
         return False, "weak_fuel"
-    if slope >= 1.5 or (cape >= 280 and shear >= 12) or (cape >= 400):
+    if slope >= 2.0 or (cape >= 350 and shear >= 12) or cape >= 500:
         return True, "candidate"
     return False, "no_signal"
 

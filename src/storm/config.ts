@@ -138,9 +138,9 @@ export const stormConfig = {
     /** Minimální headroom dBZ (potenciál − aktuál). */
     minHeadroomDbz: 5,
     /** Od kdy kreslit segment koridoru. */
-    segmentScoreMin: 32,
+    segmentScoreMin: 38,
     /** Od kdy hlásit zesílení u buňky (vyšší = méně falešných). */
-    alertScoreMin: 40,
+    alertScoreMin: 46,
     /** Růst dBZ po vstupu do zóny (~dBZ za 15 min). */
     growthDbzPer15Min: 7,
     /** Pokles dBZ v nepřátelském prostředí (~dBZ za 15 min). */
@@ -148,7 +148,7 @@ export const stormConfig = {
     /** Poloměr vizuálního koridoru (km). */
     corridorHalfWidthKm: 11,
     /** Při klesajícím / plochém echu fialovou nezobrazovat. */
-    suppressIfGrowthDbzBelow: -0.5,
+    suppressIfGrowthDbzBelow: 0,
   },
 
   /**
