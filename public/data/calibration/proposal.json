@@ -1,18 +1,18 @@
 {
-  "generatedAt": "2026-07-21T03:50:17Z",
+  "generatedAt": "2026-07-21T06:43:52Z",
   "sampleCounts": {
     "track": 92,
-    "formation": 2413,
-    "birth_features": 482,
-    "intensity": 5165,
-    "intensify": 835,
-    "demise": 1975,
-    "track_sample_events": 4006,
-    "withSurfaceDbz": 1306,
-    "withFct": 500,
-    "withFreezingLevel": 3956,
+    "formation": 2669,
+    "birth_features": 518,
+    "intensity": 5202,
+    "intensify": 851,
+    "demise": 2025,
+    "track_sample_events": 4098,
+    "withSurfaceDbz": 1316,
+    "withFct": 502,
+    "withFreezingLevel": 4048,
     "withHailProxy": 0,
-    "total": 10962
+    "total": 11357
   },
   "readyForApply": true,
   "proposals": [
@@ -29,7 +29,7 @@
       "current": 40,
       "proposed": 55,
       "confidence": "medium",
-      "n": 1172,
+      "n": 1173,
       "p85Jitter": 115.3,
       "reason": "p85 segmentJitter u rozumných rychlostí"
     },
@@ -40,11 +40,11 @@
       "also": {
         "TRUE_BIRTH_MAX_AGE_MIN": {
           "current": 18,
-          "proposed": 12
+          "proposed": 10
         }
       },
       "confidence": "medium",
-      "n": 482,
+      "n": 518,
       "medianBirthDbzTrue": 37.0,
       "medianBirthDbzFalse": 41.5,
       "reason": "oddělení trueBirth vs příjezd podle birthDbz"
@@ -54,55 +54,55 @@
       "current": 28,
       "proposed": 22,
       "confidence": "high",
-      "n": 2413,
+      "n": 2669,
       "evidence": [
         {
           "thr": 22,
-          "n": 2413,
+          "n": 2669,
           "precision": 5.4,
           "recall": 100.0,
-          "f1": 0.102
+          "f1": 0.103
         },
         {
           "thr": 26,
-          "n": 2413,
+          "n": 2669,
           "precision": 5.4,
           "recall": 100.0,
-          "f1": 0.102
+          "f1": 0.103
         },
         {
           "thr": 28,
-          "n": 2413,
+          "n": 2669,
           "precision": 5.4,
           "recall": 100.0,
-          "f1": 0.102
+          "f1": 0.103
         },
         {
           "thr": 32,
-          "n": 2166,
-          "precision": 4.6,
-          "recall": 76.2,
-          "f1": 0.086
+          "n": 2395,
+          "precision": 4.7,
+          "recall": 77.9,
+          "f1": 0.089
         },
         {
           "thr": 36,
-          "n": 1891,
-          "precision": 4.0,
-          "recall": 57.7,
-          "f1": 0.074
+          "n": 2096,
+          "precision": 4.2,
+          "recall": 61.4,
+          "f1": 0.079
         },
         {
           "thr": 40,
-          "n": 1547,
-          "precision": 3.1,
-          "recall": 36.9,
-          "f1": 0.057
+          "n": 1725,
+          "precision": 3.4,
+          "recall": 40.0,
+          "f1": 0.062
         },
         {
           "thr": 45,
-          "n": 1129,
-          "precision": 2.5,
-          "recall": 21.5,
+          "n": 1270,
+          "precision": 2.4,
+          "recall": 21.4,
           "f1": 0.044
         }
       ],
@@ -129,10 +129,10 @@
       "current": 32,
       "proposed": 40,
       "confidence": "high",
-      "n": 835,
-      "hitRate": 0.199,
-      "nHit": 166,
-      "nMiss": 669,
+      "n": 851,
+      "hitRate": 0.197,
+      "nHit": 168,
+      "nMiss": 683,
       "file": "src/storm/config.ts",
       "reason": "hit rate 20% — příliš false positive, zpřísnit",
       "alsoReview": {
@@ -152,24 +152,24 @@
     }
   ],
   "intensity": {
-    "n": 5165,
+    "n": 5202,
     "medianAbsErrDbz": 4.0,
     "hint": "slope z historie; při velké chybě doladit intensifikaci / env weight"
   },
   "intensifyPurple": {
-    "n": 835,
-    "hitRate": 0.199,
+    "n": 851,
+    "hitRate": 0.197,
     "hint": "upřímná fialová — nízký hitRate → vyšší alertScoreMin / suppress"
   },
   "demise": {
-    "n": 1975,
+    "n": 2025,
     "reasons": {
-      "merge_or_jump": 1908,
-      "fade": 67
+      "merge_or_jump": 1957,
+      "fade": 68
     },
     "medianLifeMin": 0.0,
     "nWithHailProxy": 0,
-    "nAfterPurple": 50
+    "nAfterPurple": 56
   },
   "applyHint": "Po review propsat: src/storm/stormTrackRules.ts (motion/birth), src/storm/formationData.ts (MIN_ZONE_SCORE), src/storm/config.ts (hail / intensification), scripts/chmi_radar.py (FCT_AGREE_MAX_DEG), ACTIVE_CONSTANTS v scripts/emit_learning.py",
   "tuneInDays": "Po ~2 dnech bouřek: npm run data:learning-summary && npm run data:propose-calibration → public/data/calibration/proposal.json"
