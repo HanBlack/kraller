@@ -1,0 +1,241 @@
+import { destinationPoint } from "./geo";
+import type { CellIntensification } from "../storm/intensification";
+import {
+  meanForecastDelta,
+  type RadarProgressFeature,
+} from "../storm/radarCells";
+import { evolveDbzAt } from "./stormEvolution";
+import type { RadarRasterMeta } from "./radarRaster";
+
+export type GeoBounds = {
+  west: number;
+  east: number;
+  north: number;
+  south: number;
+};
+
+export type CellInfluence = {
+  px: number;
+  py: number;
+  maxDbz: number;
+  dbzDelta: number;
+  radius: number;
+};
+
+export function geoBoundsFromCoords(
+  coords: RadarRasterMeta["coordinates"],
+): GeoBounds {
+  const lons = coords.map((c) => c[0]);
+  const lats = coords.map((c) => c[1]);
+  return {
+    west: Math.min(...lons),
+    east: Math.max(...lons),
+    north: Math.max(...lats),
+    south: Math.min(...lats),
+  };
+}
+
+export function lonLatToPixel(
+  lon: number,
+  lat: number,
+  bounds: GeoBounds,
+  width: number,
+  height: number,
+): [number, number] {
+  const x =
+    ((lon - bounds.west) / Math.max(1e-9, bounds.east - bounds.west)) * width;
+  const y =
+    ((bounds.north - lat) / Math.max(1e-9, bounds.north - bounds.south)) *
+    height;
+  return [x, y];
+}
+
+export function lonLatDeltaToPixel(
+  dLon: number,
+  dLat: number,
+  bounds: GeoBounds,
+  width: number,
+  height: number,
+): { dx: number; dy: number } {
+  return {
+    dx: (dLon / Math.max(1e-9, bounds.east - bounds.west)) * width,
+    dy: (-dLat / Math.max(1e-9, bounds.north - bounds.south)) * height,
+  };
+}
+
+export function pixelRadiusForDbz(dbz: number, width: number): number {
+  return Math.max(12, Math.min(width * 0.14, 16 + (dbz - 30) * 2.2));
+}
+
+export function buildCellInfluences(
+  features: RadarProgressFeature[],
+  intensByCell: Map<string, CellIntensification> | undefined,
+  bounds: GeoBounds,
+  width: number,
+  height: number,
+  minutes: number,
+): CellInfluence[] {
+  const out: CellInfluence[] = [];
+  for (const f of features) {
+    if (f.motionSource !== "radar-track") continue;
+    const [px, py] = lonLatToPixel(
+      f.peak[0],
+      f.peak[1],
+      bounds,
+      width,
+      height,
+    );
+    const predDbz = evolveDbzAt(f, intensByCell?.get(f.id), minutes);
+    out.push({
+      px,
+      py,
+      maxDbz: f.maxDbz,
+      dbzDelta: predDbz - f.maxDbz,
+      radius: pixelRadiusForDbz(f.maxDbz, width),
+    });
+  }
+  return out;
+}
+
+/** Posun celého pole v px — průměr pozorovaných jader. */
+export function globalPixelShift(
+  features: RadarProgressFeature[],
+  bounds: GeoBounds,
+  width: number,
+  height: number,
+  minutes: number,
+): { dx: number; dy: number } {
+  const { dLon, dLat } = meanForecastDelta(features, minutes);
+  if (Math.abs(dLon) < 1e-9 && Math.abs(dLat) < 1e-9) {
+    return { dx: 0, dy: 0 };
+  }
+  return lonLatDeltaToPixel(dLon, dLat, bounds, width, height);
+}
+
+export function pixelAlphaGain(
+  x: number,
+  y: number,
+  influences: CellInfluence[],
+): number {
+  let delta = 0;
+  let wSum = 0;
+  for (const inf of influences) {
+    const d = Math.hypot(x - inf.px, y - inf.py);
+    if (d > inf.radius * 2.2) continue;
+    const w =
+      Math.max(1, inf.maxDbz - 22) *
+      Math.exp(-(d * d) / (inf.radius * inf.radius));
+    delta += inf.dbzDelta * w;
+    wSum += w;
+  }
+  if (wSum <= 0) return 1;
+  const meanDelta = delta / wSum;
+  return Math.max(0.42, Math.min(1.28, 1 + meanDelta * 0.045));
+}
+
+export function bilinearSample(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+): [number, number, number, number] {
+  if (x < 0 || y < 0 || x >= width - 1 || y >= height - 1) {
+    return [0, 0, 0, 0];
+  }
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const fx = x - x0;
+  const fy = y - y0;
+  const i = (px: number, py: number) => (py * width + px) * 4;
+  const c00 = i(x0, y0);
+  const c10 = i(x0 + 1, y0);
+  const c01 = i(x0, y0 + 1);
+  const c11 = i(x0 + 1, y0 + 1);
+  const out: number[] = [0, 0, 0, 0];
+  for (let k = 0; k < 4; k++) {
+    const v00 = data[c00 + k];
+    const v10 = data[c10 + k];
+    const v01 = data[c01 + k];
+    const v11 = data[c11 + k];
+    out[k] =
+      v00 * (1 - fx) * (1 - fy) +
+      v10 * fx * (1 - fy) +
+      v01 * (1 - fx) * fy +
+      v11 * fx * fy;
+  }
+  return out as [number, number, number, number];
+}
+
+/**
+ * Semi-Lagrangian advekce: globální posun z historie + lokální síla u jader.
+ */
+export function advectRadarPixels(
+  src: Uint8ClampedArray,
+  width: number,
+  height: number,
+  shift: { dx: number; dy: number },
+  influences: CellInfluence[],
+  globalAlpha: number,
+): Uint8ClampedArray {
+  const out = new Uint8ClampedArray(src.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const sx = x - shift.dx;
+      const sy = y - shift.dy;
+      let [r, g, b, a] = bilinearSample(src, width, height, sx, sy);
+      if (a < 2) continue;
+
+      const gain = pixelAlphaGain(x, y, influences) * globalAlpha;
+      a = Math.min(255, a * gain);
+      if (gain > 1.04) {
+        r = Math.min(255, r * (1 + (gain - 1) * 0.35));
+        g = Math.min(255, g * (1 + (gain - 1) * 0.35));
+        b = Math.min(255, b * (1 + (gain - 1) * 0.25));
+      } else if (gain < 0.92) {
+        r *= gain;
+        g *= gain;
+        b *= gain;
+      }
+
+      const o = (y * width + x) * 4;
+      out[o] = r;
+      out[o + 1] = g;
+      out[o + 2] = b;
+      out[o + 3] = a;
+    }
+  }
+  return out;
+}
+
+/** Zaokrouhlí minuty pro stabilní cache (méně přepočtů canvasu). */
+export function quantizeEvolveMinutes(minutes: number): number {
+  return Math.round(minutes * 2) / 2;
+}
+
+/** Predikce posunu jedné buňky v px (pro testy). */
+export function cellPixelShift(
+  peakLon: number,
+  peakLat: number,
+  headingDeg: number,
+  speedKmh: number,
+  minutes: number,
+  bounds: GeoBounds,
+  width: number,
+  height: number,
+): { dx: number; dy: number } {
+  const distKm = (speedKmh * minutes) / 60;
+  const [endLon, endLat] = destinationPoint(
+    peakLat,
+    peakLon,
+    headingDeg,
+    distKm,
+  );
+  return lonLatDeltaToPixel(
+    endLon - peakLon,
+    endLat - peakLat,
+    bounds,
+    width,
+    height,
+  );
+}

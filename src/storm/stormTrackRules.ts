@@ -135,24 +135,31 @@ function segmentMotion(
 }
 
 /**
- * Pohyb z posledních 2–3 framů; null = nedůvěryhodné (skoky peaku / špatný match).
+ * Pohyb z posledních framů; null = nedůvěryhodné (skoky peaku / špatný match).
+ * Při jitteru 3 bodů použij aspoň poslední segment (5 min).
  */
 export function recentRadarMotion(
   history: HistoryPeak[] | undefined,
 ): { headingDeg: number; speedKmh: number } | null {
   if (!history || history.length < 2) return null;
-  const recent = history.length >= 3 ? history.slice(-3) : history;
 
-  if (recent.length >= 3) {
+  if (history.length >= 3) {
+    const recent = history.slice(-3);
     const s1 = segmentMotion(recent[0], recent[1]);
     const s2 = segmentMotion(recent[1], recent[2]);
-    if (!s1 || !s2) return null;
-    if (angleDiffDeg(s1.headingDeg, s2.headingDeg) > MAX_SEGMENT_JITTER_DEG) {
-      return null;
+    if (s1 && s2) {
+      if (angleDiffDeg(s1.headingDeg, s2.headingDeg) <= MAX_SEGMENT_JITTER_DEG) {
+        return segmentMotion(recent[0], recent[recent.length - 1]);
+      }
+      // Krátkodobý odhad: poslední 5min segment je pro +N spolehlivější než nic
+      return s2;
     }
   }
 
-  return segmentMotion(recent[0], recent[recent.length - 1]);
+  return segmentMotion(
+    history[history.length - 2],
+    history[history.length - 1],
+  );
 }
 
 export type CellMotionResult = {

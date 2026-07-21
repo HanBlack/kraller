@@ -1809,12 +1809,13 @@ export function MapView({
       return;
     }
     const baseTime = baseRaster.time;
+    const evolveMinutes = Math.round(motionMinutes * 2) / 2;
     let cancelled = false;
     void renderEvolvedRadarRaster(
       baseRaster,
       radarProgress,
       intensForecasts,
-      motionMinutes,
+      evolveMinutes,
     ).then((next) => {
       if (!cancelled && next) {
         evolvedForBaseTimeRef.current = baseTime;
