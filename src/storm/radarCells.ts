@@ -8,7 +8,7 @@ import {
   distanceKm,
 } from "../lib/geo";
 import { stormSteeringMotion, type WindGrid } from "../lib/windField";
-import { classifyBirth, observedMotionFromHistory, resolveCellMotion } from "./stormTrackRules";
+import { classifyBirth, observedMotionFromHistory, resolveCellMotion, MAX_TRUSTED_TRACK_KMH } from "./stormTrackRules";
 import { severityLabel, severityRank } from "../lib/severity";
 import { coreRadiusForDbz, evolveDbzAt } from "../lib/stormEvolution";
 import {
@@ -165,7 +165,7 @@ export function peakAtForecast(
     feature,
     forecastMinutes,
     systemDelta,
-    "raster",
+    "track",
   );
 }
 
@@ -181,10 +181,19 @@ export function peakAtForecastMinutes(
   >,
   forecastMinutes: number,
   systemDelta?: { dLon: number; dLat: number },
-  /** raster = stejný posun jako advekce PNG (globální průměr) */
-  motionMode: "raster" | "track" = "raster",
+  /** track = pozorovaný pohyb buňky; raster = průměr (jen PNG fallback) */
+  motionMode: "raster" | "track" = "track",
 ): [number, number] {
   if (forecastMinutes <= 0.05) return feature.peak;
+
+  if (feature.speedKmh >= 5) {
+    return destinationPoint(
+      feature.peak[1],
+      feature.peak[0],
+      feature.headingDeg,
+      (feature.speedKmh * forecastMinutes) / 60,
+    );
+  }
 
   if (
     motionMode === "raster" &&
@@ -195,15 +204,6 @@ export function peakAtForecastMinutes(
       feature.peak[0] + systemDelta.dLon,
       feature.peak[1] + systemDelta.dLat,
     ];
-  }
-
-  if (feature.speedKmh >= 5) {
-    return destinationPoint(
-      feature.peak[1],
-      feature.peak[0],
-      feature.headingDeg,
-      (feature.speedKmh * forecastMinutes) / 60,
-    );
   }
 
   if (
@@ -482,7 +482,42 @@ export function motionFromWind(
   return stormSteeringMotion(grid, null, lon, lat);
 }
 
-/** @deprecated použij resolveCellMotion ze stormTrackRules */
+/** Směr/rychlost pro zobrazení — vždy radar, ne řídící vítr. */
+export function displayMotionFromCell(
+  cell: Pick<
+    TrackedCell,
+    "trackHeadingDeg" | "trackSpeedKmh" | "history" | "peak"
+  >,
+  windLow: WindGrid | null,
+  windUpper: WindGrid | null = null,
+): { headingDeg: number; speedKmh: number; source: "radar-track" | "wind-fallback" } {
+  const observed = observedMotionFromHistory(cell);
+  if (observed && observed.speedKmh >= 5) {
+    return { ...observed, source: "radar-track" };
+  }
+
+  const h = cell.trackHeadingDeg;
+  const s = cell.trackSpeedKmh;
+  if (
+    h != null &&
+    Number.isFinite(h) &&
+    s != null &&
+    Number.isFinite(s) &&
+    s >= 5 &&
+    s <= MAX_TRUSTED_TRACK_KMH
+  ) {
+    return { headingDeg: h, speedKmh: s, source: "radar-track" };
+  }
+
+  const motion = resolveCellMotion(cell, windLow, windUpper);
+  return {
+    headingDeg: motion.headingDeg,
+    speedKmh: motion.speedKmh,
+    source: motion.source,
+  };
+}
+
+/** @deprecated použij displayMotionFromCell */
 export function cellMotion(
   cell: Pick<
     TrackedCell,
@@ -495,12 +530,7 @@ export function cellMotion(
   speedKmh: number;
   source: "radar-track" | "wind-fallback";
 } {
-  const m = resolveCellMotion(cell, windLow, windUpper);
-  return {
-    headingDeg: m.headingDeg,
-    speedKmh: m.speedKmh,
-    source: m.source,
-  };
+  return displayMotionFromCell(cell, windLow, windUpper);
 }
 
 /** Všechny smysluplné buňky — i v budoucnosti musí jet. */
@@ -546,7 +576,7 @@ export function buildRadarProgressFeatures(
     const peak = currentPeakFromCell(cell);
     const [peakLon, peakLat] = peak;
     const observed = observedMotionFromHistory(cell);
-    const motion = resolveCellMotion(cell, windLow, windUpper);
+    const motion = displayMotionFromCell(cell, windLow, windUpper);
     const peakDbz = effectivePeakDbz(cell);
     const echoTopKm = effectiveEchoTopKm(cell);
 
@@ -629,10 +659,9 @@ export function buildRadarProgressFeatures(
       }`;
     }
 
-    const headingDeg = observed?.headingDeg ?? motion.headingDeg;
-    const speedKmh = observed?.speedKmh ?? motion.speedKmh;
-    const motionSource =
-      speedKmh >= 5 ? ("radar-track" as const) : ("wind-fallback" as const);
+    const headingDeg = motion.headingDeg;
+    const speedKmh = motion.speedKmh;
+    const motionSource = motion.source;
     const trackKm = (speedKmh * stormConfig.alertHorizonMin) / 60;
     const trackEnd: [number, number] =
       speedKmh >= 5
@@ -699,7 +728,7 @@ export function radarCellsGeoJSONAt(
           f,
           forecastMinutes,
           systemDelta,
-          "raster",
+          "track",
         );
         const moved = shiftPolygon(
           f.polygon,
@@ -906,7 +935,7 @@ export function radarPointsGeoJSONAt(
             f,
             forecastMinutes,
             systemDelta,
-            "raster",
+            "track",
           ),
         },
       };

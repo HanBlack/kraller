@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   LIVE_ADVECT_CAP_MIN,
+  liveExtrapolationMinutes,
   motionMinutesForView,
   radarProductAgeMinutes,
 } from "./liveRadarMotion";
@@ -14,48 +15,41 @@ describe("liveRadarMotion", () => {
     ).toBeCloseTo(5, 5);
   });
 
-  it("Teď = clampovaný věk snímku", () => {
+  it("Teď = 0 (snímek bez wall-clock posunu)", () => {
     expect(
       motionMinutesForView({
         timeOffsetMinutes: 0,
         productIso: "2026-07-21T11:50:00Z",
         nowMs: t0,
       }),
-    ).toBeCloseTo(10, 5);
+    ).toBe(0);
     expect(
       motionMinutesForView({
         timeOffsetMinutes: 0,
         productIso: "2026-07-21T11:00:00Z",
         nowMs: t0,
       }),
-    ).toBe(LIVE_ADVECT_CAP_MIN);
+    ).toBe(0);
   });
 
-  it("+N je vždy ≥ Teď (věk + offset)", () => {
+  it("+N = pouze offset slideru", () => {
     expect(
       motionMinutesForView({
         timeOffsetMinutes: 5,
         productIso: "2026-07-21T11:50:00Z",
         nowMs: t0,
       }),
-    ).toBeCloseTo(15, 5);
-    expect(
-      motionMinutesForView({
-        timeOffsetMinutes: 5,
-        productIso: "2026-07-21T11:57:00Z",
-        nowMs: t0,
-      }),
-    ).toBeCloseTo(8, 5);
-  });
-
-  it("slider budoucnost bere offset, historie 0", () => {
+    ).toBe(5);
     expect(
       motionMinutesForView({
         timeOffsetMinutes: 15,
         productIso: "2026-07-21T11:55:00Z",
         nowMs: t0,
       }),
-    ).toBeCloseTo(20, 5);
+    ).toBe(15);
+  });
+
+  it("historie slideru = 0", () => {
     expect(
       motionMinutesForView({
         timeOffsetMinutes: -10,
@@ -63,5 +57,20 @@ describe("liveRadarMotion", () => {
         nowMs: t0,
       }),
     ).toBe(0);
+  });
+
+  it("liveExtrapolationMinutes = věk snímku (UI)", () => {
+    expect(
+      liveExtrapolationMinutes({
+        productIso: "2026-07-21T11:50:00Z",
+        nowMs: t0,
+      }),
+    ).toBeCloseTo(10, 5);
+    expect(
+      liveExtrapolationMinutes({
+        productIso: "2026-07-21T11:00:00Z",
+        nowMs: t0,
+      }),
+    ).toBe(LIVE_ADVECT_CAP_MIN);
   });
 });
