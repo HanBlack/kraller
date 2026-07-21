@@ -486,7 +486,7 @@ def snap_peak_to_warped_raster(
     coordinates: list[list[float]],
     peak_lon: float,
     peak_lat: float,
-    search_radius: int = 12,
+    search_radius: int = 20,
     min_dbz: float = 28.0,
 ) -> tuple[float, float]:
     """Posune peak na vizuální maximum warped PNG (MapLibre mercator UV)."""
