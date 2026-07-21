@@ -161,7 +161,12 @@ export function peakAtForecast(
   forecastMinutes: number,
   systemDelta?: { dLon: number; dLat: number },
 ): [number, number] {
-  return peakAtForecastMinutes(feature, forecastMinutes, systemDelta);
+  return peakAtForecastMinutes(
+    feature,
+    forecastMinutes,
+    systemDelta,
+    "raster",
+  );
 }
 
 /**
@@ -176,8 +181,21 @@ export function peakAtForecastMinutes(
   >,
   forecastMinutes: number,
   systemDelta?: { dLon: number; dLat: number },
+  /** raster = stejný posun jako advekce PNG (globální průměr) */
+  motionMode: "raster" | "track" = "raster",
 ): [number, number] {
   if (forecastMinutes <= 0.05) return feature.peak;
+
+  if (
+    motionMode === "raster" &&
+    systemDelta &&
+    (Math.abs(systemDelta.dLon) > 1e-9 || Math.abs(systemDelta.dLat) > 1e-9)
+  ) {
+    return [
+      feature.peak[0] + systemDelta.dLon,
+      feature.peak[1] + systemDelta.dLat,
+    ];
+  }
 
   if (feature.speedKmh >= 5) {
     return destinationPoint(
@@ -681,6 +699,7 @@ export function radarCellsGeoJSONAt(
           f,
           forecastMinutes,
           systemDelta,
+          "raster",
         );
         const moved = shiftPolygon(
           f.polygon,
@@ -883,7 +902,12 @@ export function radarPointsGeoJSONAt(
         },
         geometry: {
           type: "Point" as const,
-          coordinates: peakAtForecastMinutes(f, forecastMinutes, systemDelta),
+          coordinates: peakAtForecastMinutes(
+            f,
+            forecastMinutes,
+            systemDelta,
+            "raster",
+          ),
         },
       };
     }),
@@ -905,7 +929,7 @@ export function radarTrackCorridorsGeoJSONAt(
 
   for (const f of features) {
     if (!showCoreMarkerOnMap(f)) continue;
-    const here = peakAtForecastMinutes(f, forecastMinutes, systemDelta);
+    const here = peakAtForecastMinutes(f, forecastMinutes, systemDelta, "track");
     let tip = destinationPoint(
       here[1],
       here[0],
@@ -919,8 +943,8 @@ export function radarTrackCorridorsGeoJSONAt(
     }
     const { fringeKm } = bandRadiiKm(f.maxDbz);
     let halfKm = Math.min(
-      9,
-      Math.max(2.2, fringeKm * (0.55 + forecastMinutes / 180)),
+      5,
+      Math.max(1.4, fringeKm * (0.35 + forecastMinutes / 240)),
     );
     if (
       f.phase === "birth" ||
@@ -928,10 +952,10 @@ export function radarTrackCorridorsGeoJSONAt(
       f.ageMinutes < 20 ||
       f.trueBirth
     ) {
-      halfKm = Math.min(11, halfKm * 1.15);
+      halfKm = Math.min(6.5, halfKm * 1.1);
     }
     if (f.fctDisagree) {
-      halfKm = Math.min(12, halfKm * 1.2);
+      halfKm = Math.min(7, halfKm * 1.15);
     }
     const mid = destinationPoint(
       here[1],
@@ -978,7 +1002,7 @@ export function radarTracksGeoJSONAt(
   return {
     type: "FeatureCollection",
     features: features.filter(showCoreMarkerOnMap).map((f) => {
-      const here = peakAtForecastMinutes(f, forecastMinutes, systemDelta);
+      const here = peakAtForecastMinutes(f, forecastMinutes, systemDelta, "track");
       let tip = destinationPoint(
         here[1],
         here[0],
@@ -1021,7 +1045,7 @@ export function radarArrowsGeoJSONAt(
   return {
     type: "FeatureCollection",
     features: features.filter(showCoreMarkerOnMap).map((f) => {
-      const here = peakAtForecastMinutes(f, forecastMinutes, systemDelta);
+      const here = peakAtForecastMinutes(f, forecastMinutes, systemDelta, "track");
       return {
         type: "Feature" as const,
         properties: {

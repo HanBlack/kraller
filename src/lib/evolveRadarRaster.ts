@@ -5,7 +5,6 @@ import type { RadarRasterMeta } from "./radarRaster";
 import {
   advectRadarPixels,
   buildCellInfluences,
-  geoBoundsFromCoords,
   globalPixelShift,
   quantizeEvolveMinutes,
 } from "./radarAdvection";
@@ -66,18 +65,17 @@ export async function renderEvolvedRadarRaster(
     const height = img.naturalHeight || img.height;
     if (width < 8 || height < 8) return meta;
 
-    const bounds = geoBoundsFromCoords(meta.coordinates);
     const influences = buildCellInfluences(
       features,
       intensByCell,
-      bounds,
+      meta.coordinates,
       width,
       height,
       qMin,
     );
     const shift = globalPixelShift(
       features,
-      bounds,
+      meta.coordinates,
       width,
       height,
       qMin,

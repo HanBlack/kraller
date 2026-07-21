@@ -7,7 +7,17 @@ import {
 } from "./radarAdvection";
 import type { RadarProgressFeature } from "../storm/radarCells";
 
-const bounds = { west: 12, east: 20, north: 52, south: 48 };
+const coords: [
+  [number, number],
+  [number, number],
+  [number, number],
+  [number, number],
+] = [
+  [12, 52],
+  [20, 52],
+  [20, 48],
+  [12, 48],
+];
 
 function feat(
   overrides: Partial<RadarProgressFeature> = {},
@@ -45,8 +55,16 @@ describe("radarAdvection", () => {
     expect(quantizeEvolveMinutes(7.3)).toBe(7.5);
   });
 
-  it("lon/lat delta → pixel shift", () => {
-    const { dx, dy } = lonLatDeltaToPixel(0.2, -0.1, bounds, 400, 300);
+  it("lon/lat delta → pixel shift (mercator)", () => {
+    const { dx, dy } = lonLatDeltaToPixel(
+      0.2,
+      -0.1,
+      16,
+      50,
+      coords,
+      400,
+      300,
+    );
     expect(dx).toBeGreaterThan(0);
     expect(dy).toBeGreaterThan(0);
   });
@@ -54,7 +72,7 @@ describe("radarAdvection", () => {
   it("global shift z buněk s rychlostí ≥ 5 km/h", () => {
     const shift = globalPixelShift(
       [feat(), feat({ id: "c2", motionSource: "wind-fallback", speedKmh: 20 })],
-      bounds,
+      coords,
       400,
       300,
       30,
@@ -62,7 +80,7 @@ describe("radarAdvection", () => {
     expect(Math.abs(shift.dx) + Math.abs(shift.dy)).toBeGreaterThan(0);
     const none = globalPixelShift(
       [feat({ speedKmh: 0, motionSource: "wind-fallback" })],
-      bounds,
+      coords,
       400,
       300,
       30,

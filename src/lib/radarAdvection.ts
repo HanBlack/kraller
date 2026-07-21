@@ -6,6 +6,7 @@ import {
 } from "../storm/radarCells";
 import { evolveDbzAt } from "./stormEvolution";
 import type { RadarRasterMeta } from "./radarRaster";
+import { lonLatToMercatorPixel } from "./radarMercator";
 
 export type GeoBounds = {
   west: number;
@@ -38,29 +39,37 @@ export function geoBoundsFromCoords(
 export function lonLatToPixel(
   lon: number,
   lat: number,
-  bounds: GeoBounds,
+  coords: RadarRasterMeta["coordinates"],
   width: number,
   height: number,
 ): [number, number] {
-  const x =
-    ((lon - bounds.west) / Math.max(1e-9, bounds.east - bounds.west)) * width;
-  const y =
-    ((bounds.north - lat) / Math.max(1e-9, bounds.north - bounds.south)) *
-    height;
-  return [x, y];
+  return lonLatToMercatorPixel(lon, lat, coords, width, height);
 }
 
 export function lonLatDeltaToPixel(
   dLon: number,
   dLat: number,
-  bounds: GeoBounds,
+  originLon: number,
+  originLat: number,
+  coords: RadarRasterMeta["coordinates"],
   width: number,
   height: number,
 ): { dx: number; dy: number } {
-  return {
-    dx: (dLon / Math.max(1e-9, bounds.east - bounds.west)) * width,
-    dy: (-dLat / Math.max(1e-9, bounds.north - bounds.south)) * height,
-  };
+  const [px, py] = lonLatToMercatorPixel(
+    originLon,
+    originLat,
+    coords,
+    width,
+    height,
+  );
+  const [px2, py2] = lonLatToMercatorPixel(
+    originLon + dLon,
+    originLat + dLat,
+    coords,
+    width,
+    height,
+  );
+  return { dx: px2 - px, dy: py2 - py };
 }
 
 export function pixelRadiusForDbz(dbz: number, width: number): number {
@@ -70,7 +79,7 @@ export function pixelRadiusForDbz(dbz: number, width: number): number {
 export function buildCellInfluences(
   features: RadarProgressFeature[],
   intensByCell: Map<string, CellIntensification> | undefined,
-  bounds: GeoBounds,
+  coords: RadarRasterMeta["coordinates"],
   width: number,
   height: number,
   minutes: number,
@@ -81,7 +90,7 @@ export function buildCellInfluences(
     const [px, py] = lonLatToPixel(
       f.peak[0],
       f.peak[1],
-      bounds,
+      coords,
       width,
       height,
     );
@@ -97,10 +106,10 @@ export function buildCellInfluences(
   return out;
 }
 
-/** Posun celého pole v px — průměr pozorovaných jader. */
+/** Posun celého pole v px — průměr pozorovaných jader (Web Mercator UV). */
 export function globalPixelShift(
   features: RadarProgressFeature[],
-  bounds: GeoBounds,
+  coords: RadarRasterMeta["coordinates"],
   width: number,
   height: number,
   minutes: number,
@@ -109,7 +118,10 @@ export function globalPixelShift(
   if (Math.abs(dLon) < 1e-9 && Math.abs(dLat) < 1e-9) {
     return { dx: 0, dy: 0 };
   }
-  return lonLatDeltaToPixel(dLon, dLat, bounds, width, height);
+  const anchor = features.find((f) => f.speedKmh >= 5) ?? features[0];
+  const lon = anchor?.peak[0] ?? (coords[0][0] + coords[2][0]) / 2;
+  const lat = anchor?.peak[1] ?? (coords[0][1] + coords[2][1]) / 2;
+  return lonLatDeltaToPixel(dLon, dLat, lon, lat, coords, width, height);
 }
 
 export function pixelAlphaGain(
@@ -220,7 +232,7 @@ export function cellPixelShift(
   headingDeg: number,
   speedKmh: number,
   minutes: number,
-  bounds: GeoBounds,
+  coords: RadarRasterMeta["coordinates"],
   width: number,
   height: number,
 ): { dx: number; dy: number } {
@@ -234,7 +246,9 @@ export function cellPixelShift(
   return lonLatDeltaToPixel(
     endLon - peakLon,
     endLat - peakLat,
-    bounds,
+    peakLon,
+    peakLat,
+    coords,
     width,
     height,
   );

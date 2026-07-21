@@ -434,6 +434,77 @@ def warp_crop_to_web_mercator(
     return sampled, coordinates
 
 
+def _mercator_pixel_from_lonlat(
+    lon: float,
+    lat: float,
+    coordinates: list[list[float]],
+    width: int,
+    height: int,
+) -> tuple[float, float]:
+    wgs_to_merc = Transformer.from_crs(
+        "EPSG:4326", "EPSG:3857", always_xy=True
+    )
+    mx, my = wgs_to_merc.transform(lon, lat)
+    mercs = [wgs_to_merc.transform(c[0], c[1]) for c in coordinates]
+    mx_left = min(p[0] for p in mercs)
+    mx_right = max(p[0] for p in mercs)
+    my_bot = min(p[1] for p in mercs)
+    my_top = max(p[1] for p in mercs)
+    u = (mx - mx_left) / max(1e-9, mx_right - mx_left)
+    v = (my_top - my) / max(1e-9, my_top - my_bot)
+    return u * width, v * height
+
+
+def _lonlat_from_mercator_pixel(
+    px: float,
+    py: float,
+    coordinates: list[list[float]],
+    width: int,
+    height: int,
+) -> tuple[float, float]:
+    wgs_to_merc = Transformer.from_crs(
+        "EPSG:4326", "EPSG:3857", always_xy=True
+    )
+    merc_to_wgs = Transformer.from_crs(
+        "EPSG:3857", "EPSG:4326", always_xy=True
+    )
+    mercs = [wgs_to_merc.transform(c[0], c[1]) for c in coordinates]
+    mx_left = min(p[0] for p in mercs)
+    mx_right = max(p[0] for p in mercs)
+    my_bot = min(p[1] for p in mercs)
+    my_top = max(p[1] for p in mercs)
+    u = (px + 0.5) / max(1, width)
+    v = (py + 0.5) / max(1, height)
+    mx = mx_left + u * (mx_right - mx_left)
+    my = my_top - v * (my_top - my_bot)
+    lon, lat = merc_to_wgs.transform(mx, my)
+    return float(lon), float(lat)
+
+
+def snap_peak_to_warped_raster(
+    dbz: np.ndarray,
+    coordinates: list[list[float]],
+    peak_lon: float,
+    peak_lat: float,
+    search_radius: int = 12,
+    min_dbz: float = 28.0,
+) -> tuple[float, float]:
+    """Posune peak na vizuální maximum warped PNG (MapLibre mercator UV)."""
+    h, w = dbz.shape
+    px, py = _mercator_pixel_from_lonlat(peak_lon, peak_lat, coordinates, w, h)
+    cx, cy = int(round(px)), int(round(py))
+    r = search_radius
+    x0, x1 = max(0, cx - r), min(w, cx + r + 1)
+    y0, y1 = max(0, cy - r), min(h, cy + r + 1)
+    sub = dbz[y0:y1, x0:x1]
+    if sub.size == 0 or float(np.nanmax(sub)) < min_dbz:
+        return peak_lon, peak_lat
+    ly, lx = np.unravel_index(int(np.nanargmax(sub)), sub.shape)
+    snap_px = x0 + lx
+    snap_py = y0 + ly
+    return _lonlat_from_mercator_pixel(snap_px, snap_py, coordinates, w, h)
+
+
 def write_radar_raster(
     frame: dict,
     png_path: str,
@@ -894,6 +965,18 @@ def convert_to_geojson(
     radar_features: list[dict] = build_radar_contour_features(latest)
     cells = track_cells_over_time(frames)
     time_str = latest["time_str"]
+
+    dbz_ll, warp_coords = warp_crop_to_web_mercator(latest)
+    for cell in cells:
+        plon, plat = snap_peak_to_warped_raster(
+            dbz_ll, warp_coords, cell["peakLon"], cell["peakLat"]
+        )
+        cell["peakLon"] = plon
+        cell["peakLat"] = plat
+        hist = cell.get("history")
+        if hist:
+            hist[-1]["peakLon"] = plon
+            hist[-1]["peakLat"] = plat
 
     cell_features: list[dict] = []
     for cell in cells:
