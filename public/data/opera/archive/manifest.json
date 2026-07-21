@@ -4,436 +4,436 @@
   "frames": [
     {
       "index": 0,
-      "time": "20260721102000",
-      "path": "data/opera/archive/peaks-20260721102000.json",
-      "peakCount": null
-    },
-    {
-      "index": 1,
       "time": "20260721102500",
       "path": "data/opera/archive/peaks-20260721102500.json",
       "peakCount": null
     },
     {
-      "index": 2,
+      "index": 1,
       "time": "20260721103000",
       "path": "data/opera/archive/peaks-20260721103000.json",
       "peakCount": null
     },
     {
-      "index": 3,
+      "index": 2,
       "time": "20260721103500",
       "path": "data/opera/archive/peaks-20260721103500.json",
       "peakCount": null
     },
     {
-      "index": 4,
+      "index": 3,
       "time": "20260721104000",
       "path": "data/opera/archive/peaks-20260721104000.json",
       "peakCount": null
     },
     {
-      "index": 5,
+      "index": 4,
       "time": "20260721104500",
       "path": "data/opera/archive/peaks-20260721104500.json",
       "peakCount": null
     },
     {
-      "index": 6,
+      "index": 5,
       "time": "20260721105000",
       "path": "data/opera/archive/peaks-20260721105000.json",
       "peakCount": null
     },
     {
-      "index": 7,
+      "index": 6,
       "time": "20260721105500",
       "path": "data/opera/archive/peaks-20260721105500.json",
       "peakCount": null
     },
     {
-      "index": 8,
+      "index": 7,
       "time": "20260721110000",
       "path": "data/opera/archive/peaks-20260721110000.json",
       "peakCount": null
     },
     {
-      "index": 9,
+      "index": 8,
       "time": "20260721110500",
       "path": "data/opera/archive/peaks-20260721110500.json",
       "peakCount": null
     },
     {
-      "index": 10,
+      "index": 9,
       "time": "20260721111000",
       "path": "data/opera/archive/peaks-20260721111000.json",
       "peakCount": null
     },
     {
-      "index": 11,
+      "index": 10,
       "time": "20260721111500",
       "path": "data/opera/archive/peaks-20260721111500.json",
       "peakCount": null
     },
     {
-      "index": 12,
+      "index": 11,
       "time": "20260721112000",
       "path": "data/opera/archive/peaks-20260721112000.json",
       "peakCount": null
     },
     {
-      "index": 13,
+      "index": 12,
       "time": "20260721112500",
       "path": "data/opera/archive/peaks-20260721112500.json",
       "peakCount": null
     },
     {
-      "index": 14,
+      "index": 13,
       "time": "20260721113000",
       "path": "data/opera/archive/peaks-20260721113000.json",
       "peakCount": null
     },
     {
-      "index": 15,
+      "index": 14,
       "time": "20260721114000",
       "path": "data/opera/archive/peaks-20260721114000.json",
       "peakCount": null
     },
     {
-      "index": 16,
+      "index": 15,
       "time": "20260721114500",
       "path": "data/opera/archive/peaks-20260721114500.json",
       "peakCount": null
     },
     {
-      "index": 17,
+      "index": 16,
       "time": "20260721115000",
       "path": "data/opera/archive/peaks-20260721115000.json",
       "peakCount": null
     },
     {
-      "index": 18,
+      "index": 17,
       "time": "20260721120000",
       "path": "data/opera/archive/peaks-20260721120000.json",
       "peakCount": null
     },
     {
-      "index": 19,
+      "index": 18,
       "time": "20260721120500",
       "path": "data/opera/archive/peaks-20260721120500.json",
       "peakCount": null
     },
     {
-      "index": 20,
+      "index": 19,
       "time": "20260721121000",
       "path": "data/opera/archive/peaks-20260721121000.json",
       "peakCount": null
     },
     {
-      "index": 21,
+      "index": 20,
       "time": "20260721122000",
       "path": "data/opera/archive/peaks-20260721122000.json",
       "peakCount": null
     },
     {
-      "index": 22,
+      "index": 21,
       "time": "20260721122500",
       "path": "data/opera/archive/peaks-20260721122500.json",
       "peakCount": null
     },
     {
-      "index": 23,
+      "index": 22,
       "time": "20260721123000",
       "path": "data/opera/archive/peaks-20260721123000.json",
       "peakCount": null
     },
     {
-      "index": 24,
+      "index": 23,
       "time": "20260721123500",
       "path": "data/opera/archive/peaks-20260721123500.json",
       "peakCount": null
     },
     {
-      "index": 25,
+      "index": 24,
       "time": "20260721124500",
       "path": "data/opera/archive/peaks-20260721124500.json",
       "peakCount": null
     },
     {
-      "index": 26,
+      "index": 25,
       "time": "20260721125000",
       "path": "data/opera/archive/peaks-20260721125000.json",
       "peakCount": null
     },
     {
-      "index": 27,
+      "index": 26,
       "time": "20260721125500",
       "path": "data/opera/archive/peaks-20260721125500.json",
       "peakCount": null
     },
     {
-      "index": 28,
+      "index": 27,
       "time": "20260721130000",
       "path": "data/opera/archive/peaks-20260721130000.json",
       "peakCount": null
     },
     {
-      "index": 29,
+      "index": 28,
       "time": "20260721130500",
       "path": "data/opera/archive/peaks-20260721130500.json",
       "peakCount": null
     },
     {
-      "index": 30,
+      "index": 29,
       "time": "20260721131000",
       "path": "data/opera/archive/peaks-20260721131000.json",
       "peakCount": null
     },
     {
-      "index": 31,
+      "index": 30,
       "time": "20260721131500",
       "path": "data/opera/archive/peaks-20260721131500.json",
       "peakCount": null
     },
     {
-      "index": 32,
+      "index": 31,
       "time": "20260721132000",
       "path": "data/opera/archive/peaks-20260721132000.json",
       "peakCount": null
     },
     {
-      "index": 33,
+      "index": 32,
       "time": "20260721132500",
       "path": "data/opera/archive/peaks-20260721132500.json",
       "peakCount": null
     },
     {
-      "index": 34,
+      "index": 33,
       "time": "20260721133000",
       "path": "data/opera/archive/peaks-20260721133000.json",
       "peakCount": null
     },
     {
-      "index": 35,
+      "index": 34,
       "time": "20260721133500",
       "path": "data/opera/archive/peaks-20260721133500.json",
       "peakCount": null
     },
     {
-      "index": 36,
+      "index": 35,
       "time": "20260721134000",
       "path": "data/opera/archive/peaks-20260721134000.json",
       "peakCount": null
     },
     {
-      "index": 37,
+      "index": 36,
       "time": "20260721134500",
       "path": "data/opera/archive/peaks-20260721134500.json",
       "peakCount": null
     },
     {
-      "index": 38,
+      "index": 37,
       "time": "20260721135000",
       "path": "data/opera/archive/peaks-20260721135000.json",
       "peakCount": null
     },
     {
-      "index": 39,
+      "index": 38,
       "time": "20260721135500",
       "path": "data/opera/archive/peaks-20260721135500.json",
       "peakCount": null
     },
     {
-      "index": 40,
+      "index": 39,
       "time": "20260721140000",
       "path": "data/opera/archive/peaks-20260721140000.json",
       "peakCount": null
     },
     {
-      "index": 41,
+      "index": 40,
       "time": "20260721140500",
       "path": "data/opera/archive/peaks-20260721140500.json",
       "peakCount": null
     },
     {
-      "index": 42,
+      "index": 41,
       "time": "20260721141000",
       "path": "data/opera/archive/peaks-20260721141000.json",
       "peakCount": null
     },
     {
-      "index": 43,
+      "index": 42,
       "time": "20260721141500",
       "path": "data/opera/archive/peaks-20260721141500.json",
       "peakCount": null
     },
     {
-      "index": 44,
+      "index": 43,
       "time": "20260721142500",
       "path": "data/opera/archive/peaks-20260721142500.json",
       "peakCount": null
     },
     {
-      "index": 45,
+      "index": 44,
       "time": "20260721143000",
       "path": "data/opera/archive/peaks-20260721143000.json",
       "peakCount": null
     },
     {
-      "index": 46,
+      "index": 45,
       "time": "20260721143500",
       "path": "data/opera/archive/peaks-20260721143500.json",
       "peakCount": null
     },
     {
-      "index": 47,
+      "index": 46,
       "time": "20260721144500",
       "path": "data/opera/archive/peaks-20260721144500.json",
       "peakCount": null
     },
     {
-      "index": 48,
+      "index": 47,
       "time": "20260721145000",
       "path": "data/opera/archive/peaks-20260721145000.json",
       "peakCount": null
     },
     {
-      "index": 49,
+      "index": 48,
       "time": "20260721145500",
       "path": "data/opera/archive/peaks-20260721145500.json",
       "peakCount": null
     },
     {
-      "index": 50,
+      "index": 49,
       "time": "20260721150000",
       "path": "data/opera/archive/peaks-20260721150000.json",
       "peakCount": null
     },
     {
-      "index": 51,
+      "index": 50,
       "time": "20260721150500",
       "path": "data/opera/archive/peaks-20260721150500.json",
       "peakCount": null
     },
     {
-      "index": 52,
+      "index": 51,
       "time": "20260721151000",
       "path": "data/opera/archive/peaks-20260721151000.json",
       "peakCount": null
     },
     {
-      "index": 53,
+      "index": 52,
       "time": "20260721151500",
       "path": "data/opera/archive/peaks-20260721151500.json",
       "peakCount": null
     },
     {
-      "index": 54,
+      "index": 53,
       "time": "20260721152000",
       "path": "data/opera/archive/peaks-20260721152000.json",
       "peakCount": null
     },
     {
-      "index": 55,
+      "index": 54,
       "time": "20260721152500",
       "path": "data/opera/archive/peaks-20260721152500.json",
       "peakCount": null
     },
     {
-      "index": 56,
+      "index": 55,
       "time": "20260721153000",
       "path": "data/opera/archive/peaks-20260721153000.json",
       "peakCount": null
     },
     {
-      "index": 57,
+      "index": 56,
       "time": "20260721153500",
       "path": "data/opera/archive/peaks-20260721153500.json",
       "peakCount": null
     },
     {
-      "index": 58,
+      "index": 57,
       "time": "20260721154000",
       "path": "data/opera/archive/peaks-20260721154000.json",
       "peakCount": null
     },
     {
-      "index": 59,
+      "index": 58,
       "time": "20260721154500",
       "path": "data/opera/archive/peaks-20260721154500.json",
       "peakCount": null
     },
     {
-      "index": 60,
+      "index": 59,
       "time": "20260721155000",
       "path": "data/opera/archive/peaks-20260721155000.json",
       "peakCount": null
     },
     {
-      "index": 61,
+      "index": 60,
       "time": "20260721155500",
       "path": "data/opera/archive/peaks-20260721155500.json",
       "peakCount": null
     },
     {
-      "index": 62,
+      "index": 61,
       "time": "20260721160500",
       "path": "data/opera/archive/peaks-20260721160500.json",
       "peakCount": null
     },
     {
-      "index": 63,
+      "index": 62,
       "time": "20260721161000",
       "path": "data/opera/archive/peaks-20260721161000.json",
       "peakCount": null
     },
     {
-      "index": 64,
+      "index": 63,
       "time": "20260721161500",
       "path": "data/opera/archive/peaks-20260721161500.json",
       "peakCount": null
     },
     {
-      "index": 65,
+      "index": 64,
       "time": "20260721162000",
       "path": "data/opera/archive/peaks-20260721162000.json",
       "peakCount": null
     },
     {
-      "index": 66,
+      "index": 65,
       "time": "20260721162500",
       "path": "data/opera/archive/peaks-20260721162500.json",
       "peakCount": null
     },
     {
-      "index": 67,
+      "index": 66,
       "time": "20260721163000",
       "path": "data/opera/archive/peaks-20260721163000.json",
       "peakCount": null
     },
     {
-      "index": 68,
+      "index": 67,
       "time": "20260721163500",
       "path": "data/opera/archive/peaks-20260721163500.json",
       "peakCount": null
     },
     {
-      "index": 69,
+      "index": 68,
       "time": "20260721164500",
       "path": "data/opera/archive/peaks-20260721164500.json",
       "peakCount": null
     },
     {
-      "index": 70,
+      "index": 69,
       "time": "20260721165000",
       "path": "data/opera/archive/peaks-20260721165000.json",
       "peakCount": null
     },
     {
-      "index": 71,
+      "index": 70,
       "time": "20260721165500",
       "path": "data/opera/archive/peaks-20260721165500.json",
-      "peakCount": 7
+      "peakCount": null
+    },
+    {
+      "index": 71,
+      "time": "20260721170000",
+      "path": "data/opera/archive/peaks-20260721170000.json",
+      "peakCount": 10
     }
   ],
-  "updatedAt": "20260721165500"
+  "updatedAt": "20260721170000"
 }
