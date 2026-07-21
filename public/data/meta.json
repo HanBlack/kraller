@@ -1,7 +1,7 @@
 {
-  "updatedAt": "2026-07-21T22:02:01Z",
-  "operaTime": "2026-07-21T21:55:00Z",
-  "chmiTime": "2026-07-21T22:00:00Z",
+  "updatedAt": "2026-07-21T22:07:31Z",
+  "operaTime": "2026-07-21T22:00:00Z",
+  "chmiTime": "2026-07-21T22:05:00Z",
   "opera": true,
   "chmi": true,
   "wind": true,
@@ -9,22 +9,22 @@
   "sources": {
     "opera": {
       "ok": true,
-      "updatedAt": "2026-07-21T22:01:44Z",
+      "updatedAt": "2026-07-21T22:06:32Z",
       "error": null
     },
     "chmi": {
       "ok": true,
-      "updatedAt": "2026-07-21T22:00:00Z",
+      "updatedAt": "2026-07-21T22:05:00Z",
       "error": null
     },
     "wind": {
       "ok": true,
-      "updatedAt": "2026-07-21T21:51:54Z",
+      "updatedAt": "2026-07-21T22:06:55Z",
       "error": null
     },
     "formation": {
       "ok": true,
-      "updatedAt": "2026-07-21T21:51:54Z",
+      "updatedAt": "2026-07-21T22:06:55Z",
       "error": null
     }
   }
