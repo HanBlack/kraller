@@ -839,11 +839,7 @@ export function StormDetail({
 
       </p>
 
-      <HazardBadges
-        assessment={feature.assessment}
-        dualpolHailLikely={feature.dualpolHailLikely}
-        dualpolLabel={feature.dualpolLabel}
-      />
+      <HazardBadges assessment={feature.assessment} />
 
       {alertDetail ? (
         <p className="to-you-expect">{alertDetail}</p>
