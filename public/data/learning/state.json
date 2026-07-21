@@ -1,30 +1,6 @@
 {
   "tracks": {},
   "formationPending": {
-    "z:48.26:14.46": {
-      "lat": 48.2647,
-      "lon": 14.463,
-      "score": 58.800000000000004,
-      "fromTs": "20260721003500",
-      "cape": 0.0,
-      "shear": 19.6,
-      "dew": 6.5,
-      "li": null,
-      "freezingLevelM": 2760.0,
-      "cinJkg": 0.0
-    },
-    "z:48.62:14.46": {
-      "lat": 48.6176,
-      "lon": 14.463,
-      "score": 55.5,
-      "fromTs": "20260721003500",
-      "cape": 0.0,
-      "shear": 18.5,
-      "dew": 5.9,
-      "li": null,
-      "freezingLevelM": 2800.0,
-      "cinJkg": 0.0
-    },
     "z:47.91:16.76": {
       "lat": 47.9118,
       "lon": 16.7593,
@@ -3279,5 +3255,5 @@
     "INTENSIFY_HIT_DBZ": 3.0
   },
   "schemaVersion": 2,
-  "updatedAt": "2026-07-21T03:12:22Z"
+  "updatedAt": "2026-07-21T03:16:38Z"
 }
