@@ -1,48 +1,5 @@
 {
-  "tracks": {
-    "t:20260721073500:47.95:17.13": {
-      "lat": 47.94904958582677,
-      "lon": 17.12911033442299,
-      "maxDbz": 38.5,
-      "lastTs": "20260721073500",
-      "cellId": "cell-4",
-      "firstTs": "20260721073500",
-      "preds": {
-        "15": {
-          "predLat": 47.9341,
-          "predLon": 17.303,
-          "fromTs": "20260721073500",
-          "fromLat": 47.949,
-          "fromLon": 17.1291,
-          "heading": 97.2,
-          "speed": 52.2,
-          "motionSource": "wind-fallback",
-          "windAlignDeg": null
-        },
-        "30": {
-          "predLat": 47.9189,
-          "predLon": 17.4768,
-          "fromTs": "20260721073500",
-          "fromLat": 47.949,
-          "fromLon": 17.1291,
-          "heading": 97.2,
-          "speed": 52.2,
-          "motionSource": "wind-fallback",
-          "windAlignDeg": null
-        }
-      },
-      "dbzSlopePer15": null,
-      "areaPx": null,
-      "growthDbz": null,
-      "surfaceDbz": null,
-      "fctAgree": null,
-      "fctAngleDiffDeg": null,
-      "hailCmProxy": null,
-      "purpleCandidate": false,
-      "dbzDelta5": null,
-      "dbzDelta15": null
-    }
-  },
+  "tracks": {},
   "formationPending": {
     "z:49.32:7.00": {
       "lat": 49.3235,
@@ -2914,56 +2871,6 @@
     }
   },
   "intensityPending": {
-    "t:20260721065500:47.84:17.54:30:20260721065500": {
-      "trackKey": "t:20260721065500:47.84:17.54",
-      "horizonMin": 30,
-      "fromTs": "20260721065500",
-      "fromDbz": 46.0,
-      "predDbz": 46.0,
-      "slope": 0.0,
-      "lat": 47.838953110640034,
-      "lon": 17.542725887874056,
-      "surfaceDbz": null,
-      "echoTopKm": null,
-      "fctAgree": null,
-      "envDistKm": 17.6,
-      "cape": 30.0,
-      "capeNow": 0.0,
-      "dew": 9.3,
-      "shear": 11.9,
-      "srh01": 99.2,
-      "cooling": 0.0,
-      "li": null,
-      "freezingLevelM": 2980.0,
-      "cinJkg": 0.0,
-      "steerHdg": 98.0,
-      "steerSpd": 51.8
-    },
-    "t:20260721065500:48.43:18.09:30:20260721065500": {
-      "trackKey": "t:20260721065500:48.43:18.09",
-      "horizonMin": 30,
-      "fromTs": "20260721065500",
-      "fromDbz": 42.5,
-      "predDbz": 42.5,
-      "slope": 0.0,
-      "lat": 48.431978346409636,
-      "lon": 18.09468419216257,
-      "surfaceDbz": null,
-      "echoTopKm": null,
-      "fctAgree": null,
-      "envDistKm": 23.2,
-      "cape": 20.0,
-      "capeNow": 0.0,
-      "dew": 10.0,
-      "shear": 8.8,
-      "srh01": 78.3,
-      "cooling": 0.0,
-      "li": null,
-      "freezingLevelM": 3070.0,
-      "cinJkg": 0.0,
-      "steerHdg": 97.8,
-      "steerSpd": 53.1
-    },
     "t:20260721073000:50.44:13.10:15:20260721073000": {
       "trackKey": "t:20260721073000:50.44:13.10",
       "horizonMin": 15,
@@ -3087,5 +2994,5 @@
     "INTENSIFY_HIT_DBZ": 3.0
   },
   "schemaVersion": 2,
-  "updatedAt": "2026-07-21T07:41:38Z"
+  "updatedAt": "2026-07-21T07:46:46Z"
 }
