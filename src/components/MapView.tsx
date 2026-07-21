@@ -1763,7 +1763,7 @@ export function MapView({
   }, [isLiveNow, radarProductIso]);
 
   /**
-   * Teď → 0 (snímek). +N → N min od snímku. Historie → 0.
+   * Teď → věk snímku. +N → věk+N (monotónní). Historie → 0.
    */
   const motionMinutes = motionMinutesForView({
     timeOffsetMinutes,

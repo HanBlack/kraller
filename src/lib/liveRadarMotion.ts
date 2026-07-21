@@ -15,8 +15,8 @@ export function radarProductAgeMinutes(
 /**
  * Minuty pro posun / vývoj od času snímku:
  * - historie: 0 (reálný snímek)
- * - Teď: 0 (přesně co radar ukazuje — bez extrapolace wall-clock)
- * - +N: N minut od snímku (monotónní od Teď)
+ * - Teď: věk snímku (PNG + jádra + trasa společně dopředu)
+ * - +N: věk + N (monotónní — nikdy zpět oproti Teď)
  */
 export function motionMinutesForView(opts: {
   timeOffsetMinutes: number;
@@ -24,10 +24,17 @@ export function motionMinutesForView(opts: {
   nowMs?: number;
   capMin?: number;
 }): number {
-  const { timeOffsetMinutes } = opts;
+  const { timeOffsetMinutes, productIso } = opts;
   if (timeOffsetMinutes < 0) return 0;
-  if (timeOffsetMinutes > 0) return timeOffsetMinutes;
-  return 0;
+
+  const cap = opts.capMin ?? LIVE_ADVECT_CAP_MIN;
+  const liveAge = Math.min(
+    cap,
+    radarProductAgeMinutes(productIso, opts.nowMs ?? Date.now()),
+  );
+
+  if (timeOffsetMinutes > 0) return liveAge + timeOffsetMinutes;
+  return liveAge;
 }
 
 /** Věk snímku — jen pro UI („starý o X min“), ne pro posun jader. */
