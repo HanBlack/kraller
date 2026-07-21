@@ -8,7 +8,7 @@ import {
   distanceKm,
 } from "../lib/geo";
 import { stormSteeringMotion, type WindGrid } from "../lib/windField";
-import { classifyBirth, resolveCellMotion } from "./stormTrackRules";
+import { classifyBirth, observedMotionFromHistory, resolveCellMotion } from "./stormTrackRules";
 import { severityLabel, severityRank } from "../lib/severity";
 import { coreRadiusForDbz, evolveDbzAt } from "../lib/stormEvolution";
 import {
@@ -174,11 +174,12 @@ export function peakAtForecast(
 }
 
 /**
- * Průměrný posun jader (váha = dBZ) pro advekci celého PNG radaru.
- * Stačí směr — jednotlivé buňky se můžou lišit.
+ * Průměrný posun jader (váha = dBZ) — jen buňky s pozorovaným pohybem.
  */
 export function meanForecastDelta(
-  features: Array<Pick<RadarProgressFeature, "peak" | "trackEnd" | "maxDbz">>,
+  features: Array<
+    Pick<RadarProgressFeature, "peak" | "trackEnd" | "maxDbz" | "motionSource">
+  >,
   forecastMinutes: number,
 ): { dLon: number; dLat: number } {
   if (forecastMinutes <= 0 || features.length === 0) {
@@ -188,6 +189,7 @@ export function meanForecastDelta(
   let dLon = 0;
   let dLat = 0;
   for (const f of features) {
+    if (f.motionSource !== "radar-track") continue;
     const w = Math.max(1, f.maxDbz - 20);
     const [lon, lat] = scaledTrackEnd(f.peak, f.trackEnd, forecastMinutes);
     dLon += (lon - f.peak[0]) * w;
@@ -272,8 +274,15 @@ function sizeFactorFromDbz(currentDbz: number, predictedDbz: number): number {
   if (currentDbz < 1) return 1;
   if (predictedDbz < 26) return Math.max(0.4, predictedDbz / 38);
   const ratio = predictedDbz / currentDbz;
-  // Menší změny velikosti — ať buňka „nezmizí“ skokem
   return Math.max(0.55, Math.min(1.55, Math.pow(ratio, 0.7)));
+}
+
+/** Pro canvas vývoj PNG. */
+export function footprintFactorFromDbz(
+  currentDbz: number,
+  predictedDbz: number,
+): number {
+  return sizeFactorFromDbz(currentDbz, predictedDbz);
 }
 
 export function parseTrackedCells(fc: FeatureCollection): TrackedCell[] {
@@ -476,7 +485,8 @@ export function buildRadarProgressFeatures(
 
   return picked.map((cell) => {
     const [peakLon, peakLat] = cell.peak;
-    const motion = cellMotion(cell, windLow, windUpper);
+    const observed = observedMotionFromHistory(cell);
+    const motion = resolveCellMotion(cell, windLow, windUpper);
     const peakDbz = effectivePeakDbz(cell);
     const echoTopKm = effectiveEchoTopKm(cell);
 
@@ -521,7 +531,7 @@ export function buildRadarProgressFeatures(
       growthDbz,
       maxDbz: cell.maxDbz,
       pipelineNewborn: Boolean(cell.isNewborn),
-      motionFromRadar: motion.source === "radar-track",
+      motionFromRadar: observed != null,
     });
     const { trueBirth, isNewborn, phase } = birthClass;
 
@@ -559,28 +569,29 @@ export function buildRadarProgressFeatures(
       }`;
     }
 
-    const trackKm =
-      (motion.speedKmh * stormConfig.alertHorizonMin) / 60;
-    const trackEnd = destinationPoint(
-      peakLat,
-      peakLon,
-      motion.headingDeg,
-      trackKm,
-    );
+    const trackKm = observed
+      ? (observed.speedKmh * stormConfig.alertHorizonMin) / 60
+      : 0;
+    const trackEnd: [number, number] = observed
+      ? destinationPoint(peakLat, peakLon, observed.headingDeg, trackKm)
+      : cell.peak;
+    const headingDeg = observed?.headingDeg ?? motion.headingDeg;
+    const speedKmh = observed?.speedKmh ?? 0;
+    const motionSource = observed ? ("radar-track" as const) : motion.source;
 
     return {
       id: cell.id,
       maxDbz: peakDbz,
       peak: cell.peak,
       polygon: cell.polygon,
-      headingDeg: motion.headingDeg,
-      speedKmh: motion.speedKmh,
+      headingDeg,
+      speedKmh,
       severity: assessment.severity,
       rank: severityRank(assessment.severity),
       threatens: alert ? 1 : 0,
       label,
       trackEnd,
-      motionSource: motion.source,
+      motionSource,
       fctDisagree: cell.fctAgree === false,
       fctAngleDiffDeg: cell.fctAngleDiffDeg,
       historyMinutes: cell.historyMinutes ?? 0,

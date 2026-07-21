@@ -163,6 +163,33 @@ export type CellMotionResult = {
 };
 
 /**
+ * Pohyb pouze z pozorované historie / OPERA tracku — bez větru.
+ * null = neextrapolovat (žádná predikce pohybu).
+ */
+export function observedMotionFromHistory(cell: {
+  trackHeadingDeg?: number | null;
+  trackSpeedKmh?: number | null;
+  history?: HistoryPeak[];
+}): { headingDeg: number; speedKmh: number } | null {
+  const fromHist = recentRadarMotion(cell.history);
+  if (fromHist) return fromHist;
+
+  const h = cell.trackHeadingDeg;
+  const s = cell.trackSpeedKmh;
+  if (
+    h != null &&
+    Number.isFinite(h) &&
+    s != null &&
+    Number.isFinite(s) &&
+    s >= 5 &&
+    s <= MAX_TRUSTED_TRACK_KMH
+  ) {
+    return { headingDeg: h, speedKmh: s };
+  }
+  return null;
+}
+
+/**
  * Směr = vždy steering vítr (850+500).
  * Rychlost = radar, jen když stopa sedí se směrem větru; jinak rychlost větru.
  */
