@@ -23,9 +23,9 @@ OUT = ROOT / "public" / "data" / "calibration" / "proposal.json"
 
 CURRENT = {
     "MAX_WIND_ALIGN_DEG": 35,
-    "MAX_SEGMENT_JITTER_DEG": 40,
-    "TRUE_BIRTH_MAX_DBZ": 38,
-    "TRUE_BIRTH_MAX_AGE_MIN": 18,
+    "MAX_SEGMENT_JITTER_DEG": 55,
+    "TRUE_BIRTH_MAX_DBZ": 39,
+    "TRUE_BIRTH_MAX_AGE_MIN": 10,
     "MIN_ZONE_SCORE": 28,
     "FORMATION_HIT_KM": 35,
     "FCT_AGREE_MAX_DEG": 35,

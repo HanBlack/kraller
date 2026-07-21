@@ -12,7 +12,7 @@ export const MAX_TRUSTED_TRACK_KMH = 70;
 /** Max. úhel radar vs vítr, aby se brala radarová rychlost. */
 export const MAX_WIND_ALIGN_DEG = 35;
 /** Max. nesoulad dvou po sobě jdoucích radarových segmentů. */
-export const MAX_SEGMENT_JITTER_DEG = 40;
+export const MAX_SEGMENT_JITTER_DEG = 55;
 
 /** @deprecated — ponecháno kvůli testům / kalibraci */
 export const FAST_TRACK_KMH = 32;
@@ -22,8 +22,8 @@ export const MAX_WIND_CONFLICT_DEG = 55;
 export const SOFT_WIND_CONFLICT_DEG = 28;
 
 /** První detekce se smí jmenovat „zrod“ jen pokud byla slabá. */
-export const TRUE_BIRTH_MAX_DBZ = 38;
-export const TRUE_BIRTH_MAX_AGE_MIN = 18;
+export const TRUE_BIRTH_MAX_DBZ = 39;
+export const TRUE_BIRTH_MAX_AGE_MIN = 10;
 /** Historické okno OPERA — věk == okno ⇒ spíš příjezd než zrod. */
 export const HISTORY_WINDOW_MIN = 25;
 
