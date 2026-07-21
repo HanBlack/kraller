@@ -152,6 +152,24 @@ export const stormConfig = {
   },
 
   /**
+   * Živý / forecast vývoj síly a stopy (Teď + +min).
+   * Kalibruje se z learning type=intensity (predEvolveDbz → actDbz).
+   */
+  evolution: {
+    /** Váha predictedDbzAt vs growth trend (součet = 1). */
+    blendPred: 0.55,
+    blendTrend: 0.45,
+    /** Kolik growthDbz se propsat do trendu (0–1). */
+    trendGain: 0.55,
+    /** raster-opacity = base + meanDeltaDbz * k */
+    opacityPerDbz: 0.025,
+    /** footprintScale = 1 + meanDeltaDbz * k */
+    footprintPerDbz: 0.01,
+    footprintMin: 0.94,
+    footprintMax: 1.08,
+  },
+
+  /**
    * Supercela / tornado — jen když ACTIVE + silné prostředí.
    * Tornádo se do UI dostane jen přes tornadoShowThresholdPct.
    */

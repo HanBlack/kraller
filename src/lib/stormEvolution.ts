@@ -1,7 +1,9 @@
 import {
   predictedDbzAt,
   type CellIntensification,
+  type IntensTrackCell,
 } from "../storm/intensification";
+import { stormConfig } from "../storm/config";
 import type { RadarProgressFeature } from "../storm/radarCells";
 import type { RadarRasterMeta } from "./radarRaster";
 
@@ -20,19 +22,22 @@ function clamp(n: number, lo: number, hi: number): number {
 
 /**
  * Predikované dBZ v čase T — predictedDbzAt + pozorovaný growthDbz trend.
+ * Konstanty: stormConfig.evolution (kalibrovatelné z learning).
  */
 export function evolveDbzAt(
-  feature: Pick<RadarProgressFeature, "maxDbz" | "growthDbz" | "id">,
+  feature: IntensTrackCell,
   intens: CellIntensification | undefined,
   minutes: number,
 ): number {
   if (minutes <= 0.05) return feature.maxDbz;
+  const evo = stormConfig.evolution;
   let pred = predictedDbzAt(feature, intens, minutes);
   if (!intens?.willIntensify && feature.growthDbz != null) {
     const trend =
       feature.maxDbz +
-      clamp((feature.growthDbz * minutes) / 15, -10, 10) * 0.55;
-    pred = 0.55 * pred + 0.45 * clamp(trend, 26, 65);
+      clamp((feature.growthDbz * minutes) / 15, -10, 10) * evo.trendGain;
+    pred =
+      evo.blendPred * pred + evo.blendTrend * clamp(trend, 26, 65);
   }
   return pred;
 }
@@ -50,6 +55,7 @@ export function stormEvolutionAt(
     return { meanDeltaDbz: 0, rasterOpacity: 0.9, footprintScale: 1 };
   }
 
+  const evo = stormConfig.evolution;
   let wSum = 0;
   let dSum = 0;
   for (const f of features) {
@@ -60,10 +66,12 @@ export function stormEvolutionAt(
   }
   const meanDeltaDbz = wSum > 0 ? dSum / wSum : 0;
 
-  // Slábnutí → nižší opacity; růst → drží / lehce silnější
-  const rasterOpacity = clamp(0.9 + meanDeltaDbz * 0.025, 0.55, 0.95);
-  // Stopa: pomalý růst/smrštění (ne dramatické)
-  const footprintScale = clamp(1 + meanDeltaDbz * 0.01, 0.94, 1.08);
+  const rasterOpacity = clamp(0.9 + meanDeltaDbz * evo.opacityPerDbz, 0.55, 0.95);
+  const footprintScale = clamp(
+    1 + meanDeltaDbz * evo.footprintPerDbz,
+    evo.footprintMin,
+    evo.footprintMax,
+  );
 
   return { meanDeltaDbz, rasterOpacity, footprintScale };
 }

@@ -58,6 +58,12 @@ ACTIVE_CONSTANTS = {
     "INTENSIFY_ALERT_SCORE_MIN": 46,
     "INTENSIFY_SUPPRESS_GROWTH_DBZ": 0,
     "INTENSIFY_HIT_DBZ": 3.0,  # act − from ≥ 3 = hit po purple candidate
+    # stormConfig.evolution — zrcadlo UI živého / forecast vývoje
+    "EVOLVE_BLEND_PRED": 0.55,
+    "EVOLVE_BLEND_TREND": 0.45,
+    "EVOLVE_TREND_GAIN": 0.55,
+    "EVOLVE_GROWTH_DBZ_PER_15": 6.0,  # když purple / willIntensify
+    "EVOLVE_FOOTPRINT_PER_DBZ": 0.01,
 }
 
 
@@ -97,6 +103,37 @@ def parse_iso(s: str | None) -> datetime | None:
         return datetime.fromisoformat(s.replace("Z", "+00:00"))
     except ValueError:
         return None
+
+
+def _clamp(n: float, lo: float, hi: float) -> float:
+    return max(lo, min(hi, n))
+
+
+def evolve_dbz_pred(
+    from_dbz: float,
+    horizon_min: float,
+    *,
+    slope: float | None,
+    growth: float | None,
+    will_intensify: bool,
+) -> float:
+    """Zrcadlo evolveDbzAt / predictedDbzAt (bez env timeline — slope + growth)."""
+    if horizon_min <= 0.05:
+        return from_dbz
+    if will_intensify:
+        g = ACTIVE_CONSTANTS["EVOLVE_GROWTH_DBZ_PER_15"]
+        return _clamp(from_dbz + g * (horizon_min / 15.0), 30, 65)
+    slope_v = float(slope or 0.0)
+    slope_pred = _clamp(from_dbz + slope_v * (horizon_min / 15.0), 26, 65)
+    if growth is None:
+        return slope_pred
+    gain = ACTIVE_CONSTANTS["EVOLVE_TREND_GAIN"]
+    trend = from_dbz + _clamp(float(growth) * (horizon_min / 15.0), -10, 10) * gain
+    trend = _clamp(trend, 26, 65)
+    return (
+        ACTIVE_CONSTANTS["EVOLVE_BLEND_PRED"] * slope_pred
+        + ACTIVE_CONSTANTS["EVOLVE_BLEND_TREND"] * trend
+    )
 
 
 def destination(lat: float, lon: float, heading: float, dist_km: float) -> tuple[float, float]:
@@ -800,10 +837,26 @@ def emit() -> dict[str, int]:
                 "windAlignDeg": align,
             }
 
-        # intenzita: predikce dBZ z trendu
+        # intenzita + evolution: slope baseline + evolveDbzAt zrcadlo
         slope = trend.get("dbzSlopePer15") or 0.0
         for horizon in (15, 30):
             pred_dbz = round(cell["maxDbz"] + slope * (horizon / 15.0), 1)
+            pred_evolve = round(
+                evolve_dbz_pred(
+                    float(cell["maxDbz"]),
+                    float(horizon),
+                    slope=slope,
+                    growth=float(growth) if growth is not None else None,
+                    will_intensify=bool(show_purple),
+                ),
+                1,
+            )
+            delta_evo = pred_evolve - float(cell["maxDbz"])
+            pred_foot = _clamp(
+                1.0 + delta_evo * ACTIVE_CONSTANTS["EVOLVE_FOOTPRINT_PER_DBZ"],
+                0.94,
+                1.08,
+            )
             ikey = f"{key}:{horizon}:{ts}"
             pending_intensity[ikey] = {
                 "trackKey": key,
@@ -811,6 +864,11 @@ def emit() -> dict[str, int]:
                 "fromTs": ts,
                 "fromDbz": cell["maxDbz"],
                 "predDbz": pred_dbz,
+                "predEvolveDbz": pred_evolve,
+                "predFootprintScale": round(pred_foot, 3),
+                "fromAreaPx": cell.get("areaPx"),
+                "growthDbz": growth,
+                "willIntensify": bool(show_purple),
                 "slope": slope,
                 "lat": cell["lat"],
                 "lon": cell["lon"],
@@ -989,6 +1047,24 @@ def emit() -> dict[str, int]:
                         hit_dbz = float(hit["maxDbz"])
                     break
         if hit_dbz is not None:
+            pred_evo = pend.get("predEvolveDbz")
+            if pred_evo is None:
+                pred_evo = pend.get("predDbz")
+            err_evo = round(float(hit_dbz) - float(pred_evo or 0), 1)
+            act_area = None
+            for cell in cells:
+                d = haversine_km(pend["lat"], pend["lon"], cell["lat"], cell["lon"])
+                if d <= 25 and cell.get("areaPx") is not None:
+                    act_area = cell.get("areaPx")
+                    break
+            from_area = pend.get("fromAreaPx")
+            area_ratio = None
+            if (
+                act_area is not None
+                and from_area is not None
+                and float(from_area) > 0
+            ):
+                area_ratio = round(float(act_area) / float(from_area), 3)
             samples.append(
                 {
                     "type": "intensity",
@@ -997,8 +1073,16 @@ def emit() -> dict[str, int]:
                     "trackKey": pend.get("trackKey"),
                     "fromDbz": pend.get("fromDbz"),
                     "predDbz": pend.get("predDbz"),
+                    "predEvolveDbz": pred_evo,
+                    "predFootprintScale": pend.get("predFootprintScale"),
                     "actDbz": hit_dbz,
                     "errDbz": round(float(hit_dbz) - float(pend.get("predDbz") or 0), 1),
+                    "errEvolveDbz": err_evo,
+                    "fromAreaPx": from_area,
+                    "actAreaPx": act_area,
+                    "areaRatio": area_ratio,
+                    "growthDbz": pend.get("growthDbz"),
+                    "willIntensify": pend.get("willIntensify"),
                     "slope": pend.get("slope"),
                     "cape": pend.get("cape"),
                     "shear": pend.get("shear"),

@@ -16,7 +16,6 @@ import {
 } from "../lib/radarHistory";
 import { filterRadarForCzFocus } from "../lib/radarDisplay";
 import {
-  coreRadiusForDbz,
   scaleRadarRaster,
   stormEvolutionAt,
 } from "../lib/stormEvolution";

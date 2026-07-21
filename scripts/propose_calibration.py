@@ -34,6 +34,9 @@ CURRENT = {
     "INTENSIFY_SUPPRESS_GROWTH_DBZ": 0,
     "HAIL_LIKELY_DBZ": 55,
     "HAIL_MIN_ABOVE_FZL_KM": 1.5,
+    "EVOLVE_TREND_GAIN": 0.55,
+    "EVOLVE_BLEND_TREND": 0.45,
+    "EVOLVE_FOOTPRINT_PER_DBZ": 0.01,
 }
 
 
@@ -423,6 +426,102 @@ def propose_intensify(purples: list[dict]) -> dict:
     }
 
 
+def propose_evolution(intens: list[dict]) -> dict:
+    """
+    Bias errEvolveDbz → trendGain / blendTrend.
+    areaRatio vs predFootprintScale → footprintPerDbz.
+    """
+    with_err = [
+        s
+        for s in intens
+        if s.get("errEvolveDbz") is not None
+        or (s.get("predEvolveDbz") is not None and s.get("actDbz") is not None)
+    ]
+    # zpětná kompatibilita: staré samples jen errDbz
+    if len(with_err) < 8:
+        with_err = [s for s in intens if s.get("errDbz") is not None]
+        if len(with_err) < 12:
+            return {
+                "param": "evolution.trendGain",
+                "current": CURRENT["EVOLVE_TREND_GAIN"],
+                "proposed": CURRENT["EVOLVE_TREND_GAIN"],
+                "confidence": "low",
+                "n": len(with_err),
+                "file": "src/storm/config.ts (evolution)",
+                "reason": "malo intensity/evolution samples (predEvolve → act T+15/30)",
+            }
+
+    errs: list[float] = []
+    for s in with_err:
+        if s.get("errEvolveDbz") is not None:
+            errs.append(float(s["errEvolveDbz"]))
+        elif s.get("predEvolveDbz") is not None and s.get("actDbz") is not None:
+            errs.append(float(s["actDbz"]) - float(s["predEvolveDbz"]))
+        elif s.get("errDbz") is not None:
+            errs.append(float(s["errDbz"]))
+
+    bias = statistics.median(errs) if errs else 0.0
+    mae = statistics.median([abs(e) for e in errs]) if errs else 0.0
+    # err = act − pred → kladný bias = podhodnocujeme růst → zvýšit trendGain
+    cur_gain = CURRENT["EVOLVE_TREND_GAIN"]
+    if bias >= 2.0:
+        proposed_gain = min(0.85, round(cur_gain + 0.1, 2))
+        reason = f"median bias +{bias:.1f} dBZ (podhodnocení) → vyšší trendGain"
+    elif bias <= -2.0:
+        proposed_gain = max(0.25, round(cur_gain - 0.1, 2))
+        reason = f"median bias {bias:.1f} dBZ (přehnaný růst) → nižší trendGain"
+    else:
+        proposed_gain = cur_gain
+        reason = f"median bias {bias:.1f} dBZ / MAE {mae:.1f} — držet trendGain"
+
+    footprint_note = None
+    ratios = [
+        (float(s["areaRatio"]), float(s["predFootprintScale"]))
+        for s in intens
+        if s.get("areaRatio") is not None and s.get("predFootprintScale") is not None
+    ]
+    if len(ratios) >= 12:
+        # linear scale ≈ sqrt(area) pro 2D stopu
+        scale_errs = [
+            (ar ** 0.5) - pred_s for ar, pred_s in ratios if ar > 0
+        ]
+        if scale_errs:
+            s_bias = statistics.median(scale_errs)
+            cur_fp = CURRENT["EVOLVE_FOOTPRINT_PER_DBZ"]
+            if s_bias >= 0.02:
+                fp_prop = min(0.02, round(cur_fp + 0.003, 3))
+            elif s_bias <= -0.02:
+                fp_prop = max(0.004, round(cur_fp - 0.003, 3))
+            else:
+                fp_prop = cur_fp
+            footprint_note = {
+                "param": "evolution.footprintPerDbz",
+                "current": cur_fp,
+                "proposed": fp_prop,
+                "n": len(scale_errs),
+                "medianScaleBias": round(s_bias, 3),
+                "hint": "kladný = stopa roste víc než predikce",
+            }
+
+    return {
+        "param": "evolution.trendGain",
+        "current": cur_gain,
+        "proposed": proposed_gain,
+        "confidence": "high" if len(errs) >= 40 else "medium",
+        "n": len(errs),
+        "medianBiasDbz": round(bias, 2),
+        "medianAbsErrDbz": round(mae, 2),
+        "file": "src/storm/config.ts (evolution) + ACTIVE_CONSTANTS emit_learning",
+        "reason": reason,
+        "alsoReview": {
+            "param": "evolution.blendTrend",
+            "current": CURRENT["EVOLVE_BLEND_TREND"],
+            "hint": "při velké MAE doladit váhu growth vs slope",
+            "footprint": footprint_note,
+        },
+    }
+
+
 def propose_hail(events_hail_hint: list[dict], demises: list[dict]) -> dict:
     """
     Heuristika: silné echo + hailCmProxy — pokud po tom rychlý fade,
@@ -506,15 +605,23 @@ def main() -> int:
         propose_fct_agree(tracks),
         propose_intensify(purples),
         propose_hail(hail_ev, demises),
+        propose_evolution(intens),
     ]
 
     intens_note = None
     if intens:
         errs = [abs(float(s["errDbz"])) for s in intens if s.get("errDbz") is not None]
+        evo_errs = [
+            abs(float(s["errEvolveDbz"]))
+            for s in intens
+            if s.get("errEvolveDbz") is not None
+        ]
         intens_note = {
             "n": len(intens),
             "medianAbsErrDbz": med(errs),
-            "hint": "slope z historie; při velké chybě doladit intensifikaci / env weight",
+            "medianAbsErrEvolveDbz": med(evo_errs) if evo_errs else None,
+            "nWithEvolve": len(evo_errs),
+            "hint": "errEvolveDbz ladí stormConfig.evolution; slope errDbz je baseline",
         }
 
     purple_note = None
@@ -586,7 +693,7 @@ def main() -> int:
             "Po review propsat: "
             "src/storm/stormTrackRules.ts (motion/birth), "
             "src/storm/formationData.ts (MIN_ZONE_SCORE), "
-            "src/storm/config.ts (hail / intensification), "
+            "src/storm/config.ts (hail / intensification / evolution), "
             "scripts/chmi_radar.py (FCT_AGREE_MAX_DEG), "
             "ACTIVE_CONSTANTS v scripts/emit_learning.py"
         ),

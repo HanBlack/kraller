@@ -20,6 +20,7 @@ Každý běh **Live radar** (~5 min) appenduje learning. Hodinový workflow děl
 - `maxDbz`, `growthDbz`, `surfaceDbz` (PseudoCAPPI), `echoTopKm`
 - `hailCmProxy` (+ `freezingLevelM` z env)
 - intensity samples: predikce dBZ → realita
+- **živý vývoj** (`predEvolveDbz`, `errEvolveDbz`, `predFootprintScale`, `areaRatio`) → `stormConfig.evolution`
 
 ### Upřímná fialová
 - `purpleCandidate` na track_sample
@@ -45,6 +46,7 @@ Návrhy mimo jiné:
 - `MAX_WIND_ALIGN_DEG`, birth, `MIN_ZONE_SCORE`, speed bias
 - `FCT_AGREE_MAX_DEG` → `scripts/chmi_radar.py`
 - `intensification.alertScoreMin` → `src/storm/config.ts`
+- `evolution.trendGain` / `footprintPerDbz` → `src/storm/config.ts`
 - `active.hail.minAboveFreezingKm` → `src/storm/config.ts`
 
 `readyForApply` až je dost track + formation (+ intensify) samples. **Ruční review** před propsáním — žádný auto-apply.
