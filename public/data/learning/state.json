@@ -1,32 +1,32 @@
 {
   "tracks": {
-    "t:20260721074500:47.96:18.44": {
-      "lat": 47.961659416184325,
-      "lon": 18.43604529994063,
-      "maxDbz": 50.0,
-      "lastTs": "20260721074500",
+    "t:20260721075000:48.33:18.43": {
+      "lat": 48.333454727662655,
+      "lon": 18.43132681283866,
+      "maxDbz": 48.0,
+      "lastTs": "20260721075000",
       "cellId": "cell-3",
-      "firstTs": "20260721074500",
+      "firstTs": "20260721075000",
       "preds": {
         "15": {
-          "predLat": 47.9398,
-          "predLon": 18.6223,
-          "fromTs": "20260721074500",
-          "fromLat": 47.9617,
-          "fromLon": 18.436,
-          "heading": 99.9,
-          "speed": 56.3,
+          "predLat": 48.3154,
+          "predLon": 18.5929,
+          "fromTs": "20260721075000",
+          "fromLat": 48.3335,
+          "fromLon": 18.4313,
+          "heading": 99.5,
+          "speed": 48.5,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         },
         "30": {
-          "predLat": 47.9177,
-          "predLon": 18.8084,
-          "fromTs": "20260721074500",
-          "fromLat": 47.9617,
-          "fromLon": 18.436,
-          "heading": 99.9,
-          "speed": 56.3,
+          "predLat": 48.2972,
+          "predLon": 18.7544,
+          "fromTs": "20260721075000",
+          "fromLat": 48.3335,
+          "fromLon": 18.4313,
+          "heading": 99.5,
+          "speed": 48.5,
           "motionSource": "wind-fallback",
           "windAlignDeg": null
         }
@@ -3063,6 +3063,56 @@
       "cinJkg": 0.0,
       "steerHdg": 101.8,
       "steerSpd": 54.5
+    },
+    "t:20260721075000:48.33:18.43:15:20260721075000": {
+      "trackKey": "t:20260721075000:48.33:18.43",
+      "horizonMin": 15,
+      "fromTs": "20260721075000",
+      "fromDbz": 48.0,
+      "predDbz": 48.0,
+      "slope": 0.0,
+      "lat": 48.333454727662655,
+      "lon": 18.43132681283866,
+      "surfaceDbz": null,
+      "echoTopKm": null,
+      "fctAgree": null,
+      "envDistKm": 8.5,
+      "cape": 30.0,
+      "capeNow": 10.0,
+      "dew": 7.4,
+      "shear": 8.2,
+      "srh01": 102.3,
+      "cooling": 0.0,
+      "li": null,
+      "freezingLevelM": 3140.0,
+      "cinJkg": 0.0,
+      "steerHdg": 101.0,
+      "steerSpd": 48.9
+    },
+    "t:20260721075000:48.33:18.43:30:20260721075000": {
+      "trackKey": "t:20260721075000:48.33:18.43",
+      "horizonMin": 30,
+      "fromTs": "20260721075000",
+      "fromDbz": 48.0,
+      "predDbz": 48.0,
+      "slope": 0.0,
+      "lat": 48.333454727662655,
+      "lon": 18.43132681283866,
+      "surfaceDbz": null,
+      "echoTopKm": null,
+      "fctAgree": null,
+      "envDistKm": 8.5,
+      "cape": 30.0,
+      "capeNow": 10.0,
+      "dew": 7.4,
+      "shear": 8.2,
+      "srh01": 102.3,
+      "cooling": 0.0,
+      "li": null,
+      "freezingLevelM": 3140.0,
+      "cinJkg": 0.0,
+      "steerHdg": 101.0,
+      "steerSpd": 48.9
     }
   },
   "purplePending": {},
@@ -3087,5 +3137,5 @@
     "INTENSIFY_HIT_DBZ": 3.0
   },
   "schemaVersion": 2,
-  "updatedAt": "2026-07-21T07:52:18Z"
+  "updatedAt": "2026-07-21T07:56:39Z"
 }
