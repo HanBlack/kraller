@@ -99,24 +99,37 @@ function SeverityBadge({
 /** Upřímné riziko — ne „kroupy padají“ / „vidíme rotaci“. */
 function HazardBadges({
   assessment,
+  dualpolHailLikely,
+  dualpolLabel,
 }: {
   assessment: ActiveStormAssessment | null | undefined;
+  dualpolHailLikely?: boolean;
+  dualpolLabel?: string;
 }) {
   const { t } = useI18n();
-  if (!assessment) return null;
 
-  const hail =
+  const hailFromScore =
+    assessment != null &&
     assessment.hailCmMax != null &&
     assessment.hailCmMax >= 1 &&
     assessment.maxDbz >= 55;
-  const supercell = showSupercellEnvBadge(assessment);
-  if (!hail && !supercell) return null;
+  const hail = hailFromScore || Boolean(dualpolHailLikely);
+  const updraft = dualpolLabel === "strong_updraft";
+  const supercell = assessment ? showSupercellEnvBadge(assessment) : false;
+  if (!hail && !supercell && !updraft) return null;
 
   return (
     <div className="hazard-badges" role="group" aria-label={t("alert.expect")}>
       {hail ? (
         <span className="hazard-badge hail">
-          {t("alert.hailRiskCm", { cm: assessment.hailCmMax! })}
+          {hailFromScore && assessment?.hailCmMax != null
+            ? t("alert.hailRiskCm", { cm: assessment.hailCmMax })
+            : t("alert.hailRisk")}
+        </span>
+      ) : null}
+      {updraft && !hail ? (
+        <span className="hazard-badge supercell">
+          {t("alert.strongUpdraft")}
         </span>
       ) : null}
       {supercell ? (
@@ -304,7 +317,11 @@ function RadarLifecycleDetail({
 
       <p className="alert-message">{life.summary}</p>
 
-      <HazardBadges assessment={feature.assessment} />
+      <HazardBadges
+        assessment={feature.assessment}
+        dualpolHailLikely={feature.dualpolHailLikely}
+        dualpolLabel={feature.dualpolLabel}
+      />
 
       {toYou && feature.threatens === 1 && (
 
@@ -822,7 +839,11 @@ export function StormDetail({
 
       </p>
 
-      <HazardBadges assessment={feature.assessment} />
+      <HazardBadges
+        assessment={feature.assessment}
+        dualpolHailLikely={feature.dualpolHailLikely}
+        dualpolLabel={feature.dualpolLabel}
+      />
 
       {alertDetail ? (
         <p className="to-you-expect">{alertDetail}</p>

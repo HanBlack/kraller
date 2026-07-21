@@ -41,6 +41,11 @@ RADAR_ONLY_STEPS = [
         [sys.executable, "scripts/chmi_radar.py"],
     ),
     (
+        "dualpol",
+        "dual-pol",
+        [sys.executable, "scripts/chmi_dualpol.py"],
+    ),
+    (
         "env",
         "env (formation/wind)",
         [sys.executable, "scripts/refresh_env_if_stale.py"],

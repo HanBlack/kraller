@@ -161,6 +161,7 @@ export const cs = {
     hitMiss: "jádro tě mine",
     hailRisk: "riziko krup",
     hailRiskCm: "vyšší šance na kroupy (~{cm} cm)",
+    strongUpdraft: "silný výstup — může zesílit",
     supercellEnv: "prostředí vhodné pro supercelu",
     rain: "déšť cca {lo}–{hi} mm/h",
     rainShort: "{lo}–{hi} mm/h",
