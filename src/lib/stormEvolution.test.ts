@@ -76,5 +76,6 @@ describe("stormEvolution", () => {
 
   it("coreRadius roste s dBZ", () => {
     expect(coreRadiusForDbz(55)).toBeGreaterThan(coreRadiusForDbz(35));
+    expect(coreRadiusForDbz(55)).toBeLessThan(5);
   });
 });

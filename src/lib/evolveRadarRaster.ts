@@ -47,7 +47,7 @@ export async function renderEvolvedRadarRaster(
 
   const qMin = quantizeEvolveMinutes(minutes);
   const evolution = stormEvolutionAt(features, intensByCell, qMin);
-  const moving = features.filter((f) => f.motionSource === "radar-track");
+    const moving = features.filter((f) => f.speedKmh >= 5);
   const cacheKey = [
     meta.url,
     qMin.toFixed(1),

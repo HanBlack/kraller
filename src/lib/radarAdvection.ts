@@ -64,7 +64,7 @@ export function lonLatDeltaToPixel(
 }
 
 export function pixelRadiusForDbz(dbz: number, width: number): number {
-  return Math.max(12, Math.min(width * 0.14, 16 + (dbz - 30) * 2.2));
+  return Math.max(5, Math.min(width * 0.045, 6 + (dbz - 30) * 0.75));
 }
 
 export function buildCellInfluences(
@@ -77,7 +77,7 @@ export function buildCellInfluences(
 ): CellInfluence[] {
   const out: CellInfluence[] = [];
   for (const f of features) {
-    if (f.motionSource !== "radar-track") continue;
+    if (f.speedKmh < 5) continue;
     const [px, py] = lonLatToPixel(
       f.peak[0],
       f.peak[1],
@@ -121,7 +121,7 @@ export function pixelAlphaGain(
   let wSum = 0;
   for (const inf of influences) {
     const d = Math.hypot(x - inf.px, y - inf.py);
-    if (d > inf.radius * 2.2) continue;
+    if (d > inf.radius * 1.75) continue;
     const w =
       Math.max(1, inf.maxDbz - 22) *
       Math.exp(-(d * d) / (inf.radius * inf.radius));
