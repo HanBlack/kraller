@@ -82,7 +82,7 @@ export const en = {
     timeShift: "Time shift",
     radarUtc: "Radar · {stamp} UTC",
     future: "Future · cells move with steering (OPERA hidden)",
-    nowLive: "Now · live OPERA radar",
+    nowLive: "Now · live motion between frames (estimate)",
     now: "Now",
     min: "min",
   },
