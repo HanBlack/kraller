@@ -165,7 +165,7 @@ export function peakAtForecast(
     feature,
     forecastMinutes,
     systemDelta,
-    "track",
+    "raster",
   );
 }
 
@@ -181,19 +181,10 @@ export function peakAtForecastMinutes(
   >,
   forecastMinutes: number,
   systemDelta?: { dLon: number; dLat: number },
-  /** track = pozorovaný pohyb buňky; raster = průměr (jen PNG fallback) */
+  /** raster = stejný posun jako advekce PNG; track = vlastní pohyb buňky (šipky) */
   motionMode: "raster" | "track" = "track",
 ): [number, number] {
   if (forecastMinutes <= 0.05) return feature.peak;
-
-  if (feature.speedKmh >= 5) {
-    return destinationPoint(
-      feature.peak[1],
-      feature.peak[0],
-      feature.headingDeg,
-      (feature.speedKmh * forecastMinutes) / 60,
-    );
-  }
 
   if (
     motionMode === "raster" &&
@@ -204,6 +195,15 @@ export function peakAtForecastMinutes(
       feature.peak[0] + systemDelta.dLon,
       feature.peak[1] + systemDelta.dLat,
     ];
+  }
+
+  if (feature.speedKmh >= 5) {
+    return destinationPoint(
+      feature.peak[1],
+      feature.peak[0],
+      feature.headingDeg,
+      (feature.speedKmh * forecastMinutes) / 60,
+    );
   }
 
   if (
@@ -219,12 +219,8 @@ export function peakAtForecastMinutes(
   return feature.peak;
 }
 
-/** Aktuální peak = poslední pozorování v historii, jinak kind=peak ze snímku. */
+/** Peak z kind=peak (snap na PNG), ne historie tracku. */
 function currentPeakFromCell(cell: TrackedCell): [number, number] {
-  const hist = cell.history ?? [];
-  if (hist.length > 0) {
-    return hist[hist.length - 1]!.peak;
-  }
   return cell.peak;
 }
 
@@ -242,10 +238,10 @@ function pickPeakForCell(
   peakCandidates: Map<string, [number, number][]>,
   history: CellHistoryPoint[],
 ): [number, number] | null {
-  if (history.length > 0) return history[history.length - 1].peak;
   const cands = peakCandidates.get(id);
-  if (!cands?.length) return null;
-  return cands[cands.length - 1];
+  if (cands?.length) return cands[cands.length - 1]!;
+  if (history.length > 0) return history[history.length - 1]!.peak;
+  return null;
 }
 
 function cellCandidateScore(
@@ -807,7 +803,7 @@ export function radarCellsGeoJSONAt(
           f,
           forecastMinutes,
           systemDelta,
-          "track",
+          "raster",
         );
         const moved = shiftPolygon(
           f.polygon,
@@ -1014,7 +1010,7 @@ export function radarPointsGeoJSONAt(
             f,
             forecastMinutes,
             systemDelta,
-            "track",
+            "raster",
           ),
         },
       };

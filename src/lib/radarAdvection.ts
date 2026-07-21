@@ -85,14 +85,15 @@ export function buildCellInfluences(
   height: number,
   minutes: number,
 ): CellInfluence[] {
+  const systemDelta = meanForecastDelta(features, minutes);
   const out: CellInfluence[] = [];
   for (const f of features) {
     if (f.speedKmh < 5) continue;
     const [peakLon, peakLat] = peakAtForecastMinutes(
       f,
       minutes,
-      undefined,
-      "track",
+      systemDelta,
+      "raster",
     );
     const [px, py] = lonLatToPixel(
       peakLon,

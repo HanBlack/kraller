@@ -520,7 +520,7 @@ export function buildStormLifecycle(
     feature,
     forecastMinutes,
     systemDelta,
-    "track",
+    "raster",
   );
   const anchorFeature: RadarProgressFeature = { ...feature, peak: anchorPeak };
   const predictedDbz15 = evolveDbzAt(
