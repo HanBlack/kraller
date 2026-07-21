@@ -15,6 +15,11 @@ import {
   loadRadarHistoryRaster,
 } from "../lib/radarHistory";
 import { filterRadarForCzFocus } from "../lib/radarDisplay";
+import {
+  coreRadiusForDbz,
+  scaleRadarRaster,
+  stormEvolutionAt,
+} from "../lib/stormEvolution";
 import { shiftRadarRaster, type RadarRasterMeta } from "../lib/radarRaster";
 import {
   motionMinutesForView,
@@ -729,7 +734,21 @@ function ensureStormLayers(map: maplibregl.Map) {
     map.setPaintProperty(RADAR_PEAK, "circle-blur", 0.08);
   }
 
-  // Šipka vyrůstá z jádra po směru (anchor bottom) — jemnější
+  if (map.getLayer(ACT_CORE)) {
+    map.setPaintProperty(ACT_CORE, "circle-radius", [
+      "coalesce",
+      ["get", "coreR"],
+      ["interpolate", ["linear"], ["get", "dbz"], 30, 3.5, 50, 6, 60, 8],
+      5,
+    ]);
+  }
+  if (map.getLayer(ACT_HALO)) {
+    map.setPaintProperty(ACT_HALO, "circle-radius", [
+      "+",
+      8,
+      ["*", 0.9, ["coalesce", ["get", "coreR"], 5]],
+    ]);
+  }
   for (const id of [ARROW_LAYER, FORM_ARROW_LAYER]) {
     if (map.getLayer(id)) {
       map.setLayoutProperty(id, "icon-anchor", "bottom");
@@ -1501,18 +1520,27 @@ function ensureStormLayers(map: maplibregl.Map) {
       source: ACT_SOURCE,
       filter: ["==", ["get", "threatens"], 1],
       paint: {
-        "circle-radius": 14,
+        "circle-radius": [
+          "+",
+          8,
+          ["*", 0.9, ["coalesce", ["get", "coreR"], 5]],
+        ],
         "circle-color": "rgba(255, 107, 61, 0.2)",
         "circle-stroke-width": 0,
       },
     });
-    // Epicentrum — malá tečka v nejsilnějším jádře
+    // Epicentrum — velikost podle predikovaného dBZ (vývoj)
     map.addLayer({
       id: ACT_CORE,
       type: "circle",
       source: ACT_SOURCE,
       paint: {
-        "circle-radius": 5,
+        "circle-radius": [
+          "coalesce",
+          ["get", "coreR"],
+          ["interpolate", ["linear"], ["get", "dbz"], 30, 3.5, 50, 6, 60, 8],
+          5,
+        ],
         "circle-color": [
           "case",
           ["==", ["get", "threatens"], 1],
@@ -1710,12 +1738,33 @@ export function MapView({
     [trackedCells, windLow, windUpper, location, formationScoredPoints, locale],
   );
 
+  const intensForecasts = useMemo(
+    () => buildIntensificationForecasts(radarProgress, formationScoredPoints),
+    [radarProgress, formationScoredPoints],
+  );
+
+  const evolution = useMemo(
+    () => stormEvolutionAt(radarProgress, intensForecasts, motionMinutes),
+    [radarProgress, intensForecasts, motionMinutes],
+  );
+
   const activeRaster = useMemo(() => {
     if (!baseRaster) return null;
-    if (isHistoryView || motionMinutes <= 0.05) return baseRaster;
-    const { dLon, dLat } = meanForecastDelta(radarProgress, motionMinutes);
-    return shiftRadarRaster(baseRaster, dLon, dLat);
-  }, [baseRaster, isHistoryView, motionMinutes, radarProgress]);
+    if (isHistoryView) return baseRaster;
+    let next = baseRaster;
+    if (motionMinutes > 0.05) {
+      const { dLon, dLat } = meanForecastDelta(radarProgress, motionMinutes);
+      next = shiftRadarRaster(next, dLon, dLat);
+      next = scaleRadarRaster(next, evolution.footprintScale);
+    }
+    return next;
+  }, [
+    baseRaster,
+    isHistoryView,
+    motionMinutes,
+    radarProgress,
+    evolution.footprintScale,
+  ]);
 
   const useRasterDisplay = Boolean(activeRaster);
   const operaReady = radarData.features.length > 0 || Boolean(activeRaster);
@@ -1816,6 +1865,13 @@ export function MapView({
           rasterReadyRef.current = ok;
           if (ok && showRadar) {
             setLayerVisibility(map, [RADAR_RASTER], true);
+            if (map.getLayer(RADAR_RASTER)) {
+              map.setPaintProperty(
+                RADAR_RASTER,
+                "raster-opacity",
+                evolution.rasterOpacity,
+              );
+            }
           }
         } else {
           rasterReadyRef.current = false;
@@ -1829,12 +1885,9 @@ export function MapView({
     activeRaster,
     useRasterDisplay,
     showRadar,
+    evolution.rasterOpacity,
   ]);
 
-  const intensForecasts = useMemo(
-    () => buildIntensificationForecasts(radarProgress, formationScoredPoints),
-    [radarProgress, formationScoredPoints],
-  );
   const radarProgressEnriched = useMemo(
     () =>
       radarProgress.map((f) => ({
@@ -2349,6 +2402,13 @@ export function MapView({
         showCellDetail,
       );
       setLayerVisibility(map, [RADAR_RASTER], showRaster);
+      if (showRaster && map.getLayer(RADAR_RASTER)) {
+        map.setPaintProperty(
+          RADAR_RASTER,
+          "raster-opacity",
+          evolution.rasterOpacity,
+        );
+      }
       setLayerVisibility(map, [RADAR_FILL], showContourFill);
       // Peak z GeoJSON jen když není progress tečka (jinak dvojitá mimo jádro)
       setLayerVisibility(
@@ -2384,6 +2444,7 @@ export function MapView({
     locale,
     selected,
     useRasterDisplay,
+    evolution.rasterOpacity,
   ]);
 
   useEffect(() => {
