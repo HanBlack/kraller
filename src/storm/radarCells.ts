@@ -1033,7 +1033,7 @@ export function radarTrackCorridorsGeoJSONAt(
 
   for (const f of features) {
     if (!showCoreMarkerOnMap(f)) continue;
-    const here = peakAtForecastMinutes(f, forecastMinutes, systemDelta, "track");
+    const here = peakAtForecastMinutes(f, forecastMinutes, systemDelta, "raster");
     let tip = destinationPoint(
       here[1],
       here[0],
@@ -1106,7 +1106,7 @@ export function radarTracksGeoJSONAt(
   return {
     type: "FeatureCollection",
     features: features.filter(showCoreMarkerOnMap).map((f) => {
-      const here = peakAtForecastMinutes(f, forecastMinutes, systemDelta, "track");
+      const here = peakAtForecastMinutes(f, forecastMinutes, systemDelta, "raster");
       let tip = destinationPoint(
         here[1],
         here[0],
@@ -1149,7 +1149,7 @@ export function radarArrowsGeoJSONAt(
   return {
     type: "FeatureCollection",
     features: features.filter(showCoreMarkerOnMap).map((f) => {
-      const here = peakAtForecastMinutes(f, forecastMinutes, systemDelta, "track");
+      const here = peakAtForecastMinutes(f, forecastMinutes, systemDelta, "raster");
       return {
         type: "Feature" as const,
         properties: {

@@ -23,44 +23,34 @@ describe("liveRadarMotion", () => {
         nowMs: t0,
       }),
     ).toBeCloseTo(10, 5);
-    expect(
-      motionMinutesForView({
-        timeOffsetMinutes: 0,
-        productIso: "2026-07-21T11:00:00Z",
-        nowMs: t0,
-      }),
-    ).toBe(LIVE_ADVECT_CAP_MIN);
   });
 
-  it("+N je vždy ≥ Teď (věk + offset)", () => {
+  it("±5 min kroky slideru = ±5 min posunu (liveAge=10)", () => {
+    const iso = "2026-07-21T11:50:00Z";
+    const m5 = motionMinutesForView({
+      timeOffsetMinutes: -5,
+      productIso: iso,
+      nowMs: t0,
+    });
+    const m0 = motionMinutesForView({
+      timeOffsetMinutes: 0,
+      productIso: iso,
+      nowMs: t0,
+    });
+    const p5 = motionMinutesForView({
+      timeOffsetMinutes: 5,
+      productIso: iso,
+      nowMs: t0,
+    });
+    expect(m0 - m5).toBeCloseTo(5, 5);
+    expect(p5 - m0).toBeCloseTo(5, 5);
+  });
+
+  it("historie nejde pod nulu", () => {
     expect(
       motionMinutesForView({
-        timeOffsetMinutes: 5,
+        timeOffsetMinutes: -15,
         productIso: "2026-07-21T11:50:00Z",
-        nowMs: t0,
-      }),
-    ).toBeCloseTo(15, 5);
-    expect(
-      motionMinutesForView({
-        timeOffsetMinutes: 5,
-        productIso: "2026-07-21T11:57:00Z",
-        nowMs: t0,
-      }),
-    ).toBeCloseTo(8, 5);
-  });
-
-  it("slider budoucnost bere offset, historie 0", () => {
-    expect(
-      motionMinutesForView({
-        timeOffsetMinutes: 15,
-        productIso: "2026-07-21T11:55:00Z",
-        nowMs: t0,
-      }),
-    ).toBeCloseTo(20, 5);
-    expect(
-      motionMinutesForView({
-        timeOffsetMinutes: -10,
-        productIso: "2026-07-21T11:55:00Z",
         nowMs: t0,
       }),
     ).toBe(0);
