@@ -569,13 +569,35 @@ function whenStyleReady(
  * Nahraje PNG do image source a počká, až je ready.
  * Do té doby vrstva zůstat hidden — jinak MapLibre ukáže červený „error“ obdélník.
  * Stejné URL = jen setCoordinates (rychlý forecast scrub).
+ * Generace ruší zastaralé async load (rychlý scrub historie).
  */
 let lastSyncedRasterUrl: string | null = null;
+let rasterSyncGeneration = 0;
+
+/** Jen posun rohů — sync, bez reload PNG. */
+function applyRadarRasterCoordinates(
+  map: maplibregl.Map,
+  meta: RadarRasterMeta,
+): boolean {
+  ensureStormLayers(map);
+  const existing = map.getSource(RADAR_RASTER_SOURCE) as
+    | maplibregl.ImageSource
+    | undefined;
+  if (!existing || lastSyncedRasterUrl !== meta.url) return false;
+  try {
+    existing.setCoordinates(meta.coordinates);
+    map.triggerRepaint();
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function syncRadarRasterImage(
   map: maplibregl.Map,
   meta: RadarRasterMeta | null,
 ): Promise<boolean> {
+  const gen = ++rasterSyncGeneration;
   ensureStormLayers(map);
   if (!meta?.url) {
     lastSyncedRasterUrl = null;
@@ -589,6 +611,7 @@ function syncRadarRasterImage(
   if (existing && lastSyncedRasterUrl === meta.url) {
     try {
       existing.setCoordinates(meta.coordinates);
+      map.triggerRepaint();
       return Promise.resolve(true);
     } catch {
       // full reload below
@@ -602,6 +625,10 @@ function syncRadarRasterImage(
     const img = new Image();
     img.decoding = "async";
     img.onload = () => {
+      if (gen !== rasterSyncGeneration) {
+        resolve(false);
+        return;
+      }
       const src = map.getSource(RADAR_RASTER_SOURCE) as
         | maplibregl.ImageSource
         | undefined;
@@ -625,6 +652,10 @@ function syncRadarRasterImage(
         settled = true;
         map.off("sourcedata", onData);
         window.clearTimeout(timer);
+        if (gen !== rasterSyncGeneration) {
+          resolve(false);
+          return;
+        }
         if (ok) lastSyncedRasterUrl = meta.url;
         resolve(ok);
       };
@@ -1811,14 +1842,14 @@ export function MapView({
     }
     onHistoryRadarTimeRef.current?.(frame.time);
     let cancelled = false;
-    const bust = Date.now();
+    // Bez cache-bust — boot preload naplní cache, scrub je okamžitý.
     void Promise.all([
-      loadRadarHistoryFrame(frame, bust),
-      loadRadarHistoryRaster(frame, bust),
+      loadRadarHistoryFrame(frame),
+      loadRadarHistoryRaster(frame),
     ]).then(([fc, raster]) => {
       if (cancelled) return;
       setHistoricalRadar(fc);
-      setHistoricalRaster(raster);
+      if (raster) setHistoricalRaster(raster);
     });
     return () => {
       cancelled = true;
@@ -2364,6 +2395,13 @@ export function MapView({
         useRasterDisplay ||
         (operaReady && radarDataRef.current.features.length > 0);
       const liveRadarOn = showRadar && hasOpera;
+      // Posun PNG ve stejném ticku jako peaky (nečekat na async sync effect).
+      const rasterMeta = radarRasterRef.current;
+      if (rasterMeta && useRasterDisplay) {
+        if (applyRadarRasterCoordinates(map, rasterMeta)) {
+          rasterReadyRef.current = true;
+        }
+      }
       const showRaster =
         liveRadarOn && useRasterDisplay && rasterReadyRef.current;
       const showContourFill = liveRadarOn && !useRasterDisplay;

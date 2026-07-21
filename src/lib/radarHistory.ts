@@ -32,11 +32,14 @@ const frameCache = new Map<string, FeatureCollection>();
 const rasterCache = new Map<string, RadarRasterMeta>();
 
 function frameCacheKey(frame: RadarHistoryFrame, cacheBust?: number): string {
-  return `${frame.path}::${cacheBust ?? "live"}`;
+  // Stejný frame = stejný cache slot (bust jen u síťového fetch).
+  void cacheBust;
+  return frame.path;
 }
 
 function rasterCacheKey(frame: RadarHistoryFrame, cacheBust?: number): string {
-  return `${frame.rasterPath ?? frame.path}::raster::${cacheBust ?? "live"}`;
+  void cacheBust;
+  return `${frame.rasterPath ?? frame.path}::raster`;
 }
 
 export async function loadRadarHistoryManifest(
