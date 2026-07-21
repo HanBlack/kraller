@@ -80,7 +80,7 @@ export const cs = {
     timeShift: "Posun v čase",
     radarUtc: "Radar · {stamp} UTC",
     future: "Budoucnost · buňky jedou po směru (OPERA se schová)",
-    nowLive: "Teď · živý radar OPERA",
+    nowLive: "Teď · živý pohyb mezi snímky (odhad)",
     now: "Teď",
     min: "min",
   },

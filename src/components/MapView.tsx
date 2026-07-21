@@ -16,6 +16,9 @@ import {
 } from "../lib/radarHistory";
 import { filterRadarForCzFocus } from "../lib/radarDisplay";
 import { shiftRadarRaster, type RadarRasterMeta } from "../lib/radarRaster";
+import {
+  motionMinutesForView,
+} from "../lib/liveRadarMotion";
 import { useStormDataContext } from "../providers/StormDataProvider";
 import { MAP_STYLE_URL } from "../lib/preloadBoot";
 import {
@@ -1658,17 +1661,41 @@ export function MapView({
     formationReal,
     formationScoredPoints,
     radarHistory,
+    operaTime,
+    chmiTime,
   } = useStormDataContext();
   const [historicalRadar, setHistoricalRadar] = useState<FeatureCollection | null>(
     null,
   );
   const [historicalRaster, setHistoricalRaster] =
     useState<RadarRasterMeta | null>(null);
+  /** Tik pro živou advekci na „Teď“ (mezi 5min snímky). */
+  const [liveClockMs, setLiveClockMs] = useState(() => Date.now());
   const forecastMinutes = Math.max(0, timeOffsetMinutes);
   const isHistoryView = timeOffsetMinutes < 0;
+  const isLiveNow = timeOffsetMinutes === 0;
   const windGrid = windLow;
   /** Live / history PNG; forecast = stejný PNG posunutý po tracku. */
   const baseRaster = isHistoryView ? historicalRaster : radarRaster;
+  /** OPERA snímek řídí raster; ČHMÚ jen fallback času. */
+  const radarProductIso = operaTime ?? chmiTime;
+
+  useEffect(() => {
+    if (!isLiveNow) return;
+    setLiveClockMs(Date.now());
+    const id = window.setInterval(() => setLiveClockMs(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [isLiveNow, radarProductIso]);
+
+  /**
+   * Teď → věk snímku (pohyb každou sekundu).
+   * +N → slider. Historie → 0.
+   */
+  const motionMinutes = motionMinutesForView({
+    timeOffsetMinutes,
+    productIso: radarProductIso,
+    nowMs: liveClockMs,
+  });
 
   const radarProgress = useMemo(
     () =>
@@ -1685,10 +1712,10 @@ export function MapView({
 
   const activeRaster = useMemo(() => {
     if (!baseRaster) return null;
-    if (isHistoryView || forecastMinutes <= 0) return baseRaster;
-    const { dLon, dLat } = meanForecastDelta(radarProgress, forecastMinutes);
+    if (isHistoryView || motionMinutes <= 0.05) return baseRaster;
+    const { dLon, dLat } = meanForecastDelta(radarProgress, motionMinutes);
     return shiftRadarRaster(baseRaster, dLon, dLat);
-  }, [baseRaster, isHistoryView, forecastMinutes, radarProgress]);
+  }, [baseRaster, isHistoryView, motionMinutes, radarProgress]);
 
   const useRasterDisplay = Boolean(activeRaster);
   const operaReady = radarData.features.length > 0 || Boolean(activeRaster);
@@ -1803,7 +1830,7 @@ export function MapView({
     activeRaster,
     useRasterDisplay,
     showRadar,
-    forecastMinutes,
+    motionMinutes,
   ]);
 
   const intensForecasts = useMemo(
@@ -1863,11 +1890,11 @@ export function MapView({
   const formationRef = useRef(formationFeatures);
   const activeRef = useRef(activeFeatures);
   const radarRef = useRef(radarProgressEnriched);
-  const forecastRef = useRef(forecastMinutes);
+  const forecastRef = useRef(motionMinutes);
   formationRef.current = formationFeatures;
   activeRef.current = activeFeatures;
   radarRef.current = radarProgressEnriched;
-  forecastRef.current = forecastMinutes;
+  forecastRef.current = motionMinutes;
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -1908,28 +1935,28 @@ export function MapView({
       );
       (map.getSource(CELL_SOURCE) as maplibregl.GeoJSONSource).setData(
         useRadarProgress
-          ? radarCellsGeoJSONAt(radarRef.current, forecastMinutes)
-          : activeCellGeoJSON(activeRef.current, forecastMinutes),
+          ? radarCellsGeoJSONAt(radarRef.current, forecastRef.current)
+          : activeCellGeoJSON(activeRef.current, forecastRef.current),
       );
       (map.getSource(ACT_SOURCE) as maplibregl.GeoJSONSource).setData(
         useRadarProgress
-          ? radarPointsGeoJSONAt(radarRef.current, forecastMinutes)
-          : activePointsGeoJSON(activeRef.current, forecastMinutes),
+          ? radarPointsGeoJSONAt(radarRef.current, forecastRef.current)
+          : activePointsGeoJSON(activeRef.current, forecastRef.current),
       );
       (map.getSource(TRACK_SOURCE) as maplibregl.GeoJSONSource).setData(
         useRadarProgress
-          ? radarTracksGeoJSONAt(radarRef.current, forecastMinutes)
-          : activeTracksGeoJSON(activeRef.current, forecastMinutes),
+          ? radarTracksGeoJSONAt(radarRef.current, forecastRef.current)
+          : activeTracksGeoJSON(activeRef.current, forecastRef.current),
       );
       (map.getSource(TRACK_CORRIDOR_SOURCE) as maplibregl.GeoJSONSource)?.setData(
         useRadarProgress
-          ? radarTrackCorridorsGeoJSONAt(radarRef.current, forecastMinutes)
+          ? radarTrackCorridorsGeoJSONAt(radarRef.current, forecastRef.current)
           : { type: "FeatureCollection", features: [] },
       );
       (map.getSource(ARROW_SOURCE) as maplibregl.GeoJSONSource).setData(
         useRadarProgress
-          ? radarArrowsGeoJSONAt(radarRef.current, forecastMinutes)
-          : activeArrowsGeoJSON(activeRef.current, forecastMinutes),
+          ? radarArrowsGeoJSONAt(radarRef.current, forecastRef.current)
+          : activeArrowsGeoJSON(activeRef.current, forecastRef.current),
       );
 
       if (locationRef.current) {
@@ -2189,7 +2216,7 @@ export function MapView({
 
       if (useRadarProgress) {
         (map.getSource(GHOST_SOURCE) as maplibregl.GeoJSONSource)?.setData(
-          radarCellsGhostGeoJSONAt(detailCells, forecastMinutes),
+          radarCellsGhostGeoJSONAt(detailCells, motionMinutes),
         );
         (map.getSource(BIRTH_TRAIL_SOURCE) as maplibregl.GeoJSONSource)?.setData(
           birthTrailGeoJSON(detailCells),
@@ -2200,26 +2227,26 @@ export function MapView({
         (map.getSource(CELL_SOURCE) as maplibregl.GeoJSONSource)?.setData(
           radarCellsGeoJSONAt(
             radarProgressEnriched,
-            forecastMinutes,
+            motionMinutes,
             intensForecasts,
           ),
         );
         (map.getSource(ACT_SOURCE) as maplibregl.GeoJSONSource)?.setData(
           radarPointsGeoJSONAt(
             radarProgressEnriched,
-            forecastMinutes,
+            motionMinutes,
             intensForecasts,
             locale,
           ),
         );
         (map.getSource(TRACK_SOURCE) as maplibregl.GeoJSONSource)?.setData(
-          radarTracksGeoJSONAt(radarProgressEnriched, forecastMinutes),
+          radarTracksGeoJSONAt(radarProgressEnriched, motionMinutes),
         );
         (map.getSource(TRACK_CORRIDOR_SOURCE) as maplibregl.GeoJSONSource)?.setData(
-          radarTrackCorridorsGeoJSONAt(radarProgressEnriched, forecastMinutes),
+          radarTrackCorridorsGeoJSONAt(radarProgressEnriched, motionMinutes),
         );
         (map.getSource(ARROW_SOURCE) as maplibregl.GeoJSONSource)?.setData(
-          radarArrowsGeoJSONAt(radarProgressEnriched, forecastMinutes),
+          radarArrowsGeoJSONAt(radarProgressEnriched, motionMinutes),
         );
         (map.getSource(INTENS_SOURCE) as maplibregl.GeoJSONSource)?.setData(
           intensificationCorridorsGeoJSON(detailIntens),
@@ -2231,7 +2258,7 @@ export function MapView({
           intensificationActiveHaloGeoJSON(
             detailCells,
             detailIntens,
-            forecastMinutes,
+            motionMinutes,
           ),
         );
       } else {
@@ -2260,24 +2287,25 @@ export function MapView({
           features: [],
         });
         (map.getSource(CELL_SOURCE) as maplibregl.GeoJSONSource)?.setData(
-          activeCellGeoJSON(activeFeatures, forecastMinutes),
+          activeCellGeoJSON(activeFeatures, motionMinutes),
         );
         (map.getSource(ACT_SOURCE) as maplibregl.GeoJSONSource)?.setData(
-          activePointsGeoJSON(activeFeatures, forecastMinutes, locale),
+          activePointsGeoJSON(activeFeatures, motionMinutes, locale),
         );
         (map.getSource(TRACK_SOURCE) as maplibregl.GeoJSONSource)?.setData(
-          activeTracksGeoJSON(activeFeatures, forecastMinutes),
+          activeTracksGeoJSON(activeFeatures, motionMinutes),
         );
         (map.getSource(TRACK_CORRIDOR_SOURCE) as maplibregl.GeoJSONSource)?.setData({
           type: "FeatureCollection",
           features: [],
         });
         (map.getSource(ARROW_SOURCE) as maplibregl.GeoJSONSource)?.setData(
-          activeArrowsGeoJSON(activeFeatures, forecastMinutes),
+          activeArrowsGeoJSON(activeFeatures, motionMinutes),
         );
       }
       const showProgressNow = showProgress && !isHistoryView;
       // Tracky / šipky / peaky v +min — déšť zůstává PNG (posunutý), ne buňkový fill.
+      // Tracky / peaky: Progress, nebo automaticky při slideru +min (ne při živé advekci samotné).
       const showForecastOverlay =
         forecastMinutes > 0 && !isHistoryView && useRadarProgress;
       const showCellsNow =
@@ -2353,7 +2381,7 @@ export function MapView({
     showProgress,
     showRadar,
     operaReady,
-    forecastMinutes,
+    motionMinutes,
     isHistoryView,
     locale,
     selected,
