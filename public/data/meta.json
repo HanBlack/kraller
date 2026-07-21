@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-07-21T23:26:47Z",
+  "updatedAt": "2026-07-21T23:28:36Z",
   "operaTime": "2026-07-21T22:25:00Z",
   "chmiTime": "2026-07-21T23:25:00Z",
   "opera": true,
@@ -9,7 +9,7 @@
   "sources": {
     "opera": {
       "ok": true,
-      "updatedAt": "2026-07-21T23:26:28Z",
+      "updatedAt": "2026-07-21T23:28:24Z",
       "error": null
     },
     "chmi": {
