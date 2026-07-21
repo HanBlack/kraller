@@ -28,6 +28,7 @@ CURRENT = {
     "TRUE_BIRTH_MAX_AGE_MIN": 10,
     "MIN_ZONE_SCORE": 28,
     "FORMATION_HIT_KM": 35,
+    "FORMATION_TIMEOUT_MIN": 90,
     "FCT_AGREE_MAX_DEG": 35,
     "INTENSIFY_ALERT_SCORE_MIN": 46,
     "INTENSIFY_SUPPRESS_GROWTH_DBZ": 0,
@@ -214,29 +215,48 @@ def propose_birth(births: list[dict]) -> dict:
 
 
 def propose_formation(forms: list[dict]) -> dict:
-    if len(forms) < 20:
+    """
+    Prah MIN_ZONE_SCORE podle F1.
+    Timeout-miss (hit=false po dlouhém leadMin) datový set zanášejí — ignoruj je.
+    """
+    # Ověřené hity + krátké miss (ne 2–4 h timeout)
+    usable = [
+        f
+        for f in forms
+        if f.get("hit")
+        or (
+            f.get("leadMin") is not None
+            and float(f["leadMin"]) <= CURRENT.get("FORMATION_TIMEOUT_MIN", 90)
+            and not f.get("hit")
+        )
+    ]
+    # po filtru často skoro jen hity → práh z F1 nejde spolehlivě
+    n_hit = sum(1 for f in usable if f.get("hit"))
+    n_miss = sum(1 for f in usable if not f.get("hit"))
+    if len(forms) < 20 or n_miss < 15:
         return {
             "param": "MIN_ZONE_SCORE",
             "current": CURRENT["MIN_ZONE_SCORE"],
             "proposed": CURRENT["MIN_ZONE_SCORE"],
             "confidence": "low",
             "n": len(forms),
-            "reason": "málo formation samples",
+            "nUsable": len(usable),
+            "nHit": n_hit,
+            "nMiss": n_miss,
+            "reason": "málo ověřených miss (timeouty nepočítat) — práh nedržet z F1",
         }
     best = CURRENT["MIN_ZONE_SCORE"]
     best_f1 = -1.0
     evidence = []
     for thr in (22, 26, 28, 32, 36, 40, 45):
-        # simulace: bereme jen zóny se score>=thr
-        subset = [f for f in forms if float(f.get("score") or 0) >= thr]
+        subset = [f for f in usable if float(f.get("score") or 0) >= thr]
         if len(subset) < 5:
             continue
         tp = sum(1 for f in subset if f.get("hit"))
         fp = sum(1 for f in subset if not f.get("hit"))
-        # FN = hity pod prahem
         fn = sum(
             1
-            for f in forms
+            for f in usable
             if f.get("hit") and float(f.get("score") or 0) < thr
         )
         prec = tp / max(1, tp + fp)
@@ -251,17 +271,28 @@ def propose_formation(forms: list[dict]) -> dict:
                 "f1": round(f1, 3),
             }
         )
-        if f1 > best_f1:
+        # vyžaduj lepší F1 než dosud (ne remízu → první thr)
+        if f1 > best_f1 + 0.01:
             best_f1 = f1
             best = thr
+    best_ev = next((e for e in evidence if e["thr"] == best), None)
+    prec_best = (best_ev or {}).get("precision") or 0
+    conf = "low"
+    if len(usable) >= 60 and n_miss >= 30 and prec_best >= 15:
+        conf = "high"
+    elif len(usable) >= 40 and n_miss >= 20:
+        conf = "medium"
     return {
         "param": "MIN_ZONE_SCORE",
         "current": CURRENT["MIN_ZONE_SCORE"],
-        "proposed": best,
-        "confidence": "high" if len(forms) >= 60 else "medium",
+        "proposed": best if best_f1 >= 0 else CURRENT["MIN_ZONE_SCORE"],
+        "confidence": conf,
         "n": len(forms),
+        "nUsable": len(usable),
+        "nHit": n_hit,
+        "nMiss": n_miss,
         "evidence": evidence,
-        "reason": "max F1 precision/recall formation hit",
+        "reason": "max F1 na ověřených formation (bez dlouhých timeout miss)",
     }
 
 
@@ -499,16 +530,25 @@ def main() -> int:
     if demises:
         by_r: dict[str, int] = defaultdict(int)
         lives: list[float] = []
+        fade_lives: list[float] = []
         for d in demises:
-            by_r[str(d.get("demiseReason") or "?")] += 1
+            reason = str(d.get("demiseReason") or "?")
+            by_r[reason] += 1
             if d.get("lifeMin") is not None:
-                lives.append(float(d["lifeMin"]))
+                life = float(d["lifeMin"])
+                lives.append(life)
+                # merge_or_jump ≠ reálný zánik — life kalibrace jen z fade
+                if reason == "fade":
+                    fade_lives.append(life)
         demise_note = {
             "n": len(demises),
             "reasons": dict(by_r),
             "medianLifeMin": med(lives),
+            "medianFadeLifeMin": med(fade_lives),
+            "nFade": len(fade_lives),
             "nWithHailProxy": sum(1 for d in demises if d.get("hailCmProxy")),
             "nAfterPurple": sum(1 for d in demises if d.get("purpleCandidate")),
+            "hint": "medianLifeMin je zkreslené merge_or_jump — ber medianFadeLifeMin",
         }
 
     surface_n = sum(1 for e in track_ev if e.get("surfaceDbz") is not None)
