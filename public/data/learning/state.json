@@ -1,30 +1,6 @@
 {
   "tracks": {},
   "formationPending": {
-    "z:48.26:14.46": {
-      "lat": 48.2647,
-      "lon": 14.463,
-      "score": 54.0,
-      "fromTs": "20260721031500",
-      "cape": 0.0,
-      "shear": 18.0,
-      "dew": 6.6,
-      "li": null,
-      "freezingLevelM": 3210.0,
-      "cinJkg": 0.0
-    },
-    "z:48.62:14.46": {
-      "lat": 48.6176,
-      "lon": 14.463,
-      "score": 47.099999999999994,
-      "fromTs": "20260721031500",
-      "cape": 0.0,
-      "shear": 15.7,
-      "dew": 5.6,
-      "li": null,
-      "freezingLevelM": 2810.0,
-      "cinJkg": 0.0
-    },
     "z:47.91:16.76": {
       "lat": 47.9118,
       "lon": 16.7593,
@@ -2931,31 +2907,6 @@
     }
   },
   "intensityPending": {
-    "t:20260721050500:48.38:18.70:30:20260721050500": {
-      "trackKey": "t:20260721050500:48.38:18.70",
-      "horizonMin": 30,
-      "fromTs": "20260721050500",
-      "fromDbz": 48.5,
-      "predDbz": 48.5,
-      "slope": 0.0,
-      "lat": 48.37555614592915,
-      "lon": 18.696623062768083,
-      "surfaceDbz": null,
-      "echoTopKm": null,
-      "fctAgree": null,
-      "envDistKm": 20.1,
-      "cape": 30.0,
-      "capeNow": 0.0,
-      "dew": 6.7,
-      "shear": 8.6,
-      "srh01": 100.5,
-      "cooling": 0.0,
-      "li": null,
-      "freezingLevelM": 3090.0,
-      "cinJkg": 0.0,
-      "steerHdg": 103.1,
-      "steerSpd": 49.2
-    },
     "t:20260721051500:48.46:17.84:30:20260721051500": {
       "trackKey": "t:20260721051500:48.46:17.84",
       "horizonMin": 30,
@@ -3747,5 +3698,5 @@
     "INTENSIFY_HIT_DBZ": 3.0
   },
   "schemaVersion": 2,
-  "updatedAt": "2026-07-21T05:51:42Z"
+  "updatedAt": "2026-07-21T05:56:40Z"
 }
