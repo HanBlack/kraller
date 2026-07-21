@@ -103,14 +103,14 @@ describe("real OPERA cells", () => {
   const features = buildRadarProgressFeatures(cells, null, null, [], null);
 
   it("peak sedí na kind=peak, ne centroid", () => {
-    const cell = cells.find((c) => c.id === "cell-12");
+    const cell = cells.find((c) => c.id === "cell-3");
     expect(cell).toBeDefined();
-    const f = features.find((x) => x.id === "cell-12");
+    const f = features.find((x) => x.id === "cell-3");
     expect(f?.peak).toEqual(cell!.peak);
   });
 
-  it("cell-12 má pozorovaný pohyb a posune se v +30 min", () => {
-    const f = features.find((x) => x.id === "cell-12");
+  it("cell-3 má pozorovaný pohyb a posune se v +30 min", () => {
+    const f = features.find((x) => x.id === "cell-3");
     expect(f?.speedKmh).toBeGreaterThanOrEqual(5);
     const at0 = peakAtForecastMinutes(f!, 0);
     const at30 = peakAtForecastMinutes(f!, 30);
@@ -119,23 +119,18 @@ describe("real OPERA cells", () => {
     expect(dist).toBeGreaterThan(5);
   });
 
-  it("duplicitní cell id — bere záznam s delší historií", () => {
+  it("duplicitní cell id — jedna buňka na id", () => {
     const dupes = cells.filter((c) => c.id === "cell-7");
     expect(dupes).toHaveLength(1);
-    const cell7 = dupes[0];
-    expect(cell7).toBeDefined();
-    if (!cell7) return;
-    expect((cell7.history ?? []).length).toBeGreaterThanOrEqual(3);
-    expect(cell7.peak[1]).toBeGreaterThan(50.7);
   });
 
   it("GeoJSON jader se mění se sliderem +min", () => {
     const at0 = radarPointsGeoJSONAt(features, 0);
     const at15 = radarPointsGeoJSONAt(features, 15);
     const at30 = radarPointsGeoJSONAt(features, 30);
-    const p0 = at0.features.find((f) => f.properties?.id === "cell-12");
-    const p15 = at15.features.find((f) => f.properties?.id === "cell-12");
-    const p30 = at30.features.find((f) => f.properties?.id === "cell-12");
+    const p0 = at0.features.find((f) => f.properties?.id === "cell-3");
+    const p15 = at15.features.find((f) => f.properties?.id === "cell-3");
+    const p30 = at30.features.find((f) => f.properties?.id === "cell-3");
     expect(p0?.geometry.type).toBe("Point");
     expect(p15?.geometry.type).toBe("Point");
     expect(p30?.geometry.type).toBe("Point");

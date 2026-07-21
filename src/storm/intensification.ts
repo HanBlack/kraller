@@ -1,6 +1,10 @@
 import type { FeatureCollection, Polygon } from "geojson";
 import { destinationPoint, distanceKm } from "../lib/geo";
 import { stormConfig } from "./config";
+import {
+  meanForecastDelta,
+  peakAtForecastMinutes,
+} from "./radarCells";
 import type { ScoredFormationPoint } from "./formationData";
 import { circlePolygon } from "./mapFeatures";
 import type { EnvironmentSignals } from "./types";
@@ -501,14 +505,26 @@ export function intensificationActiveHaloGeoJSON(
   features: IntensTrackCell[],
   forecasts: Map<string, CellIntensification>,
   forecastMinutes: number,
+  motionFeatures: IntensTrackCell[] = features,
 ): FeatureCollection {
+  const systemDelta = meanForecastDelta(motionFeatures, forecastMinutes);
   return {
     type: "FeatureCollection",
     features: features
       .filter((f) => isIntensifyingAt(forecasts.get(f.id), forecastMinutes))
       .map((f) => {
         const intens = forecasts.get(f.id)!;
-        const [lon, lat] = samplePointAlongTrack(f, forecastMinutes);
+        const [lon, lat] = peakAtForecastMinutes(
+          {
+            peak: f.peak,
+            headingDeg: f.headingDeg,
+            speedKmh: f.speedKmh,
+            motionSource: "radar-track",
+          },
+          forecastMinutes,
+          systemDelta,
+          "raster",
+        );
         const dbz = predictedDbzAt(f, intens, forecastMinutes);
         return {
           type: "Feature" as const,

@@ -1744,14 +1744,12 @@ export function MapView({
   );
   const [historicalRaster, setHistoricalRaster] =
     useState<RadarRasterMeta | null>(null);
-  /** Tik pro živou advekci na „Teď“ (mezi 5min snímky). */
+  /** Historický PNG jen když jde čistě o minulý snímek bez advekce. */
   const [liveClockMs, setLiveClockMs] = useState(() => Date.now());
   const forecastMinutes = Math.max(0, timeOffsetMinutes);
   const isHistoryView = timeOffsetMinutes < 0;
   const isLiveNow = timeOffsetMinutes === 0;
   const windGrid = windLow;
-  /** Live / history PNG; forecast = stejný PNG posunutý po tracku. */
-  const baseRaster = isHistoryView ? historicalRaster : radarRaster;
   /** OPERA snímek řídí raster; ČHMÚ jen fallback času. */
   const radarProductIso = operaTime ?? chmiTime;
 
@@ -1762,14 +1760,16 @@ export function MapView({
     return () => window.clearInterval(id);
   }, [isLiveNow, radarProductIso]);
 
-  /**
-   * Teď → věk snímku. +N → věk+N (monotónní). Historie → 0.
-   */
   const motionMinutes = motionMinutesForView({
     timeOffsetMinutes,
     productIso: radarProductIso,
     nowMs: liveClockMs,
   });
+
+  const useHistoricalRaster =
+    isHistoryView && motionMinutes <= 0.05 && Boolean(historicalRaster);
+  /** Live / history PNG; forecast = stejný PNG posunutý po tracku. */
+  const baseRaster = useHistoricalRaster ? historicalRaster : radarRaster;
 
   const radarProgress = useMemo(
     () =>
@@ -2392,6 +2392,7 @@ export function MapView({
             detailCells,
             detailIntens,
             motionMinutes,
+            radarProgressEnriched,
           ),
         );
       } else {
