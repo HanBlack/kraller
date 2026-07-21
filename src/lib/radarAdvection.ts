@@ -1,7 +1,7 @@
 import { destinationPoint } from "./geo";
 import type { CellIntensification } from "../storm/intensification";
 import {
-  meanForecastDelta,
+  peakAtForecastMinutes,
   type RadarProgressFeature,
 } from "../storm/radarCells";
 import { evolveDbzAt } from "./stormEvolution";
@@ -87,9 +87,15 @@ export function buildCellInfluences(
   const out: CellInfluence[] = [];
   for (const f of features) {
     if (f.speedKmh < 5) continue;
+    const [peakLon, peakLat] = peakAtForecastMinutes(
+      f,
+      minutes,
+      undefined,
+      "track",
+    );
     const [px, py] = lonLatToPixel(
-      f.peak[0],
-      f.peak[1],
+      peakLon,
+      peakLat,
       coords,
       width,
       height,
@@ -106,7 +112,19 @@ export function buildCellInfluences(
   return out;
 }
 
-/** Posun celého pole v px — průměr pozorovaných jader (Web Mercator UV). */
+/** Nejsilnější pohybující se buňka — stejný směr jako šipka/jádro. */
+export function dominantMovingFeature(
+  features: RadarProgressFeature[],
+): RadarProgressFeature | undefined {
+  let best: RadarProgressFeature | undefined;
+  for (const f of features) {
+    if (f.speedKmh < 5) continue;
+    if (!best || f.maxDbz > best.maxDbz) best = f;
+  }
+  return best;
+}
+
+/** Posun celého pole v px — podle nejsilnější buňky (ne průměr více směrů). */
 export function globalPixelShift(
   features: RadarProgressFeature[],
   coords: RadarRasterMeta["coordinates"],
@@ -114,14 +132,18 @@ export function globalPixelShift(
   height: number,
   minutes: number,
 ): { dx: number; dy: number } {
-  const { dLon, dLat } = meanForecastDelta(features, minutes);
-  if (Math.abs(dLon) < 1e-9 && Math.abs(dLat) < 1e-9) {
-    return { dx: 0, dy: 0 };
-  }
-  const anchor = features.find((f) => f.speedKmh >= 5) ?? features[0];
-  const lon = anchor?.peak[0] ?? (coords[0][0] + coords[2][0]) / 2;
-  const lat = anchor?.peak[1] ?? (coords[0][1] + coords[2][1]) / 2;
-  return lonLatDeltaToPixel(dLon, dLat, lon, lat, coords, width, height);
+  const anchor = dominantMovingFeature(features);
+  if (!anchor) return { dx: 0, dy: 0 };
+  return cellPixelShift(
+    anchor.peak[0],
+    anchor.peak[1],
+    anchor.headingDeg,
+    anchor.speedKmh,
+    minutes,
+    coords,
+    width,
+    height,
+  );
 }
 
 export function pixelAlphaGain(
