@@ -1,6 +1,6 @@
 import { czechRegionLabel, isInCzechiaApprox } from "../lib/czechRegion";
 import { t, getLocale, type Locale } from "../i18n";
-import type { FeatureCollection, Polygon } from "geojson";
+import type { Feature, FeatureCollection, Polygon } from "geojson";
 import {
   angleDiffDeg,
   bearingDeg,
@@ -219,9 +219,40 @@ export function peakAtForecastMinutes(
   return feature.peak;
 }
 
-/** Aktuální peak = bod max dBZ ze snímku (kind=peak), ne centroid polygonu. */
+/** Aktuální peak = poslední pozorování v historii, jinak kind=peak ze snímku. */
 function currentPeakFromCell(cell: TrackedCell): [number, number] {
+  const hist = cell.history ?? [];
+  if (hist.length > 0) {
+    return hist[hist.length - 1]!.peak;
+  }
   return cell.peak;
+}
+
+function peakHistoryGapKm(
+  peak: [number, number],
+  history: CellHistoryPoint[],
+): number {
+  if (history.length === 0) return Infinity;
+  const last = history[history.length - 1].peak;
+  return distanceKm(peak[1], peak[0], last[1], last[0]);
+}
+
+function pickPeakForCell(
+  id: string,
+  peakCandidates: Map<string, [number, number][]>,
+  history: CellHistoryPoint[],
+): [number, number] | null {
+  if (history.length > 0) return history[history.length - 1].peak;
+  const cands = peakCandidates.get(id);
+  if (!cands?.length) return null;
+  return cands[cands.length - 1];
+}
+
+function cellCandidateScore(
+  history: CellHistoryPoint[],
+  peak: [number, number],
+): number {
+  return history.length * 100 - peakHistoryGapKm(peak, history) * 8;
 }
 
 /**
@@ -345,8 +376,8 @@ export function footprintFactorFromDbz(
 }
 
 export function parseTrackedCells(fc: FeatureCollection): TrackedCell[] {
-  const peaks = new Map<string, [number, number]>();
-  const cells: TrackedCell[] = [];
+  const peakCandidates = new Map<string, [number, number][]>();
+  const cellFeatures: Feature[] = [];
 
   for (const f of fc.features) {
     const kind = f.properties?.kind as string | undefined;
@@ -354,18 +385,22 @@ export function parseTrackedCells(fc: FeatureCollection): TrackedCell[] {
     if (!id) continue;
 
     if (kind === "peak" && f.geometry?.type === "Point") {
-      peaks.set(id, f.geometry.coordinates as [number, number]);
+      const list = peakCandidates.get(id) ?? [];
+      list.push(f.geometry.coordinates as [number, number]);
+      peakCandidates.set(id, list);
+      continue;
+    }
+
+    if (kind === "cell" && f.geometry?.type === "Polygon") {
+      cellFeatures.push(f);
     }
   }
 
-  for (const f of fc.features) {
-    if (f.properties?.kind !== "cell" || f.geometry?.type !== "Polygon") continue;
-    const id = f.properties.id as string;
-    const peak = peaks.get(id);
-    if (!peak) continue;
-
+  const bestCellById = new Map<string, Feature>();
+  for (const f of cellFeatures) {
+    const id = f.properties!.id as string;
     const history = buildHistoryPoints(
-      f.properties.history as
+      f.properties!.history as
         | Array<{
             time?: string;
             peakLon: number;
@@ -374,50 +409,94 @@ export function parseTrackedCells(fc: FeatureCollection): TrackedCell[] {
           }>
         | undefined,
     );
+    const peak = pickPeakForCell(id, peakCandidates, history);
+    if (!peak) continue;
+    const score = cellCandidateScore(history, peak);
+    const prev = bestCellById.get(id);
+    if (!prev) {
+      bestCellById.set(id, f);
+      continue;
+    }
+    const prevHistory = buildHistoryPoints(
+      prev.properties!.history as
+        | Array<{
+            time?: string;
+            peakLon: number;
+            peakLat: number;
+            maxDbz: number;
+          }>
+        | undefined,
+    );
+    const prevPeak = pickPeakForCell(id, peakCandidates, prevHistory);
+    if (!prevPeak) {
+      bestCellById.set(id, f);
+      continue;
+    }
+    if (score > cellCandidateScore(prevHistory, prevPeak)) {
+      bestCellById.set(id, f);
+    }
+  }
+
+  const cells: TrackedCell[] = [];
+
+  for (const f of bestCellById.values()) {
+    const id = f.properties!.id as string;
+    const history = buildHistoryPoints(
+      f.properties!.history as
+        | Array<{
+            time?: string;
+            peakLon: number;
+            peakLat: number;
+            maxDbz: number;
+          }>
+        | undefined,
+    );
+    const peak = pickPeakForCell(id, peakCandidates, history);
+    if (!peak) continue;
     const birthFromHist =
       history.length > 0 ? history[0].peak : peak;
     const birthDbz =
-      typeof f.properties.birthDbz === "number"
-        ? Number(f.properties.birthDbz)
+      typeof f.properties!.birthDbz === "number"
+        ? Number(f.properties!.birthDbz)
         : history.length > 0
           ? history[0].maxDbz
-          : Number(f.properties.maxDbz ?? 35);
+          : Number(f.properties!.maxDbz ?? 35);
     const birth: [number, number] =
-      typeof f.properties.birthLon === "number" &&
-      typeof f.properties.birthLat === "number"
-        ? [Number(f.properties.birthLon), Number(f.properties.birthLat)]
+      typeof f.properties!.birthLon === "number" &&
+      typeof f.properties!.birthLat === "number"
+        ? [Number(f.properties!.birthLon), Number(f.properties!.birthLat)]
         : birthFromHist;
     const ageMinutes = Number(
-      f.properties.ageMinutes ?? f.properties.historyMinutes ?? 0,
+      f.properties!.ageMinutes ?? f.properties!.historyMinutes ?? 0,
     );
     const growthDbz = Number(
-      f.properties.growthDbz ?? Number(f.properties.maxDbz ?? 35) - birthDbz,
+      f.properties!.growthDbz ?? Number(f.properties!.maxDbz ?? 35) - birthDbz,
     );
 
     cells.push({
       id,
-      maxDbz: Number(f.properties.maxDbz ?? 35),
+      maxDbz: Number(f.properties!.maxDbz ?? 35),
       chmiDbz:
-        typeof f.properties.chmiDbz === "number"
-          ? Number(f.properties.chmiDbz)
+        typeof f.properties!.chmiDbz === "number"
+          ? Number(f.properties!.chmiDbz)
           : undefined,
       peakDbz:
-        typeof f.properties.peakDbz === "number"
-          ? Number(f.properties.peakDbz)
+        typeof f.properties!.peakDbz === "number"
+          ? Number(f.properties!.peakDbz)
           : undefined,
-      dbzSource: f.properties.dbzSource as "CHMI" | "OPERA" | undefined,
+      dbzSource: f.properties!.dbzSource as "CHMI" | "OPERA" | undefined,
       echoTopKm:
-        typeof f.properties.echoTopKm === "number"
-          ? Number(f.properties.echoTopKm)
+        typeof f.properties!.echoTopKm === "number"
+          ? Number(f.properties!.echoTopKm)
           : undefined,
       echoTopSource:
-        f.properties.echoTopSource === "CHMI" ? "CHMI" : undefined,
+        f.properties!.echoTopSource === "CHMI" ? "CHMI" : undefined,
       surfaceDbz:
-        typeof f.properties.chmiSurfaceDbz === "number"
-          ? Number(f.properties.chmiSurfaceDbz)
+        typeof f.properties!.chmiSurfaceDbz === "number"
+          ? Number(f.properties!.chmiSurfaceDbz)
           : undefined,
       dualpolLabel: (() => {
-        const v = f.properties.dualpolLabel;
+        const v = f.properties!.dualpolLabel;
         if (
           v === "possible_hail" ||
           v === "strong_updraft" ||
@@ -429,42 +508,42 @@ export function parseTrackedCells(fc: FeatureCollection): TrackedCell[] {
         return undefined;
       })(),
       dualpolZdrColumn:
-        typeof f.properties.dualpolZdrColumn === "boolean"
-          ? f.properties.dualpolZdrColumn
+        typeof f.properties!.dualpolZdrColumn === "boolean"
+          ? f.properties!.dualpolZdrColumn
           : undefined,
       dualpolHailLikely:
-        typeof f.properties.dualpolHailLikely === "boolean"
-          ? f.properties.dualpolHailLikely
-          : f.properties.hailLikely === true
+        typeof f.properties!.dualpolHailLikely === "boolean"
+          ? f.properties!.dualpolHailLikely
+          : f.properties!.hailLikely === true
             ? true
             : undefined,
       dualpolEchoTop50Km:
-        typeof f.properties.dualpolEchoTop50Km === "number"
-          ? Number(f.properties.dualpolEchoTop50Km)
+        typeof f.properties!.dualpolEchoTop50Km === "number"
+          ? Number(f.properties!.dualpolEchoTop50Km)
           : undefined,
       fctAgree:
-        typeof f.properties.chmiFctAgree === "boolean"
-          ? f.properties.chmiFctAgree
+        typeof f.properties!.chmiFctAgree === "boolean"
+          ? f.properties!.chmiFctAgree
           : undefined,
       fctAngleDiffDeg:
-        typeof f.properties.chmiFctAngleDiffDeg === "number"
-          ? Number(f.properties.chmiFctAngleDiffDeg)
+        typeof f.properties!.chmiFctAngleDiffDeg === "number"
+          ? Number(f.properties!.chmiFctAngleDiffDeg)
           : undefined,
       peak,
-      polygon: f.geometry,
+      polygon: f.geometry as Polygon,
       trackHeadingDeg:
-        typeof f.properties.trackHeadingDeg === "number"
-          ? Number(f.properties.trackHeadingDeg)
+        typeof f.properties!.trackHeadingDeg === "number"
+          ? Number(f.properties!.trackHeadingDeg)
           : null,
       trackSpeedKmh:
-        typeof f.properties.trackSpeedKmh === "number"
-          ? Number(f.properties.trackSpeedKmh)
+        typeof f.properties!.trackSpeedKmh === "number"
+          ? Number(f.properties!.trackSpeedKmh)
           : null,
-      historyMinutes: Number(f.properties.historyMinutes ?? 0),
+      historyMinutes: Number(f.properties!.historyMinutes ?? 0),
       birth,
       birthDbz,
       ageMinutes,
-      isNewborn: Boolean(f.properties.isNewborn ?? ageMinutes <= 10),
+      isNewborn: Boolean(f.properties!.isNewborn ?? ageMinutes <= 10),
       growthDbz,
       history,
     });

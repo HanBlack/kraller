@@ -118,6 +118,16 @@ describe("real OPERA cells", () => {
     expect(dist).toBeGreaterThan(5);
   });
 
+  it("duplicitní cell id — bere záznam s delší historií", () => {
+    const dupes = cells.filter((c) => c.id === "cell-7");
+    expect(dupes).toHaveLength(1);
+    const cell7 = dupes[0];
+    expect(cell7).toBeDefined();
+    if (!cell7) return;
+    expect((cell7.history ?? []).length).toBeGreaterThanOrEqual(3);
+    expect(cell7.peak[1]).toBeGreaterThan(50.7);
+  });
+
   it("GeoJSON jader se mění se sliderem +min", () => {
     const at0 = radarPointsGeoJSONAt(features, 0);
     const at15 = radarPointsGeoJSONAt(features, 15);

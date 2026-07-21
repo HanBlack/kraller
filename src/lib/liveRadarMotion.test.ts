@@ -15,41 +15,48 @@ describe("liveRadarMotion", () => {
     ).toBeCloseTo(5, 5);
   });
 
-  it("Teď = 0 (snímek bez wall-clock posunu)", () => {
+  it("Teď = clampovaný věk snímku", () => {
     expect(
       motionMinutesForView({
         timeOffsetMinutes: 0,
         productIso: "2026-07-21T11:50:00Z",
         nowMs: t0,
       }),
-    ).toBe(0);
+    ).toBeCloseTo(10, 5);
     expect(
       motionMinutesForView({
         timeOffsetMinutes: 0,
         productIso: "2026-07-21T11:00:00Z",
         nowMs: t0,
       }),
-    ).toBe(0);
+    ).toBe(LIVE_ADVECT_CAP_MIN);
   });
 
-  it("+N = pouze offset slideru", () => {
+  it("+N je vždy ≥ Teď (věk + offset)", () => {
     expect(
       motionMinutesForView({
         timeOffsetMinutes: 5,
         productIso: "2026-07-21T11:50:00Z",
         nowMs: t0,
       }),
-    ).toBe(5);
+    ).toBeCloseTo(15, 5);
+    expect(
+      motionMinutesForView({
+        timeOffsetMinutes: 5,
+        productIso: "2026-07-21T11:57:00Z",
+        nowMs: t0,
+      }),
+    ).toBeCloseTo(8, 5);
+  });
+
+  it("slider budoucnost bere offset, historie 0", () => {
     expect(
       motionMinutesForView({
         timeOffsetMinutes: 15,
         productIso: "2026-07-21T11:55:00Z",
         nowMs: t0,
       }),
-    ).toBe(15);
-  });
-
-  it("historie slideru = 0", () => {
+    ).toBeCloseTo(20, 5);
     expect(
       motionMinutesForView({
         timeOffsetMinutes: -10,
