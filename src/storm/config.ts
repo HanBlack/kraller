@@ -134,15 +134,15 @@ export const stormConfig = {
     /** Krok vzorkování stopy (minuty). */
     sampleStepMin: 5,
     /** Minimální skóre prostředí (0–100) pro „palivo“. */
-    minEnvScore: 34,
+    minEnvScore: 38,
     /** Minimální headroom dBZ (potenciál − aktuál). */
-    minHeadroomDbz: 5,
+    minHeadroomDbz: 6,
     /** Od kdy kreslit segment koridoru. */
     segmentScoreMin: 38,
     /** Od kdy hlásit zesílení u buňky (vyšší = méně falešných). */
     alertScoreMin: 46,
     /** Růst dBZ po vstupu do zóny (~dBZ za 15 min). */
-    growthDbzPer15Min: 7,
+    growthDbzPer15Min: 6,
     /** Pokles dBZ v nepřátelském prostředí (~dBZ za 15 min). */
     decayDbzPer15Min: 5,
     /** Poloměr vizuálního koridoru (km). */

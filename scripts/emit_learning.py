@@ -47,7 +47,7 @@ ACTIVE_CONSTANTS = {
     "HISTORY_WINDOW_MIN": 25,
     "MIN_ZONE_SCORE": 28,
     "FORMATION_HIT_KM": 35,
-    "FORMATION_TIMEOUT_MIN": 150,
+    "FORMATION_TIMEOUT_MIN": 90,
     "WIND_BLEND_850": 0.25,
     "WIND_BLEND_500": 0.75,
     # stormConfig / ČHMÚ — pro propose po ~2 dnech

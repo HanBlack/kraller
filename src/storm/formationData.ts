@@ -39,9 +39,9 @@ const MIN_ZONE_SCORE_ACTIVE = 22;
 const FALLBACK_MIN_SCORE = 32;
 const MIN_FALLBACK_ZONES = 4;
 /** Více zón = méně slepých míst (víkend AT→CZ). */
-const MAX_ZONES = 22;
+const MAX_ZONES = 26;
 /** Rezerva slotů pro zóny u mladé aktivity (ne jen globální top-N). */
-const ACTIVITY_RESERVED = 6;
+const ACTIVITY_RESERVED = 8;
 /** U vyzrálejších buněk zónu Vznik schovej (už je echo). */
 const RADAR_EXCLUDE_KM = 18;
 const RADAR_EXCLUDE_MIN_AGE_MIN = 12;
@@ -149,7 +149,7 @@ function nearYoungActivity(
 }
 
 /** Zóna Vznik jen v ČR (+ krátký okraj hranice) — mimo to popisky zbytečně šumí. */
-const ZONE_CZ_MARGIN_KM = 8;
+const ZONE_CZ_MARGIN_KM = 45;
 
 function zoneRelevantToCz(zone: FormationZone): boolean {
   return isInCzechiaApprox(zone.lat, zone.lon, ZONE_CZ_MARGIN_KM);
