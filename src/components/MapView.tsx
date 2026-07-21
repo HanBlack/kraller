@@ -1794,12 +1794,15 @@ export function MapView({
   }, [isHistoryView, historicalRadar, radarData, useRasterDisplay]);
 
   useEffect(() => {
-    radarDataRef.current = displayRadarData;
     onWindSourceRef.current?.(windReal);
     onFormationSourceRef.current?.(formationReal);
     if (windLow && windUpper) {
       windOverlayRef.current?.setWindGrids(windLow, windUpper, windReal);
     }
+  }, [windLow, windUpper, windReal, formationReal]);
+
+  useEffect(() => {
+    radarDataRef.current = displayRadarData;
     const map = mapRef.current;
     if (!map) return;
     const apply = () => {
@@ -1823,14 +1826,9 @@ export function MapView({
     return whenStyleReady(map, apply);
   }, [
     displayRadarData,
-    windLow,
-    windUpper,
-    windReal,
-    formationReal,
     activeRaster,
     useRasterDisplay,
     showRadar,
-    motionMinutes,
   ]);
 
   const intensForecasts = useMemo(
