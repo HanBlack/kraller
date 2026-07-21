@@ -1796,7 +1796,7 @@ export function MapView({
   const [evolvedRaster, setEvolvedRaster] = useState<RadarRasterMeta | null>(
     null,
   );
-  const evolvedForBaseTimeRef = useRef<string | undefined>();
+  const evolvedForBaseTimeRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     if (!baseRaster || isHistoryView) {
