@@ -149,7 +149,7 @@ describe("resolveCellMotion — směr vždy z větru", () => {
   });
 
   it("constants jsou konzistentní", () => {
-    expect(TRUE_BIRTH_MAX_DBZ).toBe(38);
+    expect(TRUE_BIRTH_MAX_DBZ).toBe(39);
     expect(maxMatchDistanceKm(5)).toBeLessThanOrEqual(12);
     expect(maxMatchDistanceKm(5)).toBeGreaterThan(5);
   });

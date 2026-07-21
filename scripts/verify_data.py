@@ -8,7 +8,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-TRUE_BIRTH_MAX_DBZ = 38
+TRUE_BIRTH_MAX_DBZ = 39
 MAX_TRUSTED_TRACK_KMH = 70
 
 
