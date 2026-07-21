@@ -10,6 +10,7 @@ import {
 import { stormSteeringMotion, type WindGrid } from "../lib/windField";
 import { classifyBirth, resolveCellMotion } from "./stormTrackRules";
 import { severityLabel, severityRank } from "../lib/severity";
+import { coreRadiusForDbz, evolveDbzAt } from "../lib/stormEvolution";
 import {
   isIntensifyingAt,
   predictedDbzAt,
@@ -791,18 +792,29 @@ export function radarPointsGeoJSONAt(
       .filter(showCoreMarkerOnMap)
       .map((f) => {
       const intens = intensByCell?.get(f.id);
-      const dbz = predictedDbzAt(f, intens, forecastMinutes);
+      const dbz = evolveDbzAt(f, intens, forecastMinutes);
       const intensifying = isIntensifyingAt(intens, forecastMinutes) ? 1 : 0;
-      const label =
-        intensifying === 1
-          ? `${severityLabel(f.severity, locale)} · ${dbz.toFixed(0)} dBZ ↑\n${t("storm.intensifying", undefined, locale)}`
-          : f.label;
+      const baseLabel = severityLabel(f.severity, locale);
+      let label: string;
+      if (forecastMinutes > 0.5) {
+        const arrow =
+          intensifying === 1 ? " ↑" : dbz < f.maxDbz - 1.5 ? " ↓" : "";
+        label = `${baseLabel} · ${dbz.toFixed(0)} dBZ${arrow}`;
+        if (intensifying === 1) {
+          label += `\n${t("storm.intensifying", undefined, locale)}`;
+        }
+      } else if (intensifying === 1) {
+        label = `${baseLabel} · ${dbz.toFixed(0)} dBZ ↑\n${t("storm.intensifying", undefined, locale)}`;
+      } else {
+        label = f.label;
+      }
       return {
         type: "Feature" as const,
         id: f.id,
         properties: {
           id: f.id,
           dbz,
+          coreR: coreRadiusForDbz(dbz),
           heading: f.headingDeg,
           severity: f.severity,
           rank: f.rank,
