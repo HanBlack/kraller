@@ -87,4 +87,23 @@ describe("estimateDemise — confidence", () => {
     expect(d.confidence).toBe("climatology");
     expect(d.reasons[0]).toMatch(/nejde o fakt/i);
   });
+
+  it("odloží zánik když vývoj predikuje růst", () => {
+    const d = estimateDemise(
+      baseFeature({
+        maxDbz: 36,
+        growthDbz: 0,
+        phase: "moving",
+        history: [
+          { time: "a", peak: [18, 49.3], maxDbz: 35, minutesFromBirth: 0 },
+          { time: "b", peak: [18.05, 49.32], maxDbz: 36, minutesFromBirth: 5 },
+        ],
+      }),
+      null,
+      [],
+      { predictedDbz15: 40 },
+    );
+    expect(d.confidence).toBe("climatology");
+    expect(d.etaMin).toBeGreaterThanOrEqual(22);
+  });
 });

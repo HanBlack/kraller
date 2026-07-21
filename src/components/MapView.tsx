@@ -66,12 +66,12 @@ import {
   buildRadarProgressFeatures,
   meanForecastDelta,
   peakAtForecast,
-  radarArrowsGeoJSONAt,
   radarCellsGeoJSONAt,
   radarCellsGhostGeoJSONAt,
   radarPointsGeoJSONAt,
   radarTracksGeoJSONAt,
   radarTrackCorridorsGeoJSONAt,
+  radarArrowsGeoJSONAt,
 } from "../storm/radarCells";
 import { pickThreatBanners, type ThreatBannerItem } from "../storm/userThreats";
 import type { ScoredFormationPoint } from "../storm/formationData";
@@ -2564,10 +2564,18 @@ export function MapView({
         const live =
           radarProgressEnriched.find((f) => f.id === selected.feature.id) ??
           selected.feature;
+        const systemDelta = meanForecastDelta(
+          radarProgressEnriched,
+          motionMinutes,
+        );
         const life = buildStormLifecycle(
           live,
           live.intensification,
           formationScoredPoints,
+          {
+            forecastMinutes: motionMinutes,
+            systemDelta,
+          },
         );
         (map.getSource(LIFE_SOURCE) as maplibregl.GeoJSONSource)?.setData(
           lifecycleMapGeoJSON(live, life),
@@ -2588,6 +2596,7 @@ export function MapView({
     radarProgressEnriched,
     formationScoredPoints,
     showProgress,
+    motionMinutes,
   ]);
 
   useEffect(() => {

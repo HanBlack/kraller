@@ -13,6 +13,9 @@ import { headingLabel } from "../lib/direction";
 import { formationSeverityLabel, severityLabel } from "../lib/severity";
 
 import { useI18n } from "../i18n";
+import { motionMinutesForView } from "../lib/liveRadarMotion";
+import { useStormDataContext } from "../providers/StormDataProvider";
+import { meanForecastDelta } from "../storm/radarCells";
 
 import {
 
@@ -170,25 +173,26 @@ function RadarLifecycleDetail({
 }) {
 
   const { t, locale } = useI18n();
+  const { operaTime, chmiTime } = useStormDataContext();
+  const motionMinutes = motionMinutesForView({
+    timeOffsetMinutes: forecastMinutes,
+    productIso: operaTime ?? chmiTime,
+  });
 
   let life;
 
   try {
-
     life = buildStormLifecycle(
-
       feature,
-
       feature.intensification,
-
       formationPoints,
-
+      {
+        forecastMinutes: motionMinutes,
+        systemDelta: meanForecastDelta([feature], motionMinutes),
+      },
     );
-
   } catch {
-
     life = null;
-
   }
 
 

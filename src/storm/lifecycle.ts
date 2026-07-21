@@ -1,6 +1,7 @@
 import type { FeatureCollection } from "geojson";
 import { destinationPoint } from "../lib/geo";
 import { headingToCzech } from "../lib/direction";
+import { evolveDbzAt } from "../lib/stormEvolution";
 import type { ScoredFormationPoint } from "./formationData";
 import type { CellIntensification } from "./intensification";
 import { formatIntensificationSummary } from "./intensification";
@@ -8,11 +9,23 @@ import {
   explainGrowthWhy,
   explainSeverityWhy,
 } from "./growthWhy";
-import type { RadarProgressFeature } from "./radarCells";
+import {
+  meanForecastDelta,
+  peakAtForecastMinutes,
+  type RadarProgressFeature,
+} from "./radarCells";
 import type { EnvironmentSignals } from "./types";
 import { dewpointCOr } from "./types";
 import { distanceKm } from "../lib/geo";
 import { stormConfig } from "./config";
+
+export type BuildLifecycleOpts = {
+  /** Minuty od času snímku (Teď / +N) — stejné jako posun PNG a jádra. */
+  forecastMinutes?: number;
+  systemDelta?: { dLon: number; dLat: number };
+  /** Pro výpočet systémového posunu, když systemDelta není předané. */
+  allFeatures?: RadarProgressFeature[];
+};
 
 export type LifecycleStepId =
   | "birth"
@@ -50,6 +63,10 @@ export type StormLifecycle = {
   title: string;
   summary: string;
   steps: LifecycleStep[];
+  /** Jádro v čase forecastMinutes (souřadnice pro mapu). */
+  anchorPeak: [number, number];
+  /** Zobrazit zánik na mapě (skrýt při růstu + slabý odhad). */
+  showDemiseOnMap: boolean;
   demiseAt: [number, number] | null;
   demiseEtaMin: number | null;
   demiseEtaMinLo: number | null;
@@ -209,7 +226,18 @@ export function explainNoIntensify(
   return { headline, reasons: reasons.slice(0, 4) };
 }
 
-/** Odhad poklesu dBZ/min z historie echa (záporné = slábnutí). */
+/** Odhad poklesu dBZ/min z posledního segmentu historie (ne celého života). */
+function recentDecayDbzPerMin(feature: RadarProgressFeature): number | null {
+  const hist = feature.history;
+  if (!hist || hist.length < 2) return null;
+  const prev = hist[hist.length - 2];
+  const last = hist[hist.length - 1];
+  const dt = last.minutesFromBirth - prev.minutesFromBirth;
+  if (dt < 4) return null;
+  return (last.maxDbz - prev.maxDbz) / dt;
+}
+
+/** Odhad poklesu dBZ/min z historie echa (záporné = slábnutí) — celé okno. */
 function decayDbzPerMin(feature: RadarProgressFeature): number | null {
   const hist = feature.history;
   if (!hist || hist.length < 2) return null;
@@ -300,27 +328,47 @@ export function estimateDemise(
   feature: RadarProgressFeature,
   intens?: CellIntensification | null,
   points: ScoredFormationPoint[] = [],
+  opts?: { predictedDbz15?: number },
 ): DemiseEstimate {
   const shear =
     feature.birthEnv?.shearMs ??
     feature.birthEnv?.environment.shear0to6Ms ??
     8;
   const dbz = feature.maxDbz;
-  const decayPerMin = decayDbzPerMin(feature);
+  const recentDecay = recentDecayDbzPerMin(feature);
+  const longDecay = decayDbzPerMin(feature);
   const targetDbz = 30;
+  const predictedDbz15 = opts?.predictedDbz15 ?? dbz;
+  const growingForecast = predictedDbz15 > dbz + 1.5;
+  const growingPhase =
+    feature.phase === "birth" ||
+    feature.phase === "growing" ||
+    feature.growthDbz > 0;
 
   let lifeMin: number | null = null;
   let confidence: DemiseConfidence = "climatology";
 
-  if (decayPerMin != null && decayPerMin < -0.15) {
-    const toTarget = (dbz - targetDbz) / Math.abs(decayPerMin);
+  if (recentDecay != null && recentDecay < -0.2) {
+    const toTarget = (dbz - targetDbz) / Math.abs(recentDecay);
+    lifeMin = Math.round(toTarget);
+    confidence =
+      growingForecast && recentDecay > -0.45 ? "trending" : "observed";
+  } else if (
+    longDecay != null &&
+    longDecay < -0.15 &&
+    (recentDecay == null || recentDecay < -0.1)
+  ) {
+    const toTarget = (dbz - targetDbz) / Math.abs(longDecay);
     lifeMin = Math.round(toTarget);
     confidence = "observed";
   }
 
   if (lifeMin == null) {
     const decayPer15 = stormConfig.intensification.decayDbzPer15Min;
-    if (feature.growthDbz <= -2) {
+    if (
+      feature.growthDbz <= -2 &&
+      (recentDecay == null || recentDecay < -0.12)
+    ) {
       lifeMin = Math.round(((dbz - targetDbz) / decayPer15) * 15);
       confidence = "trending";
     } else if (feature.phase === "mature" || feature.phase === "moving") {
@@ -362,6 +410,18 @@ export function estimateDemise(
     lifeMin = Math.max(lifeMin, intens.enterEtaMin + 15 + boost);
   }
 
+  // Růst / pozitivní vývoj PNG → ne tvrdit brzký zánik (kromě měřeného rozpadu)
+  if (
+    (growingForecast || growingPhase) &&
+    confidence !== "observed"
+  ) {
+    confidence = "climatology";
+    lifeMin = Math.max(lifeMin, growingPhase ? 28 : 22);
+    if (intens?.willIntensify) {
+      lifeMin = Math.max(lifeMin, (intens.enterEtaMin ?? 15) + 25);
+    }
+  }
+
   lifeMin = Math.round(Math.max(10, Math.min(75, lifeMin)));
 
   // ±30 % rozsah — climatology širší (±40 %)
@@ -400,13 +460,19 @@ export function estimateDemise(
   };
 }
 
-function demiseBodyCopy(demise: DemiseEstimate): string {
+function demiseBodyCopy(
+  demise: DemiseEstimate,
+  growingForecast: boolean,
+): string {
   const range = `~${demise.etaMinLo}–${demise.etaMinHi} min`;
   if (demise.confidence === "observed") {
     return `Echo už slábne. Odhad pod ~30 dBZ za ${range}.`;
   }
   if (demise.confidence === "trending") {
     return `Echo mírně klesá. Odhad zániku za ${range} (nejistota vyšší).`;
+  }
+  if (growingForecast) {
+    return `Odhad vývoje může ještě posílit echo. Typický útlum až za ${range} — ne teď.`;
   }
   return `Nejde o fakt — typický útlum při této síle za ${range}. Může vydržet déle, pokud dorazí energie.`;
 }
@@ -420,15 +486,17 @@ function demiseBadge(confidence: DemiseConfidence): string {
 function intensifyPoint(
   feature: RadarProgressFeature,
   intens?: CellIntensification | null,
+  anchorPeak?: [number, number],
 ): { at: [number, number]; eta: number } | null {
   if (!intens?.willIntensify || intens.enterEtaMin == null) return null;
   const seg = intens.segments[0];
   if (seg?.center) {
     return { at: seg.center, eta: intens.enterEtaMin };
   }
+  const peak = anchorPeak ?? feature.peak;
   const [lon, lat] = destinationPoint(
-    feature.peak[1],
-    feature.peak[0],
+    peak[1],
+    peak[0],
     feature.headingDeg,
     (feature.speedKmh * intens.enterEtaMin) / 60,
   );
@@ -440,12 +508,35 @@ export function buildStormLifecycle(
   feature: RadarProgressFeature,
   intens?: CellIntensification | null,
   points: ScoredFormationPoint[] = [],
+  opts: BuildLifecycleOpts = {},
 ): StormLifecycle {
+  const forecastMinutes = opts.forecastMinutes ?? 0;
+  const systemDelta =
+    opts.systemDelta ??
+    (opts.allFeatures?.length
+      ? meanForecastDelta(opts.allFeatures, forecastMinutes)
+      : { dLon: 0, dLat: 0 });
+  const anchorPeak = peakAtForecastMinutes(
+    feature,
+    forecastMinutes,
+    systemDelta,
+    "track",
+  );
+  const anchorFeature: RadarProgressFeature = { ...feature, peak: anchorPeak };
+  const predictedDbz15 = evolveDbzAt(
+    feature,
+    intens ?? undefined,
+    forecastMinutes + 15,
+  );
+  const growingForecast = predictedDbz15 > feature.maxDbz + 1.5;
+
   const dir = headingToCzech(feature.headingDeg);
   const place = feature.placeLabel || "neznámá oblast";
-  const demise = estimateDemise(feature, intens, points);
+  const demise = estimateDemise(anchorFeature, intens, points, {
+    predictedDbz15,
+  });
   const env = feature.birthEnv;
-  const intensPt = intensifyPoint(feature, intens);
+  const intensPt = intensifyPoint(feature, intens, anchorPeak);
 
   let intensifyWhy = intens?.whyHeadline
     ? { headline: intens.whyHeadline, reasons: intens.whyReasons ?? [] }
@@ -558,11 +649,16 @@ export function buildStormLifecycle(
   steps.push({
     id: "demise",
     title: "5 · Odhad zániku",
-    body: demiseBodyCopy(demise),
+    body: demiseBodyCopy(demise, growingForecast),
     meta: demise.reason,
     reasons: demise.reasons,
     badge: demiseBadge(demise.confidence),
   });
+
+  const showDemiseOnMap =
+    demise.confidence === "observed" ||
+    demise.confidence === "trending" ||
+    !growingForecast;
 
   const summary = feature.trueBirth
     ? feature.phase === "birth"
@@ -581,6 +677,8 @@ export function buildStormLifecycle(
           : "Životní dráha · buňka",
     summary,
     steps,
+    anchorPeak,
+    showDemiseOnMap,
     demiseAt: [demise.lon, demise.lat],
     demiseEtaMin: demise.etaMin,
     demiseEtaMinLo: demise.etaMinLo,
@@ -597,25 +695,31 @@ export function lifecycleMapGeoJSON(
   life: StormLifecycle,
 ): FeatureCollection {
   const features: FeatureCollection["features"] = [];
-  // Minulost = reálná historie peaků, budoucnost = peak → zánik
-  const past =
-    feature.history.length >= 2
-      ? feature.history.map((h) => h.peak)
-      : feature.trueBirth
-        ? [feature.birth, feature.peak]
-        : [feature.peak];
-  const coords: [number, number][] = [...past];
+  const anchor = life.anchorPeak;
+
+  // Minulost = historie peaků (bez duplicity s aktuálním jádrem)
+  let past: [number, number][] = [];
+  if (feature.history.length >= 2) {
+    past = feature.history.slice(0, -1).map((h) => h.peak);
+  } else if (feature.trueBirth) {
+    past = [feature.birth];
+  } else if (feature.history.length === 1) {
+    past = [feature.history[0].peak];
+  }
+
+  const coords: [number, number][] = [...past, anchor];
 
   if (life.intensifyAt) {
     coords.push(life.intensifyAt);
+    const eta = life.intensifyEtaMin;
     features.push({
       type: "Feature",
       properties: {
         kind: "intensify",
         label:
-          life.intensifyEtaMin != null && life.intensifyEtaMin <= 0
+          eta != null && eta <= 0
             ? "↑ zesílení"
-            : `↑ zesílení\nza ~${life.intensifyEtaMin} min`,
+            : `↑ zesílení\nza ~${eta} min`,
         reason:
           life.steps.find((s) => s.id === "intensify")?.reasons?.[0] ??
           life.steps.find((s) => s.id === "intensify")?.body ??
@@ -625,10 +729,13 @@ export function lifecycleMapGeoJSON(
     });
   }
 
-  if (life.demiseAt) {
+  if (life.demiseAt && life.showDemiseOnMap) {
     coords.push(life.demiseAt);
     const lo = life.demiseEtaMinLo ?? life.demiseEtaMin;
     const hi = life.demiseEtaMinHi ?? life.demiseEtaMin;
+    const growing =
+      life.steps.find((s) => s.id === "demise")?.body?.includes("posílit") ??
+      false;
     features.push({
       type: "Feature",
       properties: {
@@ -636,7 +743,9 @@ export function lifecycleMapGeoJSON(
         confidence: life.demiseConfidence ?? "climatology",
         label:
           lo != null && hi != null
-            ? `odhad zániku\nza ~${lo}–${hi} min`
+            ? growing
+              ? `útlum možný\nza ~${lo}–${hi} min`
+              : `odhad zániku\nza ~${lo}–${hi} min`
             : "odhad zániku",
         reason:
           life.steps.find((s) => s.id === "demise")?.reasons?.[0] ??
