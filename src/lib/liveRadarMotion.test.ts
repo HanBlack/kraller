@@ -31,6 +31,23 @@ describe("liveRadarMotion", () => {
     ).toBe(LIVE_ADVECT_CAP_MIN);
   });
 
+  it("+N je vždy ≥ Teď (věk + offset)", () => {
+    expect(
+      motionMinutesForView({
+        timeOffsetMinutes: 5,
+        productIso: "2026-07-21T11:50:00Z",
+        nowMs: t0,
+      }),
+    ).toBeCloseTo(15, 5);
+    expect(
+      motionMinutesForView({
+        timeOffsetMinutes: 5,
+        productIso: "2026-07-21T11:57:00Z",
+        nowMs: t0,
+      }),
+    ).toBeCloseTo(8, 5);
+  });
+
   it("slider budoucnost bere offset, historie 0", () => {
     expect(
       motionMinutesForView({
@@ -38,7 +55,7 @@ describe("liveRadarMotion", () => {
         productIso: "2026-07-21T11:55:00Z",
         nowMs: t0,
       }),
-    ).toBe(15);
+    ).toBeCloseTo(20, 5);
     expect(
       motionMinutesForView({
         timeOffsetMinutes: -10,

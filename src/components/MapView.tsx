@@ -15,11 +15,11 @@ import {
   loadRadarHistoryRaster,
 } from "../lib/radarHistory";
 import { filterRadarForCzFocus } from "../lib/radarDisplay";
+import { renderEvolvedRadarRaster } from "../lib/evolveRadarRaster";
 import {
-  scaleRadarRaster,
   stormEvolutionAt,
 } from "../lib/stormEvolution";
-import { shiftRadarRaster, type RadarRasterMeta } from "../lib/radarRaster";
+import type { RadarRasterMeta } from "../lib/radarRaster";
 import {
   motionMinutesForView,
 } from "../lib/liveRadarMotion";
@@ -61,7 +61,6 @@ import {
   birthMarkersGeoJSON,
   birthTrailGeoJSON,
   buildRadarProgressFeatures,
-  meanForecastDelta,
   peakAtForecast,
   radarArrowsGeoJSONAt,
   radarCellsGeoJSONAt,
@@ -1746,8 +1745,7 @@ export function MapView({
   }, [isLiveNow, radarProductIso]);
 
   /**
-   * Teď → věk snímku (pohyb každou sekundu).
-   * +N → slider. Historie → 0.
+   * Teď → věk snímku. +N → věk+N (monotónní). Historie → 0.
    */
   const motionMinutes = motionMinutesForView({
     timeOffsetMinutes,
@@ -1778,23 +1776,45 @@ export function MapView({
     [radarProgress, intensForecasts, motionMinutes],
   );
 
-  const activeRaster = useMemo(() => {
-    if (!baseRaster) return null;
-    if (isHistoryView) return baseRaster;
-    let next = baseRaster;
-    if (motionMinutes > 0.05) {
-      const { dLon, dLat } = meanForecastDelta(radarProgress, motionMinutes);
-      next = shiftRadarRaster(next, dLon, dLat);
-      next = scaleRadarRaster(next, evolution.footprintScale);
+  const [evolvedRaster, setEvolvedRaster] = useState<RadarRasterMeta | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (!baseRaster || isHistoryView) {
+      setEvolvedRaster(null);
+      return;
     }
-    return next;
+    if (motionMinutes <= 0.05) {
+      setEvolvedRaster(null);
+      return;
+    }
+    let cancelled = false;
+    void renderEvolvedRadarRaster(
+      baseRaster,
+      radarProgress,
+      intensForecasts,
+      motionMinutes,
+    ).then((next) => {
+      if (!cancelled) setEvolvedRaster(next);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [
     baseRaster,
     isHistoryView,
     motionMinutes,
     radarProgress,
-    evolution.footprintScale,
+    intensForecasts,
   ]);
+
+  const activeRaster = useMemo(() => {
+    if (!baseRaster) return null;
+    if (isHistoryView) return baseRaster;
+    if (motionMinutes <= 0.05) return baseRaster;
+    return evolvedRaster ?? baseRaster;
+  }, [baseRaster, isHistoryView, motionMinutes, evolvedRaster]);
 
   const useRasterDisplay = Boolean(activeRaster);
   const operaReady = radarData.features.length > 0 || Boolean(activeRaster);
