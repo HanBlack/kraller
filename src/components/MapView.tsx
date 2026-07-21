@@ -15,11 +15,14 @@ import {
   loadRadarHistoryRaster,
 } from "../lib/radarHistory";
 import { filterRadarForCzFocus } from "../lib/radarDisplay";
-import { renderEvolvedRadarRaster } from "../lib/evolveRadarRaster";
+import { renderEvolvedRadarRaster, commitEvolvedRasterSwap } from "../lib/evolveRadarRaster";
 import {
   stormEvolutionAt,
 } from "../lib/stormEvolution";
-import type { RadarRasterMeta } from "../lib/radarRaster";
+import {
+  commitLiveRasterBlobSwap,
+  type RadarRasterMeta,
+} from "../lib/radarRaster";
 import {
   motionMinutesForView,
 } from "../lib/liveRadarMotion";
@@ -600,13 +603,20 @@ function syncRadarRasterImage(
   ensureStormLayers(map);
   if (!meta?.url) {
     lastSyncedRasterUrl = null;
-    setLayerVisibility(map, [RADAR_RASTER], false);
-    return Promise.resolve(false);
+    const hadFrame = map.isSourceLoaded(RADAR_RASTER_SOURCE);
+    if (!hadFrame) {
+      setLayerVisibility(map, [RADAR_RASTER], false);
+    }
+    return Promise.resolve(hadFrame);
   }
 
   const existing = map.getSource(RADAR_RASTER_SOURCE) as
     | maplibregl.ImageSource
     | undefined;
+  const alreadyShowing = Boolean(
+    existing && map.isSourceLoaded(RADAR_RASTER_SOURCE) && lastSyncedRasterUrl,
+  );
+
   if (existing && lastSyncedRasterUrl === meta.url) {
     try {
       existing.setCoordinates(meta.coordinates);
@@ -617,22 +627,24 @@ function syncRadarRasterImage(
     }
   }
 
-  setLayerVisibility(map, [RADAR_RASTER], false);
+  // Při refreshi nech starý snímek vidět — skrýt jen při prvním loadu.
+  if (!alreadyShowing) {
+    setLayerVisibility(map, [RADAR_RASTER], false);
+  }
 
   return new Promise((resolve) => {
-    const fail = () => resolve(false);
     const img = new Image();
     img.decoding = "async";
     img.onload = () => {
       if (gen !== rasterSyncGeneration) {
-        resolve(false);
+        resolve(alreadyShowing);
         return;
       }
       const src = map.getSource(RADAR_RASTER_SOURCE) as
         | maplibregl.ImageSource
         | undefined;
       if (!src) {
-        fail();
+        resolve(alreadyShowing);
         return;
       }
       try {
@@ -641,7 +653,7 @@ function syncRadarRasterImage(
           coordinates: meta.coordinates,
         });
       } catch {
-        fail();
+        resolve(alreadyShowing);
         return;
       }
 
@@ -652,11 +664,16 @@ function syncRadarRasterImage(
         map.off("sourcedata", onData);
         window.clearTimeout(timer);
         if (gen !== rasterSyncGeneration) {
-          resolve(false);
+          resolve(alreadyShowing);
           return;
         }
-        if (ok) lastSyncedRasterUrl = meta.url;
-        resolve(ok);
+        if (ok) {
+          lastSyncedRasterUrl = meta.url;
+          commitLiveRasterBlobSwap(meta.url);
+          commitEvolvedRasterSwap(meta.url);
+          map.triggerRepaint();
+        }
+        resolve(ok || alreadyShowing);
       };
       const onData = (e: maplibregl.MapSourceDataEvent) => {
         if (e.sourceId !== RADAR_RASTER_SOURCE) return;
@@ -670,7 +687,7 @@ function syncRadarRasterImage(
       }, 2800);
       if (map.isSourceLoaded(RADAR_RASTER_SOURCE)) finish(true);
     };
-    img.onerror = fail;
+    img.onerror = () => resolve(alreadyShowing);
     img.src = meta.url;
   });
 }
@@ -1779,16 +1796,19 @@ export function MapView({
   const [evolvedRaster, setEvolvedRaster] = useState<RadarRasterMeta | null>(
     null,
   );
+  const evolvedForBaseTimeRef = useRef<string | undefined>();
 
   useEffect(() => {
     if (!baseRaster || isHistoryView) {
       setEvolvedRaster(null);
+      evolvedForBaseTimeRef.current = undefined;
       return;
     }
     if (motionMinutes <= 0.05) {
       setEvolvedRaster(null);
       return;
     }
+    const baseTime = baseRaster.time;
     let cancelled = false;
     void renderEvolvedRadarRaster(
       baseRaster,
@@ -1796,7 +1816,10 @@ export function MapView({
       intensForecasts,
       motionMinutes,
     ).then((next) => {
-      if (!cancelled) setEvolvedRaster(next);
+      if (!cancelled && next) {
+        evolvedForBaseTimeRef.current = baseTime;
+        setEvolvedRaster(next);
+      }
     });
     return () => {
       cancelled = true;
@@ -1813,7 +1836,13 @@ export function MapView({
     if (!baseRaster) return null;
     if (isHistoryView) return baseRaster;
     if (motionMinutes <= 0.05) return baseRaster;
-    return evolvedRaster ?? baseRaster;
+    if (
+      evolvedRaster &&
+      evolvedForBaseTimeRef.current === baseRaster.time
+    ) {
+      return evolvedRaster;
+    }
+    return baseRaster;
   }, [baseRaster, isHistoryView, motionMinutes, evolvedRaster]);
 
   const useRasterDisplay = Boolean(activeRaster);
@@ -1912,8 +1941,8 @@ export function MapView({
       void (async () => {
         if (activeRaster && useRasterDisplay) {
           const ok = await syncRadarRasterImage(map, activeRaster);
-          rasterReadyRef.current = ok;
-          if (ok && showRadar) {
+          if (ok) rasterReadyRef.current = true;
+          if (showRadar && (ok || rasterReadyRef.current)) {
             setLayerVisibility(map, [RADAR_RASTER], true);
             if (map.getLayer(RADAR_RASTER)) {
               map.setPaintProperty(
@@ -1923,7 +1952,7 @@ export function MapView({
               );
             }
           }
-        } else {
+        } else if (!activeRaster) {
           rasterReadyRef.current = false;
           setLayerVisibility(map, [RADAR_RASTER], false);
         }
@@ -2423,7 +2452,7 @@ export function MapView({
         }
       }
       const showRaster =
-        liveRadarOn && useRasterDisplay && rasterReadyRef.current;
+        liveRadarOn && useRasterDisplay && (rasterReadyRef.current || Boolean(rasterMeta));
       const showContourFill = liveRadarOn && !useRasterDisplay;
       // Detail (zrod / zesílení / ghost) jen po výběru buňky — mapa zůstane čitelná.
       const showCellDetail =
