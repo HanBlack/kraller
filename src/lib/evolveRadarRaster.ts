@@ -54,14 +54,17 @@ function loadImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
-let lastEvolveKey: string | null = null;
-let lastEvolveUrl: string | null = null;
+let cachedEvolveKey: string | null = null;
+let cachedEvolveUrl: string | null = null;
+let displayedEvolveUrl: string | null = null;
 
-function revokeEvolveUrl() {
-  if (lastEvolveUrl) {
-    URL.revokeObjectURL(lastEvolveUrl);
-    lastEvolveUrl = null;
+/** Uvolni starý evolved blob až po zobrazení nového. */
+export function commitEvolvedRasterSwap(activeUrl: string | null | undefined) {
+  if (!activeUrl?.startsWith("blob:")) return;
+  if (displayedEvolveUrl && displayedEvolveUrl !== activeUrl) {
+    URL.revokeObjectURL(displayedEvolveUrl);
   }
+  displayedEvolveUrl = activeUrl;
 }
 
 /**
@@ -85,8 +88,8 @@ export async function renderEvolvedRadarRaster(
     moving.map((f) => `${f.id}:${f.maxDbz.toFixed(0)}`).join("|"),
   ].join("::");
 
-  if (cacheKey === lastEvolveKey && lastEvolveUrl) {
-    return { ...meta, url: lastEvolveUrl };
+  if (cacheKey === cachedEvolveKey && cachedEvolveUrl) {
+    return { ...meta, url: cachedEvolveUrl };
   }
 
   try {
@@ -183,10 +186,10 @@ export async function renderEvolvedRadarRaster(
     });
     if (!blob || blob.size < 32) return meta;
 
-    revokeEvolveUrl();
-    lastEvolveKey = cacheKey;
-    lastEvolveUrl = URL.createObjectURL(blob);
-    return { ...meta, url: lastEvolveUrl };
+    cachedEvolveKey = cacheKey;
+    const newUrl = URL.createObjectURL(blob);
+    cachedEvolveUrl = newUrl;
+    return { ...meta, url: newUrl };
   } catch {
     return meta;
   }

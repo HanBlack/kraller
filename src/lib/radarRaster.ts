@@ -28,8 +28,17 @@ export function shiftRadarRaster(
   };
 }
 
-/** Poslední live blob:URL — revoke při dalším live preloadu. */
+/** Poslední blob:URL zobrazená na mapě — revoke až po swapu. */
 let lastLiveRasterBlobUrl: string | null = null;
+
+/** Uvolni předchozí live blob až když mapa ukazuje nový. */
+export function commitLiveRasterBlobSwap(activeUrl: string | null | undefined) {
+  if (!activeUrl?.startsWith("blob:")) return;
+  if (lastLiveRasterBlobUrl && lastLiveRasterBlobUrl !== activeUrl) {
+    URL.revokeObjectURL(lastLiveRasterBlobUrl);
+  }
+  lastLiveRasterBlobUrl = activeUrl;
+}
 
 async function fetchDecodePng(url: string): Promise<string | null> {
   try {
@@ -63,11 +72,7 @@ export async function preloadRadarRaster(
   const objectUrl = await fetchDecodePng(meta.url);
   if (!objectUrl) return meta;
 
-  if (lastLiveRasterBlobUrl) {
-    URL.revokeObjectURL(lastLiveRasterBlobUrl);
-    lastLiveRasterBlobUrl = null;
-  }
-  lastLiveRasterBlobUrl = objectUrl;
+  // Revoke až po commitLiveRasterBlobSwap — jinak problikne prázdný frame.
   return { ...meta, url: objectUrl };
 }
 
