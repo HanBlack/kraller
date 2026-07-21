@@ -163,6 +163,7 @@ export const en = {
     hitMiss: "core misses you",
     hailRisk: "hail risk",
     hailRiskCm: "higher hail chance (~{cm} cm)",
+    strongUpdraft: "strong updraft — may intensify",
     supercellEnv: "environment favorable for a supercell",
     rain: "rain about {lo}–{hi} mm/h",
     rainShort: "{lo}–{hi} mm/h",

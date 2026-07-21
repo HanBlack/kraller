@@ -82,6 +82,15 @@ export type TrackedCell = {
   echoTopSource?: "CHMI";
   /** PseudoCAPPI 2 km — déšť u země (ČHMÚ). */
   surfaceDbz?: number;
+  /** Dual-pol struktura jádra (ČHMÚ volume). */
+  dualpolLabel?:
+    | "possible_hail"
+    | "strong_updraft"
+    | "rain"
+    | "weakening_or_shallow";
+  dualpolZdrColumn?: boolean;
+  dualpolHailLikely?: boolean;
+  dualpolEchoTop50Km?: number;
   /**
    * ČHMÚ FCT_MAX_Z +30 min vs naše stopa.
    * false = nesouhlas → širší koridor.
@@ -137,6 +146,9 @@ export type RadarProgressFeature = {
     reasons: string[];
     shortLabel: string | null;
   };
+  dualpolLabel?: TrackedCell["dualpolLabel"];
+  dualpolZdrColumn?: boolean;
+  dualpolHailLikely?: boolean;
 };
 
 function scaledTrackEnd(
@@ -334,6 +346,32 @@ export function parseTrackedCells(fc: FeatureCollection): TrackedCell[] {
       surfaceDbz:
         typeof f.properties.chmiSurfaceDbz === "number"
           ? Number(f.properties.chmiSurfaceDbz)
+          : undefined,
+      dualpolLabel: (() => {
+        const v = f.properties.dualpolLabel;
+        if (
+          v === "possible_hail" ||
+          v === "strong_updraft" ||
+          v === "rain" ||
+          v === "weakening_or_shallow"
+        ) {
+          return v;
+        }
+        return undefined;
+      })(),
+      dualpolZdrColumn:
+        typeof f.properties.dualpolZdrColumn === "boolean"
+          ? f.properties.dualpolZdrColumn
+          : undefined,
+      dualpolHailLikely:
+        typeof f.properties.dualpolHailLikely === "boolean"
+          ? f.properties.dualpolHailLikely
+          : f.properties.hailLikely === true
+            ? true
+            : undefined,
+      dualpolEchoTop50Km:
+        typeof f.properties.dualpolEchoTop50Km === "number"
+          ? Number(f.properties.dualpolEchoTop50Km)
           : undefined,
       fctAgree:
         typeof f.properties.chmiFctAgree === "boolean"
@@ -557,6 +595,9 @@ export function buildRadarProgressFeatures(
       birthEnv,
       assessment: user ? assessment : undefined,
       growthWhy: growthWhy ?? undefined,
+      dualpolLabel: cell.dualpolLabel,
+      dualpolZdrColumn: cell.dualpolZdrColumn,
+      dualpolHailLikely: cell.dualpolHailLikely,
     };
   });
 }
