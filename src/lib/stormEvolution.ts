@@ -76,9 +76,9 @@ export function stormEvolutionAt(
   return { meanDeltaDbz, rasterOpacity, footprintScale };
 }
 
-/** Poloměr tečky jádra podle predikovaného dBZ. */
+/** Poloměr tečky jádra (px) — těsně na peak, ne „zóna“. */
 export function coreRadiusForDbz(dbz: number): number {
-  return clamp(3.2 + (dbz - 30) * 0.16, 3.2, 9);
+  return clamp(2 + (dbz - 30) * 0.07, 2, 4.2);
 }
 
 /**

@@ -51,9 +51,9 @@ describe("radarAdvection", () => {
     expect(dy).toBeGreaterThan(0);
   });
 
-  it("global shift jen z radar-track", () => {
+  it("global shift z buněk s rychlostí ≥ 5 km/h", () => {
     const shift = globalPixelShift(
-      [feat(), feat({ id: "c2", motionSource: "wind-fallback" })],
+      [feat(), feat({ id: "c2", motionSource: "wind-fallback", speedKmh: 20 })],
       bounds,
       400,
       300,
@@ -61,7 +61,7 @@ describe("radarAdvection", () => {
     );
     expect(Math.abs(shift.dx) + Math.abs(shift.dy)).toBeGreaterThan(0);
     const none = globalPixelShift(
-      [feat({ motionSource: "wind-fallback" })],
+      [feat({ speedKmh: 0, motionSource: "wind-fallback" })],
       bounds,
       400,
       300,

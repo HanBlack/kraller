@@ -64,6 +64,7 @@ import {
   birthMarkersGeoJSON,
   birthTrailGeoJSON,
   buildRadarProgressFeatures,
+  meanForecastDelta,
   peakAtForecast,
   radarArrowsGeoJSONAt,
   radarCellsGeoJSONAt,
@@ -784,15 +785,15 @@ function ensureStormLayers(map: maplibregl.Map) {
     map.setPaintProperty(ACT_CORE, "circle-radius", [
       "coalesce",
       ["get", "coreR"],
-      ["interpolate", ["linear"], ["get", "dbz"], 30, 3.5, 50, 6, 60, 8],
+      ["interpolate", ["linear"], ["get", "dbz"], 30, 2.5, 50, 3.5, 60, 4.2],
       5,
     ]);
   }
   if (map.getLayer(ACT_HALO)) {
     map.setPaintProperty(ACT_HALO, "circle-radius", [
-      "+",
-      8,
-      ["*", 0.9, ["coalesce", ["get", "coreR"], 5]],
+      "*",
+      1.35,
+      ["coalesce", ["get", "coreR"], 3],
     ]);
   }
   for (const id of [ARROW_LAYER, FORM_ARROW_LAYER]) {
@@ -1567,9 +1568,9 @@ function ensureStormLayers(map: maplibregl.Map) {
       filter: ["==", ["get", "threatens"], 1],
       paint: {
         "circle-radius": [
-          "+",
-          8,
-          ["*", 0.9, ["coalesce", ["get", "coreR"], 5]],
+          "*",
+          1.35,
+          ["coalesce", ["get", "coreR"], 3],
         ],
         "circle-color": "rgba(255, 107, 61, 0.2)",
         "circle-stroke-width": 0,
@@ -1584,8 +1585,8 @@ function ensureStormLayers(map: maplibregl.Map) {
         "circle-radius": [
           "coalesce",
           ["get", "coreR"],
-          ["interpolate", ["linear"], ["get", "dbz"], 30, 3.5, 50, 6, 60, 8],
-          5,
+          ["interpolate", ["linear"], ["get", "dbz"], 30, 2.5, 50, 3.5, 60, 4.2],
+          2.5,
         ],
         "circle-color": [
           "case",
@@ -2145,12 +2146,13 @@ export function MapView({
         const cells = radarRef.current;
         const mins = forecastRef.current;
         if (!cells.length) return null;
+        const delta = meanForecastDelta(cells, mins);
         let best = cells[0];
-        let bestPeak = peakAtForecast(best, mins);
+        let bestPeak = peakAtForecast(best, mins, delta);
         let bestD = distanceKm(clickLat, clickLon, bestPeak[1], bestPeak[0]);
         for (let i = 1; i < cells.length; i++) {
           const c = cells[i];
-          const peak = peakAtForecast(c, mins);
+          const peak = peakAtForecast(c, mins, delta);
           const d = distanceKm(clickLat, clickLon, peak[1], peak[0]);
           if (d < bestD) {
             best = c;
@@ -2435,12 +2437,15 @@ export function MapView({
         );
       }
       const showProgressNow = showProgress && !isHistoryView;
-      // Tracky / šipky / peaky v +min — déšť zůstává PNG (posunutý), ne buňkový fill.
-      // Tracky / peaky: Progress, nebo automaticky při slideru +min (ne při živé advekci samotné).
+      // Jádra / tracky: Progress, nebo automaticky při +min / živé advekci
+      const showMotionCores =
+        !isHistoryView &&
+        useRadarProgress &&
+        (motionMinutes > 0.05 || forecastMinutes > 0);
       const showForecastOverlay =
         forecastMinutes > 0 && !isHistoryView && useRadarProgress;
       const showCellsNow =
-        (showProgressNow || showForecastOverlay) && useRadarProgress;
+        (showProgressNow || showMotionCores) && useRadarProgress;
       const hasOpera =
         useRasterDisplay ||
         (operaReady && radarDataRef.current.features.length > 0);
@@ -2527,6 +2532,8 @@ export function MapView({
     showRadar,
     operaReady,
     motionMinutes,
+    forecastMinutes,
+    timeOffsetMinutes,
     isHistoryView,
     locale,
     selected,

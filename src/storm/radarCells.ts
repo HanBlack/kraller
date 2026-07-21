@@ -152,25 +152,58 @@ export type RadarProgressFeature = {
   dualpolHailLikely?: boolean;
 };
 
-function scaledTrackEnd(
-  start: [number, number],
-  fullEnd: [number, number],
-  forecastMinutes: number,
-): [number, number] {
-  const total = Math.max(1, stormConfig.alertHorizonMin);
-  const ratio = Math.max(0, Math.min(1, forecastMinutes / total));
-  return [
-    start[0] + (fullEnd[0] - start[0]) * ratio,
-    start[1] + (fullEnd[1] - start[1]) * ratio,
-  ];
-}
-
 /** Peak buňky v čase forecastMinutes (pro klik i vizuál). */
 export function peakAtForecast(
-  feature: Pick<RadarProgressFeature, "peak" | "trackEnd">,
+  feature: Pick<
+    RadarProgressFeature,
+    "peak" | "headingDeg" | "speedKmh" | "motionSource"
+  >,
   forecastMinutes: number,
+  systemDelta?: { dLon: number; dLat: number },
 ): [number, number] {
-  return scaledTrackEnd(feature.peak, feature.trackEnd, forecastMinutes);
+  return peakAtForecastMinutes(feature, forecastMinutes, systemDelta);
+}
+
+/**
+ * Pozice jádra v čase T — stejná logika jako advekce PNG:
+ * 1) vlastní pozorovaný pohyb buňky
+ * 2) jinak systémový posun (průměr radar-track jader)
+ */
+export function peakAtForecastMinutes(
+  feature: Pick<
+    RadarProgressFeature,
+    "peak" | "headingDeg" | "speedKmh" | "motionSource"
+  >,
+  forecastMinutes: number,
+  systemDelta?: { dLon: number; dLat: number },
+): [number, number] {
+  if (forecastMinutes <= 0.05) return feature.peak;
+
+  if (feature.speedKmh >= 5) {
+    return destinationPoint(
+      feature.peak[1],
+      feature.peak[0],
+      feature.headingDeg,
+      (feature.speedKmh * forecastMinutes) / 60,
+    );
+  }
+
+  if (
+    systemDelta &&
+    (Math.abs(systemDelta.dLon) > 1e-9 || Math.abs(systemDelta.dLat) > 1e-9)
+  ) {
+    return [
+      feature.peak[0] + systemDelta.dLon,
+      feature.peak[1] + systemDelta.dLat,
+    ];
+  }
+
+  return feature.peak;
+}
+
+/** Aktuální peak = bod max dBZ ze snímku (kind=peak), ne centroid polygonu. */
+function currentPeakFromCell(cell: TrackedCell): [number, number] {
+  return cell.peak;
 }
 
 /**
@@ -178,7 +211,10 @@ export function peakAtForecast(
  */
 export function meanForecastDelta(
   features: Array<
-    Pick<RadarProgressFeature, "peak" | "trackEnd" | "maxDbz" | "motionSource">
+    Pick<
+      RadarProgressFeature,
+      "peak" | "headingDeg" | "speedKmh" | "maxDbz"
+    >
   >,
   forecastMinutes: number,
 ): { dLon: number; dLat: number } {
@@ -189,9 +225,14 @@ export function meanForecastDelta(
   let dLon = 0;
   let dLat = 0;
   for (const f of features) {
-    if (f.motionSource !== "radar-track") continue;
+    if (f.speedKmh < 5) continue;
     const w = Math.max(1, f.maxDbz - 20);
-    const [lon, lat] = scaledTrackEnd(f.peak, f.trackEnd, forecastMinutes);
+    const [lon, lat] = destinationPoint(
+      f.peak[1],
+      f.peak[0],
+      f.headingDeg,
+      (f.speedKmh * forecastMinutes) / 60,
+    );
     dLon += (lon - f.peak[0]) * w;
     dLat += (lat - f.peak[1]) * w;
     wSum += w;
@@ -484,7 +525,8 @@ export function buildRadarProgressFeatures(
   }
 
   return picked.map((cell) => {
-    const [peakLon, peakLat] = cell.peak;
+    const peak = currentPeakFromCell(cell);
+    const [peakLon, peakLat] = peak;
     const observed = observedMotionFromHistory(cell);
     const motion = resolveCellMotion(cell, windLow, windUpper);
     const peakDbz = effectivePeakDbz(cell);
@@ -569,20 +611,20 @@ export function buildRadarProgressFeatures(
       }`;
     }
 
-    const trackKm = observed
-      ? (observed.speedKmh * stormConfig.alertHorizonMin) / 60
-      : 0;
-    const trackEnd: [number, number] = observed
-      ? destinationPoint(peakLat, peakLon, observed.headingDeg, trackKm)
-      : cell.peak;
     const headingDeg = observed?.headingDeg ?? motion.headingDeg;
-    const speedKmh = observed?.speedKmh ?? 0;
-    const motionSource = observed ? ("radar-track" as const) : motion.source;
+    const speedKmh = observed?.speedKmh ?? motion.speedKmh;
+    const motionSource =
+      speedKmh >= 5 ? ("radar-track" as const) : ("wind-fallback" as const);
+    const trackKm = (speedKmh * stormConfig.alertHorizonMin) / 60;
+    const trackEnd: [number, number] =
+      speedKmh >= 5
+        ? destinationPoint(peakLat, peakLon, headingDeg, trackKm)
+        : peak;
 
     return {
       id: cell.id,
       maxDbz: peakDbz,
-      peak: cell.peak,
+      peak,
       polygon: cell.polygon,
       headingDeg,
       speedKmh,
@@ -623,6 +665,7 @@ export function radarCellsGeoJSONAt(
   forecastMinutes: number,
   intensByCell?: Map<string, CellIntensification>,
 ): FeatureCollection {
+  const systemDelta = meanForecastDelta(features, forecastMinutes);
   return {
     type: "FeatureCollection",
     features: features
@@ -634,7 +677,11 @@ export function radarCellsGeoJSONAt(
         const intensifying = isIntensifyingAt(intens, forecastMinutes) ? 1 : 0;
         const decaying =
           forecastMinutes > 0 && dbz < f.maxDbz - 2 ? 1 : 0;
-        const shiftedPeak = scaledTrackEnd(f.peak, f.trackEnd, forecastMinutes);
+        const shiftedPeak = peakAtForecastMinutes(
+          f,
+          forecastMinutes,
+          systemDelta,
+        );
         const moved = shiftPolygon(
           f.polygon,
           shiftedPeak[0] - f.peak[0],
@@ -797,6 +844,7 @@ export function radarPointsGeoJSONAt(
   intensByCell?: Map<string, CellIntensification>,
   locale: Locale = getLocale(),
 ): FeatureCollection {
+  const systemDelta = meanForecastDelta(features, forecastMinutes);
   return {
     type: "FeatureCollection",
     features: features
@@ -835,7 +883,7 @@ export function radarPointsGeoJSONAt(
         },
         geometry: {
           type: "Point" as const,
-          coordinates: scaledTrackEnd(f.peak, f.trackEnd, forecastMinutes),
+          coordinates: peakAtForecastMinutes(f, forecastMinutes, systemDelta),
         },
       };
     }),
@@ -852,35 +900,38 @@ export function radarTrackCorridorsGeoJSONAt(
   forecastMinutes: number,
 ): FeatureCollection {
   const horizon = stormConfig.alertHorizonMin;
+  const systemDelta = meanForecastDelta(features, forecastMinutes);
   const featuresOut: FeatureCollection["features"] = [];
 
   for (const f of features) {
     if (!showCoreMarkerOnMap(f)) continue;
-    const here = scaledTrackEnd(f.peak, f.trackEnd, forecastMinutes);
-    let tip = f.trackEnd;
+    const here = peakAtForecastMinutes(f, forecastMinutes, systemDelta);
+    let tip = destinationPoint(
+      here[1],
+      here[0],
+      f.headingDeg,
+      Math.max(6, (f.speedKmh * Math.max(5, horizon - forecastMinutes)) / 60),
+    );
     const dx = tip[0] - here[0];
     const dy = tip[1] - here[1];
     if (dx * dx + dy * dy < 1e-10 || forecastMinutes >= horizon - 1) {
-      tip = destinationPoint(here[1], here[0], f.headingDeg, 18);
+      tip = destinationPoint(here[1], here[0], f.headingDeg, 10);
     }
     const { fringeKm } = bandRadiiKm(f.maxDbz);
-    // Šířka roste s horizontem (chaotické jádro dál = větší pás)
     let halfKm = Math.min(
-      16,
-      Math.max(3.5, fringeKm * (1 + forecastMinutes / 90)),
+      9,
+      Math.max(2.2, fringeKm * (0.55 + forecastMinutes / 180)),
     );
-    // Early / růst: peak skáče — širší nejistota (šipka = steering, ne tenká čára)
     if (
       f.phase === "birth" ||
       f.phase === "growing" ||
       f.ageMinutes < 20 ||
       f.trueBirth
     ) {
-      halfKm = Math.min(18, halfKm * 1.4);
+      halfKm = Math.min(11, halfKm * 1.15);
     }
-    // ČHMÚ FCT vs naše stopa — nesouhlas → širší koridor (ne měnit heading)
     if (f.fctDisagree) {
-      halfKm = Math.min(20, halfKm * 1.45);
+      halfKm = Math.min(12, halfKm * 1.2);
     }
     const mid = destinationPoint(
       here[1],
@@ -923,19 +974,23 @@ export function radarTracksGeoJSONAt(
   forecastMinutes: number,
 ): FeatureCollection {
   const horizon = stormConfig.alertHorizonMin;
+  const systemDelta = meanForecastDelta(features, forecastMinutes);
   return {
     type: "FeatureCollection",
     features: features.filter(showCoreMarkerOnMap).map((f) => {
-      // Trasa od aktuální pozice jádra dál po směru (ne od starého peaku)
-      const here = scaledTrackEnd(f.peak, f.trackEnd, forecastMinutes);
-      let tip = f.trackEnd;
+      const here = peakAtForecastMinutes(f, forecastMinutes, systemDelta);
+      let tip = destinationPoint(
+        here[1],
+        here[0],
+        f.headingDeg,
+        Math.max(6, (f.speedKmh * Math.max(5, horizon - forecastMinutes)) / 60),
+      );
       const dx = tip[0] - here[0];
       const dy = tip[1] - here[1];
       if (dx * dx + dy * dy < 1e-10) {
-        // Na konci horizontu / nulový pohyb — krátký vektor po heading
-        tip = destinationPoint(here[1], here[0], f.headingDeg, 18);
+        tip = destinationPoint(here[1], here[0], f.headingDeg, 10);
       } else if (forecastMinutes >= horizon - 1) {
-        tip = destinationPoint(here[1], here[0], f.headingDeg, 18);
+        tip = destinationPoint(here[1], here[0], f.headingDeg, 10);
       }
       return {
         type: "Feature" as const,
@@ -962,11 +1017,11 @@ export function radarArrowsGeoJSONAt(
   features: RadarProgressFeature[],
   forecastMinutes: number,
 ): FeatureCollection {
+  const systemDelta = meanForecastDelta(features, forecastMinutes);
   return {
     type: "FeatureCollection",
     features: features.filter(showCoreMarkerOnMap).map((f) => {
-      // Stejný bod jako jádro — šipka (anchor bottom) vyrůstá po heading
-      const here = scaledTrackEnd(f.peak, f.trackEnd, forecastMinutes);
+      const here = peakAtForecastMinutes(f, forecastMinutes, systemDelta);
       return {
         type: "Feature" as const,
         properties: {
