@@ -42,11 +42,17 @@ function feat(
 }
 
 describe("peakAtForecastMinutes", () => {
-  it("posune jádro při radar-track", () => {
+  it("posune jádro při radar-track (track mode)", () => {
     const at0 = peakAtForecastMinutes(feat(), 0);
-    const at30 = peakAtForecastMinutes(feat(), 30);
+    const at30 = peakAtForecastMinutes(feat(), 30, undefined, "track");
     expect(at0).toEqual([16, 50]);
     expect(at30[0]).toBeGreaterThan(at0[0]);
+  });
+
+  it("raster mode použije systémový posun", () => {
+    const delta = meanForecastDelta([feat()], 20);
+    const moved = peakAtForecastMinutes(feat(), 20, delta, "raster");
+    expect(moved[0]).toBeCloseTo(16 + delta.dLon, 5);
   });
 
   it("posune jádro i při wind-fallback s rychlostí", () => {
@@ -57,6 +63,8 @@ describe("peakAtForecastMinutes", () => {
     const at30 = peakAtForecastMinutes(
       feat({ motionSource: "wind-fallback", speedKmh: 24, headingDeg: 90 }),
       30,
+      undefined,
+      "track",
     );
     expect(at30[0]).toBeGreaterThan(at0[0]);
   });

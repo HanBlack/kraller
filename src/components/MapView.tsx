@@ -2482,11 +2482,16 @@ export function MapView({
         [BIRTH_TRAIL, BIRTH_MARK, BIRTH_LABEL],
         showCellDetail,
       );
-      // Stopa + šipka: Progress, nebo automaticky v +min
+      // Koridor jen po výběru buňky — jinak zahltí mapu
       setLayerVisibility(
         map,
-        [TRACK_CORRIDOR_FILL, TRACK_LINE, ARROW_LAYER],
+        [TRACK_LINE, ARROW_LAYER],
         showCellsNow,
+      );
+      setLayerVisibility(
+        map,
+        [TRACK_CORRIDOR_FILL],
+        showCellDetail,
       );
       setLayerVisibility(
         map,
