@@ -3,10 +3,17 @@
   "frames": [
     {
       "index": 0,
-      "offsetMinutes": 0,
+      "offsetMinutes": -5,
       "time": "20260721000000",
       "path": "data/opera/history/frame-0.geojson",
       "rasterPath": "data/opera/history/frame-0-raster.json"
+    },
+    {
+      "index": 1,
+      "offsetMinutes": 0,
+      "time": "20260721000500",
+      "path": "data/opera/history/frame-1.geojson",
+      "rasterPath": "data/opera/history/frame-1-raster.json"
     }
   ]
 }
