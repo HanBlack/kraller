@@ -6,7 +6,7 @@ import {
   type DataSourceStatus,
 } from "../lib/loadStormData";
 import { loadStormDataForBoot } from "../lib/bootData";
-import { preloadRadarHistoryFrames } from "../lib/radarHistory";
+import { preloadRadarHistoryFrames, preloadRadarHistoryRasters } from "../lib/radarHistory";
 import { preloadMapStyle } from "../lib/preloadBoot";
 import type { FormationZone } from "../storm/demo";
 import type { WindGrid } from "../lib/windField";
@@ -14,6 +14,7 @@ import type { TrackedCell } from "../storm/radarCells";
 import type { RadarHistoryManifest } from "../lib/radarHistory";
 import type { ScoredFormationPoint } from "../storm/formationData";
 import {
+  commitLiveRasterBlobSwap,
   preloadRadarRaster,
   type RadarRasterMeta,
 } from "../lib/radarRaster";
@@ -98,14 +99,16 @@ export function useStormData(
       if (isBoot) setBootPhase("history");
       const [rasterReady] = await Promise.all([
         preloadRadarRaster(data.radarRaster),
-        preloadRadarHistoryFrames(data.radarHistory, Date.now()),
+        preloadRadarHistoryRasters(data.radarHistory, bust),
       ]);
       if (isBoot) {
         setBootPhase("map");
         await preloadMapStyle();
         setBootPhase("done");
       }
+      void preloadRadarHistoryFrames(data.radarHistory, bust);
       setRadarData(data.radarData);
+      if (rasterReady?.url) commitLiveRasterBlobSwap(rasterReady.url);
       setRadarRaster(rasterReady);
       setTrackedCells(data.trackedCells);
       setWindLow(data.windLow);

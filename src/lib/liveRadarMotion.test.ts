@@ -15,38 +15,14 @@ describe("liveRadarMotion", () => {
     ).toBeCloseTo(5, 5);
   });
 
-  it("Teď = clampovaný věk snímku", () => {
+  it("Teď a historie = 0 motion (přesná data, ne odhad)", () => {
     expect(
       motionMinutesForView({
         timeOffsetMinutes: 0,
         productIso: "2026-07-21T11:50:00Z",
         nowMs: t0,
       }),
-    ).toBeCloseTo(10, 5);
-  });
-
-  it("±5 min kroky slideru = ±5 min posunu (liveAge=10)", () => {
-    const iso = "2026-07-21T11:50:00Z";
-    const m5 = motionMinutesForView({
-      timeOffsetMinutes: -5,
-      productIso: iso,
-      nowMs: t0,
-    });
-    const m0 = motionMinutesForView({
-      timeOffsetMinutes: 0,
-      productIso: iso,
-      nowMs: t0,
-    });
-    const p5 = motionMinutesForView({
-      timeOffsetMinutes: 5,
-      productIso: iso,
-      nowMs: t0,
-    });
-    expect(m0 - m5).toBeCloseTo(5, 5);
-    expect(p5 - m0).toBeCloseTo(5, 5);
-  });
-
-  it("historie nejde pod nulu", () => {
+    ).toBe(0);
     expect(
       motionMinutesForView({
         timeOffsetMinutes: -15,
@@ -54,6 +30,16 @@ describe("liveRadarMotion", () => {
         nowMs: t0,
       }),
     ).toBe(0);
+  });
+
+  it("kladný offset = scrub stopy (ne PNG predikce)", () => {
+    expect(
+      motionMinutesForView({
+        timeOffsetMinutes: 10,
+        productIso: "2026-07-21T11:50:00Z",
+        nowMs: t0,
+      }),
+    ).toBe(10);
   });
 
   it("liveExtrapolationMinutes = věk snímku (UI)", () => {

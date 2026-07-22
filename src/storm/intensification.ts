@@ -272,11 +272,14 @@ export function forecastCellIntensification(
 
   let whyHeadline: string | undefined;
   let whyReasons: string[] | undefined;
-  const decaying =
+  /** Neznámý / flat / slabý growth → žádná fialová (nejen klesající echo). */
+  const trendUnknown = feature.growthDbz == null;
+  const trendTooWeak =
     feature.growthDbz != null &&
     feature.growthDbz < cfg.suppressIfGrowthDbzBelow;
+  const suppressPurple = trendUnknown || trendTooWeak;
 
-  if (alertSegs.length > 0 && !decaying) {
+  if (alertSegs.length > 0 && !suppressPurple) {
     const peak = alertSegs.reduce((a, b) => (b.score > a.score ? b : a));
     const at = nearestEnv(peak.center[1], peak.center[0], points);
     if (at) {
@@ -311,8 +314,28 @@ export function forecastCellIntensification(
     }
   }
 
-  const showSegs = decaying ? [] : alertSegs;
+  const showSegs = suppressPurple ? [] : alertSegs;
   const willIntensify = showSegs.length > 0;
+
+  let suppressHeadline: string | undefined;
+  let suppressReasons: string[] | undefined;
+  if (suppressPurple && alertSegs.length > 0) {
+    if (trendUnknown) {
+      suppressHeadline =
+        "Trend echa neznámý — fialovou zónu nezobrazujeme (zesílení není jistota).";
+      suppressReasons = ["chybí růst dBZ z historie"];
+    } else if (feature.growthDbz != null && feature.growthDbz < 0) {
+      suppressHeadline =
+        "Echo slábne — fialovou zónu nezobrazujeme (zesílení je nepravděpodobné).";
+      suppressReasons = [`růst echa ${feature.growthDbz.toFixed(1)} dBZ`];
+    } else {
+      suppressHeadline =
+        "Echo neroste dost — fialovou zónu nezobrazujeme (může zesílit jen při jasném růstu).";
+      suppressReasons = [
+        `růst echa ${feature.growthDbz?.toFixed(1) ?? "?"} dBZ (min. ${cfg.suppressIfGrowthDbzBelow})`,
+      ];
+    }
+  }
 
   return {
     cellId: feature.id,
@@ -323,12 +346,8 @@ export function forecastCellIntensification(
       : feature.maxDbz,
     segments: showSegs,
     willIntensify,
-    whyHeadline: decaying
-      ? "Echo slábne — fialovou zónu nezobrazujeme (zesílení je nepravděpodobné)."
-      : whyHeadline,
-    whyReasons: decaying
-      ? [`růst echa ${feature.growthDbz?.toFixed(1)} dBZ`]
-      : whyReasons,
+    whyHeadline: suppressHeadline ?? whyHeadline,
+    whyReasons: suppressReasons ?? whyReasons,
     timeline: raw.map((p) => ({
       eta: p.eta,
       expectedDbz: p.expectedDbz,

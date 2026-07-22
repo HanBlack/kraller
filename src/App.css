@@ -512,13 +512,21 @@
   color: var(--muted);
 }
 
-.location-watch-hero {
-  margin: 0 0 0.35rem;
-  font-size: 1.05rem;
-  font-weight: 700;
-  line-height: 1.3;
+.location-watch-hero,
+.location-watch-strength {
+  margin: 0 0 0.25rem;
+  font-size: 1.15rem;
+  font-weight: 750;
+  line-height: 1.25;
   letter-spacing: 0.01em;
   color: #fff4e6;
+}
+
+.location-watch-eta {
+  margin: 0 0 0.45rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #f0d5a8;
 }
 
 .location-watch-body {
@@ -558,6 +566,29 @@
   border-radius: 10px;
   border: 1px solid rgba(232, 165, 75, 0.4);
   background: rgba(232, 165, 75, 0.08);
+}
+
+.storm-wind-at-cell {
+  margin: 0.55rem 0 0.75rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  background: rgba(120, 170, 220, 0.1);
+  border: 1px solid rgba(140, 180, 220, 0.28);
+}
+
+.storm-wind-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(200, 220, 240, 0.92);
+}
+
+.storm-wind-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: rgba(210, 225, 240, 0.88);
 }
 
 .to-you-card.strong {

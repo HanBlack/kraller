@@ -11,52 +11,48 @@ Field observations from a real storm weekend over the user's location (Vsetín /
 
 - Radar **location** of the core vs fringe matches reality: core overhead = heavy brief rain; core miss = light rain.
 - Once a cell is **organized/mature**, track and position can be accurate (e.g. Ústí → Hovězí → Hrozenkov).
+- Honest timeline: history = real OPERA frames; Teď = latest PNG (no fake +30 min radar picture).
+- Strength UX: human label + mm/h on cores and watched address (field-verify on next storm).
+- Honest purple: higher `alertScoreMin`, suppress flat/null/weak growth; copy „může zesílit“.
+- Corridor when threat toward user; arrow = steering (`resolveCellMotion`); peak = worst rain now.
+- Formation less blind: `MAX_ZONES=26`, activity-linked, margin 80 km + `pathReachesCzechia`, heat layer.
+- Wind at storm: 850 + steering + cell motion in detail/map (environment, not Doppler).
+- Cooling honesty: `coolingSource` satellite|model — model LI proxy until EUMETSAT keys live.
 
-## Critical gaps (must fix to be best-in-class)
+## Remaining gaps (toward best-in-class)
 
-### 1. Strength is not readable in advance
-- Orange “heavy” band hides 48 vs 58 dBZ differences.
-- User needs: human strength label, **mm/h estimate**, and **core vs fringe hit at watched address** — before the storm arrives.
+### A. Field-verify strength
+- mm/h is dBZ proxy — confirm vs rain at watched address on next real storm; tune `dbzToMmH` if needed.
 
-### 2. Intensification (purple) over-promises
-- Purple zone often shown, then storm **died** instead of intensifying.
-- Copy must be probabilistic (“může zesílit”), raise thresholds, suppress when dBZ trend is decaying.
-- Learning store must score intensify-hit vs demise after purple.
+### B. Live satellite cooling
+- Pipeline ready (`scripts/fetch_sat_cooling.py` + merge). Needs free `EUMETSAT_CONSUMER_KEY` / `SECRET`.
+- Until keys: formation uses model LI proxy with honest copy.
 
-### 3. Core does not follow a straight line
-- Peak **jumps inside the cell** during growth; stable path comes later.
-- Do not treat peak track as a thin line the user must hit.
-- Show **uncertainty corridor**; arrow = system steering; peak = “worst rain now”.
-- Early-stage motion is often **propagation / cold pool / terrain**, not deep-layer wind alone.
-
-### 4. Formation zones missed real initiation
-- Sunday storm formed in **Austria**, grew into CZ (South Bohemia → Brno → Ústí / Nový Hrozenkov).
-- Growth happened in areas **not shown** as Vznik zones (only ~8 top clusters visible; formation/wind often stale vs radar).
-- Radar showed truth earlier than formation UI.
-
-### 5. Product goal (user priority)
-- Radar works at a basic level; to be best: **faster data**, **better tracking**, **minutes-ahead prediction**.
-- Intensification / formation must be known **before it is too late** — env + satellite proxies, not waiting for mature echo.
-- Pure radar cannot invent a storm before echo exists; **fresh environment + cooling + shear** must lead.
+### C. Product goal (user priority)
+- Faster data + minutes-ahead via **live sat cooling** + fresher mesoscale env.
+- Pure radar cannot invent a storm before echo exists.
 
 ## Process notes (user)
 
-- **Do not push** learning / weekend docs / WIP until the user says the batch is ready (“až to bude hotové”).
-- **Calibration comes AFTER** fixing the product gaps below (same-cadence formation/intensification, strength UX, honest purple, tracking corridor). Do not run “final calibrate / propose constants apply” as the main track while these problems are open. Learning may still collect in the background once live.
+- **Do not push** learning / weekend docs / WIP until the user says the batch is ready („až to bude hotové“).
+- **Calibration comes AFTER** product gaps above. Learning may still collect in the background once live.
+- Do not run „final calibrate / propose constants apply“ as the main track while A–C are open.
 
 ## Implementation order (when building)
 
-1. Formation + wind/intensification env on **same cadence as radar** — DONE: refresh ~15/10 min (Live radar 5 min), formation writes wind, no 6h skip bug
-2. Strength at user: core/fringe + mm/h + clear labels
-3. Honest purple intensification (fewer false positives)
-4. Formation less blind (UI: more than 8 zones / activity-linked)
-5. Core as corridor; wind for system, not chaotic peak
-6. **Then** calibrate from `public/data/learning`
+1. Formation + wind/intensification env on **same cadence as radar** — DONE
+2. Strength at user: core/fringe + mm/h + clear labels — DONE (field verify pending)
+3. Honest purple intensification — DONE
+4. Formation less blind — DONE
+5. Core as corridor; wind for system, not chaotic peak — DONE
+6. Wind at cell (850 / steer / motion) — DONE
+7. Satellite cooling ingest + merge — DONE (await credentials for live CTT)
+8. **Then** calibrate from `public/data/learning`
 
 ## Related code
 
-- Motion: `src/storm/stormTrackRules.ts`
+- Motion: `src/storm/stormTrackRules.ts`, `src/storm/stormWindAtCell.ts`
 - Intensification: `src/storm/intensification.ts`
-- Formation UI limits: `src/storm/formationData.ts` (`MAX_ZONES`, `MIN_ZONE_SCORE`)
+- Formation: `src/storm/formationData.ts`, sat: `scripts/fetch_sat_cooling.py`, `scripts/merge_sat_cooling.py`
 - Learning: `scripts/emit_learning.py`, `scripts/propose_calibration.py`
 - Rain proxy: `stormConfig.active.rain.dbzToMmH` in `src/storm/config.ts`

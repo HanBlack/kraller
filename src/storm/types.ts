@@ -10,8 +10,10 @@ export type EnvironmentSignals = {
   dewpointC: number | null;
   shear0to6Ms: number;
   srh01: number;
-  /** Záporné = ochlazování / rostoucí nestabilita. */
+  /** Záporné = ochlazování / rostoucí nestabilita (°C / 15 min). */
   cloudTopCoolingCPer15min: number;
+  /** Odkud cooling pochází — satelit vs Open-Meteo LI proxy. */
+  coolingSource?: "satellite" | "model";
   /** Lifted index (°C); záporné = nestabilní prostředí. */
   liftedIndexC?: number;
   /** Výška nulové izotermy (m n. m.) — Waldvogel / riziko krup. */

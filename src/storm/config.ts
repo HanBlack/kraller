@@ -46,7 +46,10 @@ export const stormConfig = {
       high: 140,
       extreme: 200,
     },
-    /** Satelit: pokles teploty vrcholu mraku (°C / 15 min). */
+    /**
+     * Ochlazování vrcholu (°C / 15 min). Preferuj satelit;
+     * bez sat = LI/CAPE model proxy (ne satelit).
+     */
     cloudTopCoolingCPer15min: {
       growing: 2,
       rapid: 6,
@@ -140,15 +143,15 @@ export const stormConfig = {
     /** Od kdy kreslit segment koridoru. */
     segmentScoreMin: 38,
     /** Od kdy hlásit zesílení u buňky (vyšší = méně falešných). */
-    alertScoreMin: 46,
+    alertScoreMin: 50,
     /** Růst dBZ po vstupu do zóny (~dBZ za 15 min). */
     growthDbzPer15Min: 6,
     /** Pokles dBZ v nepřátelském prostředí (~dBZ za 15 min). */
     decayDbzPer15Min: 5,
     /** Poloměr vizuálního koridoru (km). */
     corridorHalfWidthKm: 11,
-    /** Při klesajícím / plochém echu fialovou nezobrazovat. */
-    suppressIfGrowthDbzBelow: 0,
+    /** Pod tímto růstem dBZ fialovou nezobrazovat (flat/slabý trend ≠ zesílení). */
+    suppressIfGrowthDbzBelow: 2,
   },
 
   /**

@@ -10,22 +10,33 @@ import { severityLabel, severityRank } from "../lib/severity";
 import type { WindLayerMode } from "../lib/windField";
 import { WindParticleOverlay } from "../lib/windParticles";
 import {
-  frameForOffset,
+  cachedHistoryFrame,
+  cachedHistoryRaster,
   loadRadarHistoryFrame,
   loadRadarHistoryRaster,
 } from "../lib/radarHistory";
 import { filterRadarForCzFocus } from "../lib/radarDisplay";
-import { renderEvolvedRadarRaster, commitEvolvedRasterSwap } from "../lib/evolveRadarRaster";
+import { preloadMapImage } from "../lib/mapImagePreload";
+import { type RadarRasterMeta } from "../lib/radarRaster";
 import {
-  stormEvolutionAt,
-} from "../lib/stormEvolution";
+  applyTimeOffsetRaster,
+  getLastAppliedRasterUrl,
+  registerRadarMapBridge,
+} from "../lib/radarMapBridge";
 import {
-  commitLiveRasterBlobSwap,
-  type RadarRasterMeta,
-} from "../lib/radarRaster";
+  getSliderRaster,
+  seedSliderRasterFromArchives,
+  sliderCacheSize,
+  sliderCacheUrls,
+  subscribeSliderRasterCache,
+  warmRadarSliderCache,
+} from "../lib/radarSliderCache";
 import {
-  motionMinutesForView,
-} from "../lib/liveRadarMotion";
+  resolveRadarViewRaster,
+  type RadarHistoryLoad,
+} from "../lib/radarViewRaster";
+import { motionMinutesForView } from "../lib/liveRadarMotion";
+import { useDebouncedValue } from "../lib/useDebouncedValue";
 import { useStormDataContext } from "../providers/StormDataProvider";
 import { MAP_STYLE_URL } from "../lib/preloadBoot";
 import {
@@ -35,7 +46,7 @@ import {
   bandCenter,
   ellipsePolygon,
 } from "../storm/cellShape";
-import { applyFormationLinks } from "../storm/formationData";
+import { applyFormationLinks, formationHeatGeoJSON } from "../storm/formationData";
 import { linkFormationToRadarCells } from "../storm/formationLinks";
 import {
   formationArrowsGeoJSON,
@@ -87,12 +98,14 @@ const CZ_CENTER: [number, number] = [15.5, 49.75];
 
 const FORM_SOURCE = "formation-zones";
 const FORM_GRID_SOURCE = "formation-grid";
+const FORM_HEAT_SOURCE = "formation-heat";
 const FORM_LINK_SOURCE = "formation-links";
 const FORM_CENTER_SOURCE = "formation-centers";
 const FORM_TRACK_SOURCE = "formation-track-source";
 const FORM_ARROW_SOURCE = "formation-arrow-source";
 const FORM_FILL = "formation-fill";
 const FORM_GRID = "formation-grid-layer";
+const FORM_HEAT = "formation-heat-layer";
 const FORM_LINE = "formation-line";
 const FORM_LINK = "formation-link";
 const FORM_CENTER = "formation-center";
@@ -260,17 +273,17 @@ const dbzFillOpacity: maplibregl.ExpressionSpecification = [
   ["linear"],
   dbzValue,
   25,
-  0.4,
-  35,
   0.55,
+  35,
+  0.72,
   45,
-  0.68,
+  0.84,
   55,
-  0.82,
+  0.92,
   62,
-  0.9,
-  70,
   0.96,
+  70,
+  0.98,
 ];
 
 /** Kontura buňky — intensifying / decaying / threat mají prioritu. */
@@ -633,64 +646,58 @@ function syncRadarRasterImage(
     setLayerVisibility(map, [RADAR_RASTER], false);
   }
 
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.decoding = "async";
-    img.onload = () => {
+  return preloadMapImage(meta.url)
+    .then(() => {
       if (gen !== rasterSyncGeneration) {
-        resolve(alreadyShowing);
-        return;
+        return alreadyShowing;
       }
       const src = map.getSource(RADAR_RASTER_SOURCE) as
         | maplibregl.ImageSource
         | undefined;
-      if (!src) {
-        resolve(alreadyShowing);
-        return;
-      }
+      if (!src) return alreadyShowing;
+
       try {
         src.updateImage({
           url: meta.url,
           coordinates: meta.coordinates,
         });
       } catch {
-        resolve(alreadyShowing);
-        return;
+        return alreadyShowing;
       }
 
-      let settled = false;
-      const finish = (ok: boolean) => {
-        if (settled) return;
-        settled = true;
-        map.off("sourcedata", onData);
-        window.clearTimeout(timer);
-        if (gen !== rasterSyncGeneration) {
-          resolve(alreadyShowing);
-          return;
-        }
+      return new Promise<boolean>((resolve) => {
+        let settled = false;
+        const finish = (ok: boolean) => {
+          if (settled) return;
+          settled = true;
+          map.off("sourcedata", onData);
+          window.clearTimeout(timer);
+          if (gen !== rasterSyncGeneration) {
+            resolve(alreadyShowing);
+            return;
+          }
         if (ok) {
           lastSyncedRasterUrl = meta.url;
-          commitLiveRasterBlobSwap(meta.url);
-          commitEvolvedRasterSwap(meta.url);
+          // Nerevokovat blob při slider scrub — live URL musí přežít návrat na Teď.
+          // Revoke jen při výměně live produktu (commitLiveRasterBlobSwap v refresh).
           map.triggerRepaint();
         }
-        resolve(ok || alreadyShowing);
-      };
-      const onData = (e: maplibregl.MapSourceDataEvent) => {
-        if (e.sourceId !== RADAR_RASTER_SOURCE) return;
-        if (e.isSourceLoaded || map.isSourceLoaded(RADAR_RASTER_SOURCE)) {
-          finish(true);
-        }
-      };
-      map.on("sourcedata", onData);
-      const timer = window.setTimeout(() => {
-        finish(map.isSourceLoaded(RADAR_RASTER_SOURCE));
-      }, 2800);
-      if (map.isSourceLoaded(RADAR_RASTER_SOURCE)) finish(true);
-    };
-    img.onerror = () => resolve(alreadyShowing);
-    img.src = meta.url;
-  });
+          resolve(ok || alreadyShowing);
+        };
+        const onData = (e: maplibregl.MapSourceDataEvent) => {
+          if (e.sourceId !== RADAR_RASTER_SOURCE) return;
+          if (e.isSourceLoaded || map.isSourceLoaded(RADAR_RASTER_SOURCE)) {
+            finish(true);
+          }
+        };
+        map.on("sourcedata", onData);
+        const timer = window.setTimeout(() => {
+          finish(map.isSourceLoaded(RADAR_RASTER_SOURCE));
+        }, 1200);
+        if (map.isSourceLoaded(RADAR_RASTER_SOURCE)) finish(true);
+      });
+    })
+    .catch(() => alreadyShowing);
 }
 
 function ensureStormLayers(map: maplibregl.Map) {
@@ -825,6 +832,10 @@ function ensureStormLayers(map: maplibregl.Map) {
       type: "geojson",
       data: { type: "FeatureCollection", features: [] },
     });
+    map.addSource(FORM_HEAT_SOURCE, {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] },
+    });
     map.addSource(FORM_SOURCE, {
       type: "geojson",
       data: { type: "FeatureCollection", features: [] },
@@ -844,6 +855,27 @@ function ensureStormLayers(map: maplibregl.Map) {
     map.addSource(FORM_ARROW_SOURCE, {
       type: "geojson",
       data: { type: "FeatureCollection", features: [] },
+    });
+    map.addLayer({
+      id: FORM_HEAT,
+      type: "circle",
+      source: FORM_HEAT_SOURCE,
+      paint: {
+        "circle-radius": [
+          "interpolate",
+          ["linear"],
+          ["get", "score"],
+          20,
+          3,
+          40,
+          5,
+          60,
+          7,
+        ],
+        "circle-color": "rgba(232, 140, 90, 0.22)",
+        "circle-opacity": 0.55,
+        "circle-blur": 0.65,
+      },
     });
     map.addLayer({
       id: FORM_GRID,
@@ -1035,7 +1067,7 @@ function ensureStormLayers(map: maplibregl.Map) {
       source: RADAR_RASTER_SOURCE,
       layout: { visibility: "none" },
       paint: {
-        "raster-opacity": 0.9,
+        "raster-opacity": 1,
         "raster-fade-duration": 0,
       },
     });
@@ -1610,21 +1642,33 @@ function ensureStormLayers(map: maplibregl.Map) {
       source: ACT_SOURCE,
       layout: {
         "text-field": ["get", "label"],
-        "text-size": 12,
-        "text-offset": [0, 1.35],
+        "text-size": [
+          "interpolate",
+          ["linear"],
+          ["get", "rank"],
+          1,
+          11,
+          3,
+          13,
+        ],
+        "text-offset": [0, 1.4],
         "text-anchor": "top",
-        "text-line-height": 1.2,
+        "text-line-height": 1.15,
+        "text-max-width": 9,
         "text-allow-overlap": false,
+        "text-ignore-placement": false,
       },
       paint: {
         "text-color": [
           "case",
           ["==", ["get", "threatens"], 1],
-          "#ffc4b0",
+          "#ffe0d0",
+          ["==", ["get", "severity"], "strong"],
+          "#ffd4a8",
           "#e8eef4",
         ],
-        "text-halo-color": "rgba(10, 14, 20, 0.92)",
-        "text-halo-width": 1.5,
+        "text-halo-color": "rgba(8, 12, 18, 0.94)",
+        "text-halo-width": 1.6,
       },
     });
   }
@@ -1739,15 +1783,9 @@ export function MapView({
     operaTime,
     chmiTime,
   } = useStormDataContext();
-  const [historicalRadar, setHistoricalRadar] = useState<FeatureCollection | null>(
-    null,
-  );
-  const [historicalRaster, setHistoricalRaster] =
-    useState<RadarRasterMeta | null>(null);
-  /** Historický PNG jen když jde čistě o minulý snímek bez advekce. */
+  const [historyLoad, setHistoryLoad] = useState<RadarHistoryLoad | null>(null);
   const [liveClockMs, setLiveClockMs] = useState(() => Date.now());
   const forecastMinutes = Math.max(0, timeOffsetMinutes);
-  const isHistoryView = timeOffsetMinutes < 0;
   const isLiveNow = timeOffsetMinutes === 0;
   const windGrid = windLow;
   /** OPERA snímek řídí raster; ČHMÚ jen fallback času. */
@@ -1759,17 +1797,6 @@ export function MapView({
     const id = window.setInterval(() => setLiveClockMs(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, [isLiveNow, radarProductIso]);
-
-  const motionMinutes = motionMinutesForView({
-    timeOffsetMinutes,
-    productIso: radarProductIso,
-    nowMs: liveClockMs,
-  });
-
-  const useHistoricalRaster =
-    isHistoryView && motionMinutes <= 0.05 && Boolean(historicalRaster);
-  /** Live / history PNG; forecast = stejný PNG posunutý po tracku. */
-  const baseRaster = useHistoricalRaster ? historicalRaster : radarRaster;
 
   const radarProgress = useMemo(
     () =>
@@ -1789,63 +1816,134 @@ export function MapView({
     [radarProgress, formationScoredPoints],
   );
 
-  const evolution = useMemo(
-    () => stormEvolutionAt(radarProgress, intensForecasts, motionMinutes),
-    [radarProgress, intensForecasts, motionMinutes],
-  );
-
-  const [evolvedRaster, setEvolvedRaster] = useState<RadarRasterMeta | null>(
-    null,
-  );
-  const evolvedForBaseTimeRef = useRef<string | undefined>(undefined);
-
-  useEffect(() => {
-    if (!baseRaster || isHistoryView) {
-      setEvolvedRaster(null);
-      evolvedForBaseTimeRef.current = undefined;
-      return;
-    }
-    if (motionMinutes <= 0.05) {
-      setEvolvedRaster(null);
-      return;
-    }
-    const baseTime = baseRaster.time;
-    const evolveMinutes = Math.round(motionMinutes * 2) / 2;
-    let cancelled = false;
-    void renderEvolvedRadarRaster(
-      baseRaster,
+  const sliderRasterInput = useMemo(
+    () => ({
+      timeOffsetMinutes,
+      productIso: radarProductIso,
+      nowMs: liveClockMs,
+      liveRaster: radarRaster,
+      radarHistory,
+      historyLoad,
       radarProgress,
       intensForecasts,
-      evolveMinutes,
-    ).then((next) => {
-      if (!cancelled && next) {
-        evolvedForBaseTimeRef.current = baseTime;
-        setEvolvedRaster(next);
-      }
+    }),
+    [
+      timeOffsetMinutes,
+      radarProductIso,
+      liveClockMs,
+      radarRaster,
+      radarHistory,
+      historyLoad,
+      radarProgress,
+      intensForecasts,
+    ],
+  );
+  const sliderInputRef = useRef(sliderRasterInput);
+  sliderInputRef.current = sliderRasterInput;
+
+  const [sliderCacheTick, setSliderCacheTick] = useState(0);
+  useEffect(
+    () => subscribeSliderRasterCache(() => setSliderCacheTick((n) => n + 1)),
+    [],
+  );
+
+  const warmSignature = useMemo(() => {
+    const moving = radarProgress.filter((f) => f.speedKmh >= 5);
+    const motion = moving
+      .map(
+        (f) =>
+          `${f.id}:${f.maxDbz.toFixed(0)}:${f.speedKmh.toFixed(0)}:${f.headingDeg.toFixed(0)}`,
+      )
+      .join("|");
+    return `${radarRaster?.url ?? ""}::${radarRaster?.time ?? ""}::${radarHistory?.frames.length ?? 0}::${motion}`;
+  }, [radarRaster, radarHistory, radarProgress]);
+
+  useEffect(() => {
+    if (!radarRaster?.url && !radarHistory?.frames.length) return;
+    seedSliderRasterFromArchives({
+      ...sliderInputRef.current,
+      timeOffsetMinutes: 0,
+    });
+    let cancelled = false;
+    void warmRadarSliderCache(
+      { ...sliderInputRef.current, timeOffsetMinutes: 0 },
+      timeOffsetMinutes,
+    ).finally(() => {
+      if (cancelled) return;
+      setSliderCacheTick((n) => n + 1);
+      applyTimeOffsetRaster(timeOffsetMinutes);
     });
     return () => {
       cancelled = true;
     };
-  }, [
-    baseRaster,
-    isHistoryView,
-    motionMinutes,
-    radarProgress,
-    intensForecasts,
-  ]);
+  }, [warmSignature]);
+
+  useEffect(() => {
+    applyTimeOffsetRaster(timeOffsetMinutes);
+  }, [timeOffsetMinutes, sliderCacheTick]);
 
   const activeRaster = useMemo(() => {
-    if (!baseRaster) return null;
-    if (isHistoryView) return baseRaster;
-    if (motionMinutes <= 0.05) return baseRaster;
-    if (
-      evolvedRaster &&
-      evolvedForBaseTimeRef.current === baseRaster.time
-    ) {
-      return evolvedRaster;
+    void sliderCacheTick;
+    return getSliderRaster(timeOffsetMinutes, sliderRasterInput);
+  }, [timeOffsetMinutes, sliderRasterInput, sliderCacheTick]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    registerRadarMapBridge(
+      map,
+      (offset) =>
+        getSliderRaster(offset, {
+          ...sliderInputRef.current,
+          timeOffsetMinutes: offset,
+        }),
+      syncRadarRasterImage,
+    );
+    return () => registerRadarMapBridge(null, null, null);
+  }, [mapReady, warmSignature]);
+
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      (
+        window as unknown as {
+          __radarDebug?: (offset: number) => object;
+        }
+      ).__radarDebug = (offset: number) => ({
+        offset,
+        cacheSize: sliderCacheSize(),
+        urls: sliderCacheUrls(),
+        active: getSliderRaster(offset, {
+          ...sliderInputRef.current,
+          timeOffsetMinutes: offset,
+        })?.url,
+      });
     }
-    return baseRaster;
-  }, [baseRaster, isHistoryView, motionMinutes, evolvedRaster]);
+  });
+
+  const radarView = useMemo(
+    () => resolveRadarViewRaster(sliderRasterInput),
+    [sliderRasterInput],
+  );
+
+  const {
+    historyFrame,
+    isHistoryView,
+    motionMinutes,
+    historicalRadar,
+    evolution,
+  } = radarView;
+
+  /** Overlay (jádra, tracky) až po pauze — raster jde okamžitě z cache. */
+  const debouncedOffset = useDebouncedValue(timeOffsetMinutes, 120);
+  const overlayMotionMinutes = useMemo(
+    () =>
+      motionMinutesForView({
+        timeOffsetMinutes: debouncedOffset,
+        productIso: radarProductIso,
+        nowMs: liveClockMs,
+      }),
+    [debouncedOffset, radarProductIso, liveClockMs],
+  );
 
   const useRasterDisplay = Boolean(activeRaster);
   const operaReady = radarData.features.length > 0 || Boolean(activeRaster);
@@ -1878,38 +1976,52 @@ export function MapView({
   windRealRef.current = windReal;
 
   useEffect(() => {
-    if (!radarHistory || timeOffsetMinutes >= 0) {
-      setHistoricalRadar(null);
-      setHistoricalRaster(null);
+    if (!historyFrame) {
+      setHistoryLoad(null);
       onHistoryRadarTimeRef.current?.(null);
       return;
     }
-    const frame = frameForOffset(radarHistory, timeOffsetMinutes);
-    if (!frame) {
-      setHistoricalRadar(null);
-      setHistoricalRaster(null);
-      onHistoryRadarTimeRef.current?.(null);
+    onHistoryRadarTimeRef.current?.(historyFrame.time);
+
+    const cachedFc = cachedHistoryFrame(historyFrame);
+    const cachedRaster = cachedHistoryRaster(historyFrame);
+    if (cachedFc && (cachedRaster || !historyFrame.rasterPath)) {
+      setHistoryLoad(null);
       return;
     }
-    onHistoryRadarTimeRef.current?.(frame.time);
+
+    setHistoryLoad(null);
     let cancelled = false;
-    // Bez cache-bust — boot preload naplní cache, scrub je okamžitý.
-    void Promise.all([
-      loadRadarHistoryFrame(frame),
-      loadRadarHistoryRaster(frame),
-    ]).then(([fc, raster]) => {
+    const loadRaster =
+      cachedRaster || !historyFrame.rasterPath
+        ? Promise.resolve(cachedRaster)
+        : loadRadarHistoryRaster(historyFrame);
+    void loadRaster.then((raster) => {
+      if (cancelled || !raster) return;
+      setHistoryLoad((prev) => ({
+        framePath: historyFrame.path,
+        radar: prev?.framePath === historyFrame.path ? prev.radar : cachedFc ?? null,
+        raster,
+      }));
+    });
+    void (cachedFc
+      ? Promise.resolve(cachedFc)
+      : loadRadarHistoryFrame(historyFrame, undefined, { smooth: false })
+    ).then((fc) => {
       if (cancelled) return;
-      setHistoricalRadar(fc);
-      if (raster) setHistoricalRaster(raster);
+      setHistoryLoad((prev) =>
+        prev?.framePath === historyFrame.path
+          ? { ...prev, radar: fc }
+          : { framePath: historyFrame.path, radar: fc, raster: cachedRaster ?? null },
+      );
     });
     return () => {
       cancelled = true;
     };
-  }, [radarHistory, timeOffsetMinutes]);
+  }, [historyFrame]);
 
   const displayRadarData = useMemo(() => {
-    const raw =
-      isHistoryView && historicalRadar ? historicalRadar : radarData;
+    const raw = isHistoryView && historicalRadar ? historicalRadar : radarData;
     const focused = filterRadarForCzFocus(raw);
     // Raster: kontury schovej — nech jen peaky pro hit-test
     if (useRasterDisplay) {
@@ -1942,6 +2054,20 @@ export function MapView({
       );
       void (async () => {
         if (activeRaster && useRasterDisplay) {
+          if (activeRaster.url === getLastAppliedRasterUrl()) {
+            rasterReadyRef.current = true;
+            if (showRadar) {
+              setLayerVisibility(map, [RADAR_RASTER], true);
+              if (map.getLayer(RADAR_RASTER)) {
+                map.setPaintProperty(
+                  RADAR_RASTER,
+                  "raster-opacity",
+                  evolution.rasterOpacity,
+                );
+              }
+            }
+            return;
+          }
           const ok = await syncRadarRasterImage(map, activeRaster);
           if (ok) rasterReadyRef.current = true;
           if (showRadar && (ok || rasterReadyRef.current)) {
@@ -2023,10 +2149,15 @@ export function MapView({
   const activeRef = useRef(activeFeatures);
   const radarRef = useRef(radarProgressEnriched);
   const forecastRef = useRef(motionMinutes);
+  const selectedRadarIdRef = useRef<string | null>(
+    selected?.kind === "radar" ? selected.feature.id : null,
+  );
   formationRef.current = formationFeatures;
   activeRef.current = activeFeatures;
   radarRef.current = radarProgressEnriched;
   forecastRef.current = motionMinutes;
+  selectedRadarIdRef.current =
+    selected?.kind === "radar" ? selected.feature.id : null;
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -2077,12 +2208,20 @@ export function MapView({
       );
       (map.getSource(TRACK_SOURCE) as maplibregl.GeoJSONSource).setData(
         useRadarProgress
-          ? radarTracksGeoJSONAt(radarRef.current, forecastRef.current)
+          ? radarTracksGeoJSONAt(
+              radarRef.current,
+              forecastRef.current,
+              selectedRadarIdRef.current ?? null,
+            )
           : activeTracksGeoJSON(activeRef.current, forecastRef.current),
       );
       (map.getSource(TRACK_CORRIDOR_SOURCE) as maplibregl.GeoJSONSource)?.setData(
         useRadarProgress
-          ? radarTrackCorridorsGeoJSONAt(radarRef.current, forecastRef.current)
+          ? radarTrackCorridorsGeoJSONAt(
+              radarRef.current,
+              forecastRef.current,
+              selectedRadarIdRef.current ?? null,
+            )
           : { type: "FeatureCollection", features: [] },
       );
       (map.getSource(ARROW_SOURCE) as maplibregl.GeoJSONSource).setData(
@@ -2288,6 +2427,9 @@ export function MapView({
       (map.getSource(FORM_GRID_SOURCE) as maplibregl.GeoJSONSource)?.setData(
         formationGridGeoJSON(formationScoredPoints),
       );
+      (map.getSource(FORM_HEAT_SOURCE) as maplibregl.GeoJSONSource)?.setData(
+        formationHeatGeoJSON(formationScoredPoints, radarData),
+      );
       (map.getSource(FORM_SOURCE) as maplibregl.GeoJSONSource)?.setData(
         formationZonesGeoJSON(formationFeatures, locale),
       );
@@ -2306,6 +2448,7 @@ export function MapView({
       setLayerVisibility(
         map,
         [
+          FORM_HEAT,
           FORM_GRID,
           FORM_FILL,
           FORM_LINE,
@@ -2326,6 +2469,7 @@ export function MapView({
     formationLinks,
     showFormation,
     locale,
+    radarData,
   ]);
 
   useEffect(() => {
@@ -2339,17 +2483,10 @@ export function MapView({
       const detailCells = selectedRadarId
         ? radarProgressEnriched.filter((f) => f.id === selectedRadarId)
         : [];
-      const detailIntens = selectedRadarId
-        ? new Map(
-            [...intensForecasts.entries()].filter(
-              ([id]) => id === selectedRadarId,
-            ),
-          )
-        : new Map();
 
       if (useRadarProgress) {
         (map.getSource(GHOST_SOURCE) as maplibregl.GeoJSONSource)?.setData(
-          radarCellsGhostGeoJSONAt(detailCells, motionMinutes),
+          radarCellsGhostGeoJSONAt(detailCells, overlayMotionMinutes),
         );
         (map.getSource(BIRTH_TRAIL_SOURCE) as maplibregl.GeoJSONSource)?.setData(
           birthTrailGeoJSON(detailCells),
@@ -2360,38 +2497,46 @@ export function MapView({
         (map.getSource(CELL_SOURCE) as maplibregl.GeoJSONSource)?.setData(
           radarCellsGeoJSONAt(
             radarProgressEnriched,
-            motionMinutes,
+            overlayMotionMinutes,
             intensForecasts,
           ),
         );
         (map.getSource(ACT_SOURCE) as maplibregl.GeoJSONSource)?.setData(
           radarPointsGeoJSONAt(
             radarProgressEnriched,
-            motionMinutes,
+            overlayMotionMinutes,
             intensForecasts,
             locale,
           ),
         );
         (map.getSource(TRACK_SOURCE) as maplibregl.GeoJSONSource)?.setData(
-          radarTracksGeoJSONAt(radarProgressEnriched, motionMinutes),
+          radarTracksGeoJSONAt(
+            radarProgressEnriched,
+            overlayMotionMinutes,
+            selectedRadarId,
+          ),
         );
         (map.getSource(TRACK_CORRIDOR_SOURCE) as maplibregl.GeoJSONSource)?.setData(
-          radarTrackCorridorsGeoJSONAt(radarProgressEnriched, motionMinutes),
+          radarTrackCorridorsGeoJSONAt(
+            radarProgressEnriched,
+            overlayMotionMinutes,
+            selectedRadarId,
+          ),
         );
         (map.getSource(ARROW_SOURCE) as maplibregl.GeoJSONSource)?.setData(
-          radarArrowsGeoJSONAt(radarProgressEnriched, motionMinutes),
+          radarArrowsGeoJSONAt(radarProgressEnriched, overlayMotionMinutes),
         );
         (map.getSource(INTENS_SOURCE) as maplibregl.GeoJSONSource)?.setData(
-          intensificationCorridorsGeoJSON(detailIntens),
+          intensificationCorridorsGeoJSON(intensForecasts),
         );
         (map.getSource(INTENS_MARK_SOURCE) as maplibregl.GeoJSONSource)?.setData(
-          intensificationMarkersGeoJSON(detailIntens),
+          intensificationMarkersGeoJSON(intensForecasts),
         );
         (map.getSource(INTENS_HALO_SOURCE) as maplibregl.GeoJSONSource)?.setData(
           intensificationActiveHaloGeoJSON(
-            detailCells,
-            detailIntens,
-            motionMinutes,
+            radarProgressEnriched,
+            intensForecasts,
+            overlayMotionMinutes,
             radarProgressEnriched,
           ),
         );
@@ -2421,30 +2566,26 @@ export function MapView({
           features: [],
         });
         (map.getSource(CELL_SOURCE) as maplibregl.GeoJSONSource)?.setData(
-          activeCellGeoJSON(activeFeatures, motionMinutes),
+          activeCellGeoJSON(activeFeatures, overlayMotionMinutes),
         );
         (map.getSource(ACT_SOURCE) as maplibregl.GeoJSONSource)?.setData(
-          activePointsGeoJSON(activeFeatures, motionMinutes, locale),
+          activePointsGeoJSON(activeFeatures, overlayMotionMinutes, locale),
         );
         (map.getSource(TRACK_SOURCE) as maplibregl.GeoJSONSource)?.setData(
-          activeTracksGeoJSON(activeFeatures, motionMinutes),
+          activeTracksGeoJSON(activeFeatures, overlayMotionMinutes),
         );
         (map.getSource(TRACK_CORRIDOR_SOURCE) as maplibregl.GeoJSONSource)?.setData({
           type: "FeatureCollection",
           features: [],
         });
         (map.getSource(ARROW_SOURCE) as maplibregl.GeoJSONSource)?.setData(
-          activeArrowsGeoJSON(activeFeatures, motionMinutes),
+          activeArrowsGeoJSON(activeFeatures, overlayMotionMinutes),
         );
       }
       const showProgressNow = showProgress && !isHistoryView;
-      // Jádra / tracky: Progress, nebo automaticky při +min / živé advekci
-      const showMotionCores =
-        !isHistoryView &&
-        useRadarProgress &&
-        (motionMinutes > 0.05 || forecastMinutes > 0);
-      const showForecastOverlay =
-        forecastMinutes > 0 && !isHistoryView && useRadarProgress;
+      // Jádra / tracky při Progress — ne scrub „radar za N min“
+      const showMotionCores = false;
+      const showForecastOverlay = false;
       const showCellsNow =
         (showProgressNow || showMotionCores) && useRadarProgress;
       const hasOpera =
@@ -2472,7 +2613,8 @@ export function MapView({
         [ACT_HALO, ACT_CORE],
         showCellsNow,
       );
-      setLayerVisibility(map, [ACT_LABEL], showCellDetail);
+      // Síla vždy při Progress — ne až po kliku
+      setLayerVisibility(map, [ACT_LABEL], showCellsNow);
       setLayerVisibility(
         map,
         [GHOST_FILL, GHOST_LINE],
@@ -2483,7 +2625,7 @@ export function MapView({
         [BIRTH_TRAIL, BIRTH_MARK, BIRTH_LABEL],
         showCellDetail,
       );
-      // Koridor jen po výběru buňky — jinak zahltí mapu
+      // Koridor u hrozby k tobě (nebo vybrané) — GeoJSON už filtruje
       setLayerVisibility(
         map,
         [TRACK_LINE, ARROW_LAYER],
@@ -2492,12 +2634,12 @@ export function MapView({
       setLayerVisibility(
         map,
         [TRACK_CORRIDOR_FILL],
-        showCellDetail,
+        showCellsNow,
       );
       setLayerVisibility(
         map,
         [INTENS_FILL, INTENS_LINE, INTENS_MARK, INTENS_LABEL, INTENS_HALO],
-        showCellDetail,
+        showCellsNow,
       );
       setLayerVisibility(map, [RADAR_RASTER], showRaster);
       if (showRaster && map.getLayer(RADAR_RASTER)) {
@@ -2508,11 +2650,11 @@ export function MapView({
         );
       }
       setLayerVisibility(map, [RADAR_FILL], showContourFill);
-      // Peak z GeoJSON jen když není progress tečka (jinak dvojitá mimo jádro)
+      // Peak: v historii vždy (echo se hýbe po framech); live jen bez progress teček
       setLayerVisibility(
         map,
         [RADAR_PEAK],
-        liveRadarOn && !showCellsNow,
+        liveRadarOn && (isHistoryView || !showCellsNow),
       );
       setLayerVisibility(map, [RADAR_LINE], false);
       if (map.getLayer(RADAR_FILL)) {
@@ -2537,7 +2679,7 @@ export function MapView({
     showProgress,
     showRadar,
     operaReady,
-    motionMinutes,
+    overlayMotionMinutes,
     forecastMinutes,
     timeOffsetMinutes,
     isHistoryView,
@@ -2567,14 +2709,14 @@ export function MapView({
           selected.feature;
         const systemDelta = meanForecastDelta(
           radarProgressEnriched,
-          motionMinutes,
+          overlayMotionMinutes,
         );
         const life = buildStormLifecycle(
           live,
           live.intensification,
           formationScoredPoints,
           {
-            forecastMinutes: motionMinutes,
+            forecastMinutes: overlayMotionMinutes,
             systemDelta,
           },
         );
@@ -2597,7 +2739,7 @@ export function MapView({
     radarProgressEnriched,
     formationScoredPoints,
     showProgress,
-    motionMinutes,
+    overlayMotionMinutes,
   ]);
 
   useEffect(() => {

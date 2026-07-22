@@ -1,6 +1,6 @@
 import type { FeatureCollection } from "geojson";
 import { fetchDataJson } from "../lib/dataUrls";
-import { czechRegionLabel, isInCzechiaApprox } from "../lib/czechRegion";
+import { czechRegionLabel, isInCzechiaApprox, pathReachesCzechia } from "../lib/czechRegion";
 import { distanceKm } from "../lib/geo";
 import type { FormationZone } from "./demo";
 import { isViableFormationEnv, scoreFormation } from "./scoreFormation";
@@ -148,11 +148,25 @@ function nearYoungActivity(
   return activityScoreBoost(lat, lon, peaks) > 0;
 }
 
-/** Zóna Vznik jen v ČR (+ krátký okraj hranice) — mimo to popisky zbytečně šumí. */
-const ZONE_CZ_MARGIN_KM = 45;
+/** Zóna Vznik: ČR + širší pás hranice; AT setupy co steeringem dojedou do CZ. */
+const ZONE_CZ_MARGIN_KM = 80;
+/** Horizont „dojede do ČR?“ — AT→JČ typicky >90 min. */
+const PATH_TO_CZ_HORIZON_MIN = 180;
+
+function relevantToCz(
+  lat: number,
+  lon: number,
+  environment: EnvironmentSignals,
+): boolean {
+  if (isInCzechiaApprox(lat, lon, ZONE_CZ_MARGIN_KM)) return true;
+  const heading = environment.steerHeadingDeg;
+  const speed = environment.steerSpeedKmh;
+  if (heading == null || speed == null) return false;
+  return pathReachesCzechia(lat, lon, heading, speed, PATH_TO_CZ_HORIZON_MIN);
+}
 
 function zoneRelevantToCz(zone: FormationZone): boolean {
-  return isInCzechiaApprox(zone.lat, zone.lon, ZONE_CZ_MARGIN_KM);
+  return relevantToCz(zone.lat, zone.lon, zone.environment);
 }
 
 function pointToZone(
@@ -193,7 +207,7 @@ export function clusterFormationZones(
   const minScore = activeWx ? MIN_ZONE_SCORE_ACTIVE : MIN_ZONE_SCORE;
   const visible = points.filter(
     (p) =>
-      isInCzechiaApprox(p.lat, p.lon, ZONE_CZ_MARGIN_KM) &&
+      relevantToCz(p.lat, p.lon, p.environment) &&
       !nearRadar(p.lat, p.lon, peaks),
   );
   const candidates = visible
@@ -291,7 +305,7 @@ export function formationHeatGeoJSON(
       (p) =>
         p.assessment.score >= HEAT_MIN_SCORE &&
         isViableFormationEnv(p.environment) &&
-        isInCzechiaApprox(p.lat, p.lon, ZONE_CZ_MARGIN_KM) &&
+        relevantToCz(p.lat, p.lon, p.environment) &&
         !nearRadar(p.lat, p.lon, peaks),
     )
     .sort((a, b) => b.assessment.score - a.assessment.score)

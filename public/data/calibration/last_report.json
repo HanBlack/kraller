@@ -1,48 +1,44 @@
 {
-  "generatedAt": "2026-07-17T08:19:11Z",
-  "cellCount": 15,
-  "archiveSlots": 24,
+  "generatedAt": "2026-07-22T07:50:50Z",
+  "cellCount": 1,
+  "archiveSlots": 36,
   "track": {
     "samples": {
-      "10": 38,
-      "15": 34,
-      "20": 30,
-      "30": 18
+      "10": 0,
+      "15": 0,
+      "20": 0,
+      "30": 0
     },
     "medianKm": {
-      "10": 4.43,
-      "15": 6.09,
-      "20": 7.97,
-      "30": 15.22
+      "10": null,
+      "15": null,
+      "20": null,
+      "30": null
     },
     "pctUnder15km": {
-      "10": 100.0,
-      "15": 97.1,
-      "20": 90.0,
-      "30": 44.4
+      "10": null,
+      "15": null,
+      "20": null,
+      "30": null
     },
     "pctUnder25km": {
-      "10": 100.0,
-      "15": 100.0,
-      "20": 96.7,
-      "30": 88.9
+      "10": null,
+      "15": null,
+      "20": null,
+      "30": null
     },
-    "sources": {
-      "radar-track": 18,
-      "radar-blend": 19,
-      "wind-fallback": 3
-    }
+    "sources": {}
   },
   "eta": {
-    "samples": 31,
-    "medianAbsErrMin": 15.0,
-    "medianBiasMin": 10.0
+    "samples": 0,
+    "medianAbsErrMin": null,
+    "medianBiasMin": null
   },
   "formation": {
-    "zones": 12,
-    "hits": 10,
-    "precisionPct": 83.3,
-    "targetPeaks": 551,
+    "zones": 0,
+    "hits": 0,
+    "precisionPct": null,
+    "targetPeaks": 22,
     "note": "precision = pod\u00edl z\u00f3n s echem \u226435 km (archive+trueBirth)"
   },
   "targets": {

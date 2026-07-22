@@ -8,8 +8,14 @@ import {
   distanceKm,
 } from "../lib/geo";
 import { stormSteeringMotion, type WindGrid } from "../lib/windField";
-import { classifyBirth, observedMotionFromHistory, resolveCellMotion, MAX_TRUSTED_TRACK_KMH } from "./stormTrackRules";
-import { severityLabel, severityRank } from "../lib/severity";
+import { classifyBirth, observedMotionFromHistory, resolveCellMotion } from "./stormTrackRules";
+import {
+  formatStormWindMapLine,
+  stormWindAtCell,
+  type StormWindAtCell,
+} from "./stormWindAtCell";
+import { severityRank } from "../lib/severity";
+import { formatCoreStrengthLabel } from "../lib/stormStrength";
 import { coreRadiusForDbz, evolveDbzAt } from "../lib/stormEvolution";
 import {
   isIntensifyingAt,
@@ -150,6 +156,8 @@ export type RadarProgressFeature = {
   dualpolLabel?: TrackedCell["dualpolLabel"];
   dualpolZdrColumn?: boolean;
   dualpolHailLikely?: boolean;
+  /** Vítr prostředí u jádra + pohyb buňky (ne Doppler). */
+  windAtCell?: StormWindAtCell;
 };
 
 /** Peak buňky v čase forecastMinutes (pro klik i vizuál). */
@@ -557,7 +565,10 @@ export function motionFromWind(
   return stormSteeringMotion(grid, null, lon, lat);
 }
 
-/** Směr/rychlost pro zobrazení — vždy radar, ne řídící vítr. */
+/**
+ * Směr/rychlost pro zobrazení — šipka = systémový steering (850+500).
+ * Peak na mapě zůstává „nejhorší déšť teď“; track nekopíruje skákající jádro.
+ */
 export function displayMotionFromCell(
   cell: Pick<
     TrackedCell,
@@ -566,24 +577,6 @@ export function displayMotionFromCell(
   windLow: WindGrid | null,
   windUpper: WindGrid | null = null,
 ): { headingDeg: number; speedKmh: number; source: "radar-track" | "wind-fallback" } {
-  const observed = observedMotionFromHistory(cell);
-  if (observed && observed.speedKmh >= 5) {
-    return { ...observed, source: "radar-track" };
-  }
-
-  const h = cell.trackHeadingDeg;
-  const s = cell.trackSpeedKmh;
-  if (
-    h != null &&
-    Number.isFinite(h) &&
-    s != null &&
-    Number.isFinite(s) &&
-    s >= 5 &&
-    s <= MAX_TRUSTED_TRACK_KMH
-  ) {
-    return { headingDeg: h, speedKmh: s, source: "radar-track" };
-  }
-
   const motion = resolveCellMotion(cell, windLow, windUpper);
   return {
     headingDeg: motion.headingDeg,
@@ -719,19 +712,18 @@ export function buildRadarProgressFeatures(
 
     let label: string;
     if (phase === "birth") {
-      label = `${t("storm.born", undefined, locale)} · ${peakDbz.toFixed(0)} dBZ${
+      label = `${t("storm.born", undefined, locale)} · ${formatCoreStrengthLabel(peakDbz, assessment.severity, locale)}${
         growthWhy?.shortLabel ? `\n${growthWhy.shortLabel}` : ""
       }`;
     } else if (phase === "growing") {
-      label = `${t("storm.growing", undefined, locale)} · ${peakDbz.toFixed(0)} dBZ${
+      label = `${t("storm.growing", undefined, locale)} · ${formatCoreStrengthLabel(peakDbz, assessment.severity, locale)}${
         growthWhy?.shortLabel ? `\n${growthWhy.shortLabel}` : ""
       }`;
     } else {
-      label = `${severityLabel(assessment.severity, locale)} · ${peakDbz.toFixed(0)} dBZ${
-        assessment.etaMinutes != null && alert
-          ? `\n~${assessment.etaMinutes} min`
-          : ""
-      }`;
+      label = formatCoreStrengthLabel(peakDbz, assessment.severity, locale);
+      if (assessment.etaMinutes != null && alert) {
+        label += `\n~${assessment.etaMinutes} min`;
+      }
     }
 
     const headingDeg = motion.headingDeg;
@@ -742,6 +734,20 @@ export function buildRadarProgressFeatures(
       speedKmh >= 5
         ? destinationPoint(peakLat, peakLon, headingDeg, trackKm)
         : peak;
+
+    const windAt = stormWindAtCell(
+      peak,
+      speedKmh,
+      windLow,
+      windUpper,
+      peakEnv,
+    );
+    if (
+      (alert || assessment.severity === "strong") &&
+      phase !== "birth"
+    ) {
+      label += `\n${formatStormWindMapLine(windAt, locale)}`;
+    }
 
     return {
       id: cell.id,
@@ -774,6 +780,7 @@ export function buildRadarProgressFeatures(
       dualpolLabel: cell.dualpolLabel,
       dualpolZdrColumn: cell.dualpolZdrColumn,
       dualpolHailLikely: cell.dualpolHailLikely,
+      windAtCell: windAt,
     };
   });
 }
@@ -976,19 +983,22 @@ export function radarPointsGeoJSONAt(
       const intens = intensByCell?.get(f.id);
       const dbz = evolveDbzAt(f, intens, forecastMinutes);
       const intensifying = isIntensifyingAt(intens, forecastMinutes) ? 1 : 0;
-      const baseLabel = severityLabel(f.severity, locale);
+      const strength = formatCoreStrengthLabel(dbz, f.severity, locale);
       let label: string;
       if (forecastMinutes > 0.5) {
         const arrow =
           intensifying === 1 ? " ↑" : dbz < f.maxDbz - 1.5 ? " ↓" : "";
-        label = `${baseLabel} · ${dbz.toFixed(0)} dBZ${arrow}`;
+        label = `${strength}${arrow}`;
         if (intensifying === 1) {
           label += `\n${t("storm.intensifying", undefined, locale)}`;
         }
       } else if (intensifying === 1) {
-        label = `${baseLabel} · ${dbz.toFixed(0)} dBZ ↑\n${t("storm.intensifying", undefined, locale)}`;
+        label = `${strength} ↑\n${t("storm.intensifying", undefined, locale)}`;
       } else {
-        label = f.label;
+        label = strength;
+        if (f.assessment?.etaMinutes != null && f.threatens === 1) {
+          label += `\n~${f.assessment.etaMinutes} min`;
+        }
       }
       return {
         type: "Feature" as const,
@@ -1022,10 +1032,12 @@ export function radarTracksGeoJSON(features: RadarProgressFeature[]): FeatureCol
   return radarTracksGeoJSONAt(features, stormConfig.alertHorizonMin);
 }
 
-/** Koridor nejistoty kolem stopy — jádro skáče, uživatel vidí pás ne přímku. */
+/** Koridor nejistoty kolem stopy — jádro skáče, uživatel vidí pás ne přímku.
+ * Jen u hrozby k tobě (nebo vybrané buňky) — mapa není plná pásů. */
 export function radarTrackCorridorsGeoJSONAt(
   features: RadarProgressFeature[],
   forecastMinutes: number,
+  selectedId: string | null = null,
 ): FeatureCollection {
   const horizon = stormConfig.alertHorizonMin;
   const systemDelta = meanForecastDelta(features, forecastMinutes);
@@ -1033,6 +1045,7 @@ export function radarTrackCorridorsGeoJSONAt(
 
   for (const f of features) {
     if (!showCoreMarkerOnMap(f)) continue;
+    if (f.threatens !== 1 && f.id !== selectedId) continue;
     const here = peakAtForecastMinutes(f, forecastMinutes, systemDelta, "raster");
     let tip = destinationPoint(
       here[1],
@@ -1100,12 +1113,17 @@ export function radarTrackCorridorsGeoJSONAt(
 export function radarTracksGeoJSONAt(
   features: RadarProgressFeature[],
   forecastMinutes: number,
+  selectedId: string | null = null,
 ): FeatureCollection {
   const horizon = stormConfig.alertHorizonMin;
   const systemDelta = meanForecastDelta(features, forecastMinutes);
   return {
     type: "FeatureCollection",
-    features: features.filter(showCoreMarkerOnMap).map((f) => {
+    features: features
+      .filter(showCoreMarkerOnMap)
+      // U hrozby / výběru pás nahrazuje tenkou přímku („musíš trefit peak“)
+      .filter((f) => f.threatens !== 1 && f.id !== selectedId)
+      .map((f) => {
       const here = peakAtForecastMinutes(f, forecastMinutes, systemDelta, "raster");
       let tip = destinationPoint(
         here[1],

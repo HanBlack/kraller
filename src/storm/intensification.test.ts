@@ -90,6 +90,45 @@ describe("intensification — poctivá fialová", () => {
     expect(intens.whyHeadline ?? "").toMatch(/slábne/i);
   });
 
+  it("plochý / slabý growth → žádná fialová", () => {
+    const flat = forecastCellIntensification(
+      { ...cell, growthDbz: 0 },
+      fuelAlongTrack(49.2, 17.0),
+    );
+    expect(flat.willIntensify).toBe(false);
+    expect(flat.segments).toHaveLength(0);
+    expect(flat.whyHeadline ?? "").toMatch(/neroste|slábne|neznámý/i);
+
+    const weak = forecastCellIntensification(
+      { ...cell, growthDbz: 1.5 },
+      fuelAlongTrack(49.2, 17.0),
+    );
+    expect(weak.willIntensify).toBe(false);
+    expect(weak.segments).toHaveLength(0);
+  });
+
+  it("neznámý growth (null) → žádná fialová", () => {
+    const intens = forecastCellIntensification(
+      { ...cell, growthDbz: undefined },
+      fuelAlongTrack(49.2, 17.0),
+    );
+    expect(intens.willIntensify).toBe(false);
+    expect(intens.segments).toHaveLength(0);
+    expect(intens.whyHeadline ?? "").toMatch(/neznámý/i);
+  });
+
+  it("jasný růst + silné env → může mít willIntensify s poctivou copy", () => {
+    const intens = forecastCellIntensification(
+      { ...cell, growthDbz: 5 },
+      fuelAlongTrack(49.2, 17.0),
+    );
+    expect(intens.timeline.length).toBeGreaterThan(5);
+    if (intens.willIntensify) {
+      expect(intens.whyHeadline ?? "").toMatch(/může zesílit/i);
+      expect(intens.whyHeadline ?? "").not.toMatch(/^Zesílení kvůli/i);
+    }
+  });
+
   it("už silná buňka bez headroomu nehlásí zesílení", () => {
     const intens = forecastCellIntensification(
       { ...cell, maxDbz: 58, growthDbz: 1 },

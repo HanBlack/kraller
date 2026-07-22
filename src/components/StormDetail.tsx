@@ -57,6 +57,12 @@ import type { RadarProgressFeature } from "../storm/radarCells";
 
 import type { UserLocation } from "../types";
 
+import { nearestFormationPoint } from "../storm/birthEnv";
+import {
+  formatStormWindDetail,
+  stormWindAtCell,
+} from "../storm/stormWindAtCell";
+
 
 
 export type SelectedStorm =
@@ -173,7 +179,7 @@ function RadarLifecycleDetail({
 }) {
 
   const { t, locale } = useI18n();
-  const { operaTime, chmiTime } = useStormDataContext();
+  const { operaTime, chmiTime, windLow, windUpper } = useStormDataContext();
   const motionMinutes = motionMinutesForView({
     timeOffsetMinutes: forecastMinutes,
     productIso: operaTime ?? chmiTime,
@@ -210,6 +216,18 @@ function RadarLifecycleDetail({
       : null;
 
   const toYouDetail = toYou ? formatStormAlertDetail(toYou, locale) : null;
+
+  const windAt =
+    feature.windAtCell ??
+    stormWindAtCell(
+      feature.peak,
+      feature.speedKmh,
+      windLow,
+      windUpper,
+      nearestFormationPoint(feature.peak[1], feature.peak[0], formationPoints ?? [])
+        ?.environment ?? null,
+    );
+  const windLines = formatStormWindDetail(windAt, locale);
 
 
 
@@ -279,6 +297,17 @@ function RadarLifecycleDetail({
 
         </p>
 
+        {windLines.length > 0 && (
+          <div className="storm-wind-at-cell">
+            <p className="storm-wind-title">{t("storm.windNearTitle")}</p>
+            <ul className="storm-wind-list">
+              {windLines.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
       </section>
 
     );
@@ -326,6 +355,17 @@ function RadarLifecycleDetail({
         dualpolHailLikely={feature.dualpolHailLikely}
         dualpolLabel={feature.dualpolLabel}
       />
+
+      {windLines.length > 0 && (
+        <div className="storm-wind-at-cell">
+          <p className="storm-wind-title">{t("storm.windNearTitle")}</p>
+          <ul className="storm-wind-list">
+            {windLines.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {toYou && feature.threatens === 1 && (
 

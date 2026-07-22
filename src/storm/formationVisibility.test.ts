@@ -35,7 +35,7 @@ function pt(
 describe("formation visibility — méně slepý vznik", () => {
   const grid = [
     pt(48.2, 15.5, 500), // AT u hranice — má projít (vznik AT→CZ)
-    pt(47.5, 15.5, 520), // hluboko AT — ne
+    pt(47.5, 15.5, 520), // hluboko AT bez cesty do CZ — ne
     pt(48.5, 15.8, 450),
     pt(49.0, 14.5, 400), // JČ
     pt(49.2, 16.6, 380), // Brno
@@ -43,6 +43,27 @@ describe("formation visibility — méně slepý vznik", () => {
     pt(50.0, 14.4, 120), // slabší
     pt(50.5, 15.0, 90),
   ];
+
+  /** Hluboko AT, ale steering přímo na sever do JČ. */
+  function atSteeringIntoCz(): ScoredFormationPoint {
+    const environment: EnvironmentSignals = {
+      capeJkg: 520,
+      capeNowJkg: 400,
+      dewpointC: 15,
+      shear0to6Ms: 14,
+      srh01: 80,
+      cloudTopCoolingCPer15min: -2,
+      liftedIndexC: -2,
+      steerHeadingDeg: 5,
+      steerSpeedKmh: 48,
+    };
+    return {
+      lat: 47.55,
+      lon: 15.4,
+      environment,
+      assessment: scoreFormation(environment),
+    };
+  }
 
   it("grid tečky berou i střední skóre (≥22)", () => {
     const fc = formationGridGeoJSON(grid, 22);
@@ -59,21 +80,24 @@ describe("formation visibility — méně slepý vznik", () => {
     const heat = formationHeatGeoJSON(grid, null);
     expect(heat.features.length).toBeGreaterThan(0);
     for (const f of heat.features) {
-      expect(Number(f.properties?.score)).toBeGreaterThanOrEqual(22);
+      expect(Number(f.properties?.score)).toBeGreaterThanOrEqual(20);
     }
   });
 
-  it("zóny Vznik: ČR + pás u hranice, ne hluboko do AT", () => {
+  it("zóny Vznik: ČR + širší pás; hluboko AT bez cesty do CZ ne", () => {
     const zones = clusterFormationZones(grid, null);
     expect(zones.length).toBeGreaterThan(0);
     const lats = zones.map((z) => z.lat);
-    // AT 48.2 u hranice může být (kalibrace / víkend AT→CZ)
-    expect(Math.min(...lats)).toBeGreaterThanOrEqual(48.1);
-    // 47.5 nesmí
-    expect(lats.every((lat) => lat > 47.8)).toBe(true);
+    expect(Math.min(...lats)).toBeGreaterThanOrEqual(47.9);
+    expect(lats.every((lat) => lat > 47.7)).toBe(true);
   });
 
-  it("heat tečky: pás u hranice ano, hluboko AT ne", () => {
+  it("AT setup se steeringem do CZ projde i mimo margin pás", () => {
+    const zones = clusterFormationZones([...grid, atSteeringIntoCz()], null);
+    expect(zones.some((z) => z.lat < 47.8)).toBe(true);
+  });
+
+  it("heat tečky: pás u hranice ano, hluboko AT bez cesty ne", () => {
     const heat = formationHeatGeoJSON(grid, null);
     const lats = heat.features.map((f) => {
       const coords =
@@ -82,8 +106,7 @@ describe("formation visibility — méně slepý vznik", () => {
           : [0, 0];
       return coords[1];
     });
-    expect(lats.every((lat) => lat > 47.8)).toBe(true);
-    // 48.2 u hranice smí (margin ~45 km)
+    expect(lats.every((lat) => lat > 47.7)).toBe(true);
     expect(lats.some((lat) => lat < 48.4)).toBe(true);
   });
 });

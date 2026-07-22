@@ -144,7 +144,7 @@ export function explainIntensifyWhy(
   }
 
   return {
-    headline: `Zesílení kvůli lepšímu prostředí na trase — ${reasons[0]}.`,
+    headline: `Může zesílit — lepší prostředí na trase (${reasons[0]}).`,
     reasons: reasons.slice(0, 4),
   };
 }
@@ -718,8 +718,8 @@ export function lifecycleMapGeoJSON(
         kind: "intensify",
         label:
           eta != null && eta <= 0
-            ? "↑ zesílení"
-            : `↑ zesílení\nza ~${eta} min`,
+            ? "↑ může zesílit"
+            : `↑ může zesílit\nza ~${eta} min`,
         reason:
           life.steps.find((s) => s.id === "intensify")?.reasons?.[0] ??
           life.steps.find((s) => s.id === "intensify")?.body ??
