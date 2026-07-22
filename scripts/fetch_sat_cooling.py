@@ -16,9 +16,11 @@ from __future__ import annotations
 import json
 import math
 import os
+import shutil
 import sys
 import tempfile
 import traceback
+import zipfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -26,11 +28,12 @@ from pathlib import Path
 WEST, SOUTH, EAST, NORTH = 7.0, 46.5, 22.5, 52.5
 COLS, ROWS = 28, 18
 OUT_PATH = Path("public/data/satellite/cooling.json")
-# Preferuj MTG CTT+CTH (má teplotu); fallback MSG CTH
+# Preferuj MTG CTT+CTH (má teplotu). MSG CTH je native binary — jen nouzový fallback.
 COLLECTIONS = (
     "EO:EUM:DAT:0681",  # MTG Cloud Top Temperature and Height
-    "EO:EUM:DAT:MSG:CTH",
+    "EO:EUM:DAT:MSG:HRSEVIRI",  # IR10.8 via Data Tailor fallback
 )
+MSG_TAILOR_CHAIN = {"product": "HRSEVIRI", "format": "netcdf4", "projection": "geographic"}
 DT_MINUTES = 15
 
 
@@ -94,6 +97,8 @@ def _find_temp_var(ds) -> str | None:
         "CloudTopTemperature",
         "t_cloud_top",
         "IR_BT",
+        "ir_108",
+        "IR_108",
         "bt",
         "TB",
     )
@@ -114,24 +119,109 @@ def _is_hdf5(path: Path) -> bool:
         return f.read(4) == b"\x89HDF"
 
 
+def _log_dir(label: str, dest: Path) -> None:
+    files = [p for p in dest.rglob("*") if p.is_file()]
+    if not files:
+        print(f"  {label}: prázdný adresář", flush=True)
+        return
+    preview = ", ".join(
+        f"{p.name}({p.stat().st_size // 1024}KB)" for p in sorted(files)[:6]
+    )
+    extra = f" +{len(files) - 6} dalších" if len(files) > 6 else ""
+    print(f"  {label}: {preview}{extra}", flush=True)
+
+
+def _extract_zip(zip_path: Path, dest: Path) -> None:
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        for name in zf.namelist():
+            if name.endswith("/"):
+                continue
+            zf.extract(name, dest)
+
+
+def _download_product(prod, dest: Path) -> None:
+    """Stáhni produkt z Data Store — MTG/FCI často přijde jako zip stream."""
+    dest.mkdir(parents=True, exist_ok=True)
+
+    try:
+        prod.download(dir=str(dest))
+    except Exception as e:
+        print(f"  download(dir) warn: {e}", flush=True)
+
+    if _rank_nc_candidates(dest):
+        _log_dir("download", dest)
+        return
+
+    zip_path = dest / "product.zip"
+    try:
+        with prod.open() as stream, zip_path.open("wb") as out:
+            shutil.copyfileobj(stream, out)
+        if zipfile.is_zipfile(zip_path):
+            _extract_zip(zip_path, dest)
+            zip_path.unlink(missing_ok=True)
+            print(f"  extracted zip → {len(list(dest.rglob('*')))} souborů", flush=True)
+        elif zip_path.stat().st_size > 10_000:
+            # Některé produkty jsou single-file stream bez .nc přípony
+            raw = dest / "product.bin"
+            zip_path.replace(raw)
+    except Exception as e:
+        print(f"  open() stream warn: {e}", flush=True)
+
+    if not _rank_nc_candidates(dest):
+        try:
+            for entry in prod.entries:
+                en = str(entry)
+                out = dest / Path(en).name
+                if out.exists() and out.stat().st_size > 10_000:
+                    continue
+                with prod.open(entry=entry) as stream, out.open("wb") as f:
+                    shutil.copyfileobj(stream, f)
+                if zipfile.is_zipfile(out):
+                    _extract_zip(out, dest)
+                    out.unlink(missing_ok=True)
+        except Exception as e:
+            print(f"  entries warn: {e}", flush=True)
+
+    _log_dir("download", dest)
+
+
+def _tailor_to_netcdf(prod, dest: Path, token) -> None:
+    """MSG HRSEVIRI native → netcdf4 přes Data Tailor (sync wait)."""
+    import time
+
+    from eumdac import DataTailor
+
+    dest.mkdir(parents=True, exist_ok=True)
+    tailor = DataTailor(token)
+    print("  tailor HRSEVIRI → netcdf4 …", flush=True)
+    try:
+        from eumdac.tailor_models import Chain
+
+        chain = Chain(**MSG_TAILOR_CHAIN)
+    except Exception:
+        chain = MSG_TAILOR_CHAIN
+    with tailor.new_customisation(prod, chain) as job:
+        deadline = time.time() + 240
+        while str(job.status).upper() in ("QUEUED", "RUNNING", "PROCESSING") and time.time() < deadline:
+            time.sleep(5)
+        status = str(job.status).upper()
+        if status not in ("DONE", "COMPLETED", "SUCCESS"):
+            raise RuntimeError(f"Data Tailor status={job.status}")
+        job.download(dir=str(dest))
+
+
 def _rank_nc_candidates(dest: Path) -> list[Path]:
-    """Seřaď .nc soubory z produktu — preferuj datové chunky (_C_) před overview (_O_)."""
-    cands = [
-        p
-        for p in dest.rglob("*.nc")
-        if p.is_file() and p.stat().st_size > 10_000
-    ]
-    if not cands:
-        cands = [
-            p
-            for p in dest.rglob("*")
-            if p.is_file() and p.suffix.lower() in (".nc", ".nc4") and p.stat().st_size > 10_000
-        ]
+    """Seřaď kandidáty — .nc / HDF5, preferuj datové chunky (_C_, BODY) před overview (_O_)."""
+    cands: list[Path] = []
+    for p in dest.rglob("*"):
+        if not p.is_file() or p.stat().st_size <= 10_000:
+            continue
+        if p.suffix.lower() in (".nc", ".nc4") or _is_hdf5(p):
+            cands.append(p)
 
     def score(p: Path) -> tuple[int, int, int]:
         name = p.name.upper()
-        # _C_ = datový chunk; _O_ = overview/metadata (často nečitelné netCDF4 knihovnou)
-        if "_C_" in name:
+        if "BODY" in name or "_C_" in name:
             disp = 0
         elif "_O_" in name:
             disp = 2
@@ -259,12 +349,13 @@ def _open_dataset(path: Path):
     errors: list[str] = []
     for engine in ("h5netcdf", "netcdf4", "scipy"):
         try:
-            return xr.open_dataset(
-                path,
-                engine=engine,
-                decode_cf=True,
-                mask_and_scale=True,
-            )
+            kwargs: dict = {
+                "decode_cf": True,
+                "mask_and_scale": True,
+            }
+            if engine == "h5netcdf":
+                kwargs["invalid_netcdf"] = True
+            return xr.open_dataset(path, engine=engine, **kwargs)
         except Exception as e:
             errors.append(f"{engine}: {e}")
     raise RuntimeError(f"Nelze otevřít {path.name}: {'; '.join(errors)}")
@@ -381,22 +472,21 @@ def fetch_with_eumdac(key: str, secret: str) -> int:
                 print(f"  fallback {coll_id}: {e}", flush=True)
                 continue
 
+        use_tailor = coll_id == "EO:EUM:DAT:MSG:HRSEVIRI"
         with tempfile.TemporaryDirectory(prefix="sat_cool_") as tmp:
             tmp_path = Path(tmp)
             paths: list[Path] = []
             for i, prod in enumerate(products[-2:]):
                 print(f"  download {prod}", flush=True)
                 dest = tmp_path / f"frame_{i}"
-                dest.mkdir()
                 try:
-                    prod.download(dir=str(dest))
-                except Exception:
-                    try:
-                        with prod.open() as src, (dest / "product.bin").open("wb") as dst:
-                            dst.write(src.read())
-                    except Exception as e:
-                        print(f"  download fail: {e}", flush=True)
-                        continue
+                    if use_tailor:
+                        _tailor_to_netcdf(prod, dest, token)
+                    else:
+                        _download_product(prod, dest)
+                except Exception as e:
+                    print(f"  download fail: {e}", flush=True)
+                    continue
                 picked = _pick_readable_nc(dest)
                 if picked:
                     paths.append(picked)
