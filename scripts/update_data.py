@@ -24,6 +24,7 @@ from write_meta import write_meta  # noqa: E402
 
 FULL_STEPS = [
     ("opera", "OPERA", [sys.executable, "scripts/opera_fetch_convert.py"]),
+    ("sat", "sat cooling", [sys.executable, "scripts/fetch_sat_cooling.py"]),
     ("formation", "vznik", [sys.executable, "scripts/fetch_formation.py"]),
     ("wind", "vítr", [sys.executable, "scripts/fetch_wind.py"]),
 ]
