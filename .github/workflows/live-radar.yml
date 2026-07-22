@@ -1,5 +1,5 @@
 # Stáhne radar → R2 (rychlé CDN) + volitelný git backup.
-# Cíl: ~5–7 min od snímku. Primární trigger: Cloudflare Worker (workers/radar-trigger).
+# Cíl: ~5–7 min od snímku. Satelit NEblokuje radar (až po R2).
 # Viz docs/RADAR-TRIGGER.md
 
 name: Live radar
@@ -16,7 +16,6 @@ permissions:
   contents: write
 
 # Nezrušovat běh uprostřed — jinak se R2 nikdy neaktualizuje při více triggerech
-# (CF Worker */5 + watchdog + schedule). Čekající běhy se sloučí do fronty.
 concurrency:
   group: live-radar
   cancel-in-progress: false
@@ -24,7 +23,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 14
     steps:
       - uses: actions/checkout@v4
         with:
@@ -62,7 +61,8 @@ jobs:
         if: steps.gate.outputs.skip != 'true'
         run: pip install -r requirements.txt
 
-      - name: Fetch radar (OPERA + ČHMÚ + dual-pol + env)
+      # --- RYCHLÁ CESTA: radar → R2 (sat až potom) ---
+      - name: Fetch radar (OPERA + ČHMÚ + dual-pol + env bez sat)
         if: steps.gate.outputs.skip != 'true'
         env:
           EUMETSAT_CONSUMER_KEY: ${{ secrets.CONSUMER_KEY_EUMETSAT }}
@@ -71,15 +71,10 @@ jobs:
           python scripts/opera_fetch_convert.py --frames 7
           python scripts/chmi_radar.py
           python scripts/chmi_dualpol.py
-          python scripts/refresh_env_if_stale.py
+          python scripts/refresh_env_if_stale.py --skip-sat
           python scripts/write_meta.py
 
-      - name: Learning emit (kalibrace — T+15/30 ověření)
-        if: steps.gate.outputs.skip != 'true'
-        run: python scripts/emit_learning.py
-        continue-on-error: true
-
-      - name: Upload to Cloudflare R2
+      - name: Upload radar to Cloudflare R2
         if: steps.gate.outputs.skip != 'true'
         env:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
@@ -88,6 +83,23 @@ jobs:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
         run: python scripts/upload_data_r2.py
+
+      # --- POMALÁ CESTA: satelit (neblokuje radar freshness) ---
+      - name: Satellite cooling (best-effort, after R2)
+        if: steps.gate.outputs.skip != 'true'
+        continue-on-error: true
+        env:
+          EUMETSAT_CONSUMER_KEY: ${{ secrets.CONSUMER_KEY_EUMETSAT }}
+          EUMETSAT_CONSUMER_SECRET: ${{ secrets.CONSUMER_SECRET_EUMETSAT }}
+        run: |
+          python scripts/refresh_env_if_stale.py --sat-only
+          python scripts/write_meta.py
+          python scripts/upload_data_r2.py
+
+      - name: Learning emit (kalibrace — T+15/30 ověření)
+        if: steps.gate.outputs.skip != 'true'
+        run: python scripts/emit_learning.py
+        continue-on-error: true
 
       - name: Git backup (meta + radar + learning)
         if: steps.gate.outputs.skip != 'true'

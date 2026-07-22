@@ -4,7 +4,8 @@ GitHub Actions `schedule` **sám o sobě nestačí** — běhy se vynechávají 
 Cíl **5–7 min** od snímku vyžaduje **Cloudflare Cron Worker**, který každých 5 min spustí workflow **Live radar**.
 
 ```
-Cloudflare Cron (*/5) → GitHub workflow_dispatch → fetch OPERA+ČHMÚ → R2 → kraller.eu (poll 30 s)
+Cloudflare Cron (*/5) → GitHub workflow_dispatch → OPERA+ČHMÚ → R2 (rychle)
+                                              ↘ sat cooling (best-effort, ~25 min) → R2 znovu
 ```
 
 Záloha: workflow **Radar watchdog** (každé 3 min) — když `meta.updatedAt` na R2 > 7 min, spustí Live radar znovu.
@@ -88,7 +89,7 @@ I při perfektním triggeru bývá Y **3–8 min** — to je limit zdroje, ne ch
 | Problém | Řešení |
 |---------|--------|
 | Git backup `push rejected (fetch first)` | R2 je už nahrané — git backup je `continue-on-error` + `pull --rebase` před push |
-| Actions „Canceling since a higher priority waiting request…“ | Více triggerů najednou + `cancel-in-progress` — běh se zruší před R2; opraveno v `live-radar.yml` |
+| Actions „Canceling…“ / data >10 min stará | Sat blokoval R2 — teď radar→R2 první, sat až potom (~25 min cadence) |
 | Data „pozdě“ / fronta běhů | Debounce: skip když R2 meta < 4 min; Worker + workflow gate |
 | Worker neběží | Cloudflare → Workers → Triggers; `wrangler tail` |
 | Dispatch 401/403 | Token musí mít **Actions: Read and write** |
