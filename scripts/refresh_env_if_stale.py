@@ -1,13 +1,18 @@
-"""Obnoví formation (+ wind ze stejného fetch) / wind / sat cooling podle stáří — Live radar každých ~5 min.
+"""Obnoví formation / wind / sat cooling podle stáří.
 
-Prah (cíl UI ≤ ~15 min):
-  formation > 15 min → fetch_formation --force (zapíše i wind) + sat cooling + merge
-  jinak wind > 10 min → fetch_wind --force
-  sat cooling > 15 min → fetch_sat_cooling + merge (i když formation fresh)
+Radar refresh musí zůstat rychlý (~2–4 min). Satelit je těžký (EUMETSAT
+CTTH ~50 MB × 2 + mask) — defaultně pomalejší cadence a volitelně --skip-sat.
+
+Prah:
+  formation > 15 min → fetch_formation --force (zapíše i wind)
+  wind > 10 min → fetch_wind --force (když formation fresh)
+  sat > 25 min → fetch_sat_cooling + merge
+  sat empty/error → retry max každých 10 min (ne každý live-radar cyklus)
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import subprocess
@@ -21,29 +26,43 @@ from data_freshness import age_minutes, read_valid_at  # noqa: E402
 
 FORMATION_REFRESH_MIN = 15.0
 WIND_REFRESH_MIN = 10.0
-SAT_REFRESH_MIN = 15.0
+# Sat je drahý — méně často než radar (radar ~5 min, sat ~25 min)
+SAT_REFRESH_MIN = 25.0
+# Prázdný/broken cooling.json: nespamuj každý cyklus
+SAT_EMPTY_RETRY_MIN = 10.0
 WIND = "public/data/wind/low.json"
 FORM = "public/data/formation/grid.json"
 SAT = "public/data/satellite/cooling.json"
 
 
 def _sat_needs_refresh(sat_age: float) -> bool:
-    """Prázdné points = rozbitý ingest — obnov vždy, i když validAt je čerstvé."""
-    if sat_age > SAT_REFRESH_MIN:
-        return True
     if not os.path.isfile(SAT):
         return True
     try:
         with open(SAT, encoding="utf-8") as f:
             data = json.load(f)
-        if data.get("status") != "ok":
-            return True
-        if not (data.get("points") or []):
-            print("  sat cooling empty points — force refresh", flush=True)
-            return True
+        status = data.get("status")
+        points = data.get("points") or []
+        broken = status not in ("ok",) or not points
+        if broken:
+            # Empty/error: retry, ale ne každou 5min směnu
+            if sat_age >= SAT_EMPTY_RETRY_MIN:
+                print(
+                    f"  sat cooling broken (status={status}, points={len(points)}) "
+                    f"age={sat_age:.0f} min — retry",
+                    flush=True,
+                )
+                return True
+            print(
+                f"  sat cooling broken but age={sat_age:.0f} < {SAT_EMPTY_RETRY_MIN:.0f} "
+                f"— skip (keep radar fast)",
+                flush=True,
+            )
+            return False
     except (OSError, json.JSONDecodeError, TypeError):
-        return True
-    return False
+        return sat_age >= SAT_EMPTY_RETRY_MIN
+
+    return sat_age > SAT_REFRESH_MIN
 
 
 def _run(script: str, *args: str) -> int:
@@ -53,6 +72,19 @@ def _run(script: str, *args: str) -> int:
 
 
 def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument(
+        "--skip-sat",
+        action="store_true",
+        help="Jen formation/wind — sat až po R2 uploadu radaru",
+    )
+    ap.add_argument(
+        "--sat-only",
+        action="store_true",
+        help="Jen sat cooling + merge (pomalejší job po radaru)",
+    )
+    args = ap.parse_args()
+
     now = datetime.now(timezone.utc)
     wind_age = age_minutes(read_valid_at(WIND), now) if os.path.isfile(WIND) else 999.0
     form_age = age_minutes(read_valid_at(FORM), now) if os.path.isfile(FORM) else 999.0
@@ -68,22 +100,36 @@ def main() -> int:
         f"env ages: wind={wind_age:.0f} min formation={form_age:.0f} min "
         f"sat={sat_age:.0f} min "
         f"(refresh form>{FORMATION_REFRESH_MIN:.0f} wind>{WIND_REFRESH_MIN:.0f} "
-        f"sat>{SAT_REFRESH_MIN:.0f})",
+        f"sat>{SAT_REFRESH_MIN:.0f} emptyRetry>{SAT_EMPTY_RETRY_MIN:.0f}) "
+        f"skip_sat={args.skip_sat} sat_only={args.sat_only}",
         flush=True,
     )
 
     rc = 0
+
+    if args.sat_only:
+        if _sat_needs_refresh(sat_age):
+            print("  -> sat cooling + merge", flush=True)
+            r = _run("fetch_sat_cooling.py")
+            _run("merge_sat_cooling.py")
+            if r != 0:
+                rc = r
+        else:
+            print("  sat fresh — skip", flush=True)
+        return rc
+
     if form_age > FORMATION_REFRESH_MIN:
         print("  -> formation --force (writes wind too)", flush=True)
         r = _run("fetch_formation.py", "--force")
         if r != 0:
             rc = r
-        print("  -> sat cooling + merge", flush=True)
-        _run("fetch_sat_cooling.py")
-        _run("merge_sat_cooling.py")
+        if not args.skip_sat and _sat_needs_refresh(sat_age):
+            print("  -> sat cooling + merge", flush=True)
+            _run("fetch_sat_cooling.py")
+            _run("merge_sat_cooling.py")
         return rc
 
-    if _sat_needs_refresh(sat_age):
+    if not args.skip_sat and _sat_needs_refresh(sat_age):
         print("  -> sat cooling + merge", flush=True)
         _run("fetch_sat_cooling.py")
         _run("merge_sat_cooling.py")
@@ -95,7 +141,9 @@ def main() -> int:
             rc = r
         return rc
 
-    if form_age <= FORMATION_REFRESH_MIN and not _sat_needs_refresh(sat_age):
+    if form_age <= FORMATION_REFRESH_MIN and (
+        args.skip_sat or not _sat_needs_refresh(sat_age)
+    ):
         print("  env fresh — skip Open-Meteo / sat", flush=True)
     return rc
 

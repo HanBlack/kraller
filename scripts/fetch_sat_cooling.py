@@ -1080,9 +1080,10 @@ def fetch_with_eumdac(key: str, secret: str) -> int:
                 continue
 
             mask_newer = None
-            mask_older = None
             type_newer = None
             if coll_id == "EO:EUM:DAT:0681":
+                # Jen 1× maska (novější) — CTTH T/H je primární; stará maska + type
+                # zbytečně +2–3 min downloadu a blokovaly radar cadence.
                 mask_newer = _fetch_companion_nc(
                     datastore,
                     MASK_COLLECTION,
@@ -1091,22 +1092,19 @@ def fetch_with_eumdac(key: str, secret: str) -> int:
                     now=now,
                     label="cloud_mask",
                 )
-                mask_older = _fetch_companion_nc(
-                    datastore,
-                    MASK_COLLECTION,
-                    tmp_path / "mask_old",
-                    _find_mask_var,
-                    now=now - timedelta(minutes=DT_MINUTES),
-                    label="cloud_mask_old",
-                )
-                type_newer = _fetch_companion_nc(
-                    datastore,
-                    TYPE_COLLECTION,
-                    tmp_path / "cloud_type",
-                    _find_type_var,
-                    now=now,
-                    label="cloud_type",
-                )
+                if os.environ.get("SAT_FETCH_CLOUD_TYPE", "").strip() in (
+                    "1",
+                    "true",
+                    "yes",
+                ):
+                    type_newer = _fetch_companion_nc(
+                        datastore,
+                        TYPE_COLLECTION,
+                        tmp_path / "cloud_type",
+                        _find_type_var,
+                        now=now,
+                        label="cloud_type",
+                    )
 
             try:
                 points = _cooling_from_two_files(
@@ -1114,7 +1112,7 @@ def fetch_with_eumdac(key: str, secret: str) -> int:
                     paths[1],
                     float(DT_MINUTES),
                     mask_newer=mask_newer,
-                    mask_older=mask_older,
+                    mask_older=None,
                     type_newer=type_newer,
                 )
             except Exception as e:
