@@ -1,1 +1,1 @@
-{"west": 7.0, "south": 46.5, "east": 22.5, "north": 52.5, "cols": 28, "rows": 18, "source": "EUMETSAT/EO:EUM:DAT:0681", "status": "ok", "message": "\u0394T/\u0394CTH / 15 min (mask+type, 0 cloudy / 0 sampled)", "dtMinutes": 15, "validAt": "2026-07-22T10:23:28Z", "points": []}
+{"west": 7.0, "south": 46.5, "east": 22.5, "north": 52.5, "cols": 28, "rows": 18, "source": "EUMETSAT/EO:EUM:DAT:0681", "status": "ok", "message": "\u0394T/\u0394CTH / 15 min (mask+type, 0 cloudy / 0 sampled)", "dtMinutes": 15, "validAt": "2026-07-22T10:45:34Z", "points": []}
