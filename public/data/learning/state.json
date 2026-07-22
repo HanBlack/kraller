@@ -3787,6 +3787,18 @@
       "li": null,
       "freezingLevelM": 2770.0,
       "cinJkg": 0.0
+    },
+    "z:49.32:15.04": {
+      "lat": 49.3235,
+      "lon": 15.037,
+      "score": 32.7,
+      "fromTs": "20260722220000",
+      "cape": 0.0,
+      "shear": 10.9,
+      "dew": 9.2,
+      "li": null,
+      "freezingLevelM": 2770.0,
+      "cinJkg": 78.0
     }
   },
   "intensityPending": {
@@ -9914,5 +9926,5 @@
     "EVOLVE_FOOTPRINT_PER_DBZ": 0.01
   },
   "schemaVersion": 2,
-  "updatedAt": "2026-07-22T22:13:35Z"
+  "updatedAt": "2026-07-22T22:18:25Z"
 }
