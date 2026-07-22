@@ -1,0 +1,1 @@
+{"west": 7.0, "south": 46.5, "east": 22.5, "north": 52.5, "cols": 28, "rows": 18, "source": "unavailable", "status": "no_credentials", "message": "Nastav EUMETSAT_CONSUMER_KEY a EUMETSAT_CONSUMER_SECRET (zdarma: https://api.eumetsat.int/api-key/). Do t\u00e9 doby formation pou\u017e\u00edv\u00e1 model LI proxy.", "dtMinutes": 15, "validAt": "2026-07-22T06:38:31Z", "points": []}
