@@ -147,15 +147,19 @@ export function sampleSatelliteCooling(
 ): SatelliteSample | null {
   if (!isSatelliteCoolingLive(grid)) return null;
   const exactKm = stormConfig.satellite.exactMatchKm;
-  const exact = grid!.points.find(
+  const exactCloudy = grid!.points.find(
     (p) =>
       (p.sampleSource === "cell" || p.sampleSource === "formation") &&
-      distanceKm(lat, lon, p.lat, p.lon) <= exactKm,
+      distanceKm(lat, lon, p.lat, p.lon) <= exactKm &&
+      pointHasCloudTop(p),
   );
-  if (exact && !pointHasCloudTop(exact)) return null;
-
-  const hit = exact
-    ? { point: exact, distanceKm: distanceKm(lat, lon, exact.lat, exact.lon) }
+  // Clear marker u jádra NENÍ absolutní veto — zkus nejbližší cloudy pixel
+  // (maska dřív falešně clearovala celé buňky).
+  const hit = exactCloudy
+    ? {
+        point: exactCloudy,
+        distanceKm: distanceKm(lat, lon, exactCloudy.lat, exactCloudy.lon),
+      }
     : findNearestPoint(grid!, lat, lon, pointHasCloudTop);
   if (!hit || hit.distanceKm > maxKm || !pointHasCloudTop(hit.point)) return null;
 
@@ -212,17 +216,10 @@ export function explainSatelliteStatus(
       detail: grid.message ?? "data dočasně nedostupná",
     };
   }
-  const exactKm = stormConfig.satellite.exactMatchKm;
-  const exactMarker = grid.points.find(
-    (p) =>
-      (p.sampleSource === "cell" || p.sampleSource === "formation") &&
-      distanceKm(lat, lon, p.lat, p.lon) <= exactKm &&
-      p.hasCloudTop === false,
-  );
-  if (exactMarker) {
+  if (!grid.points?.length) {
     return {
       title: "Satelit (MTG)",
-      detail: "v místě bez detekovaného vrcholu mraku — FCI nevidí cloud-top",
+      detail: "žádné cloud-top vzorky v oblasti (pipeline prázdná)",
     };
   }
   const sample = sampleSatelliteCooling(grid, lat, lon);
