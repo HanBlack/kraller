@@ -1,6 +1,6 @@
 {
-  "validAt": "2026-07-22T16:55:00Z",
-  "productTime": "20260722165500",
+  "validAt": "2026-07-22T17:10:00Z",
+  "productTime": "20260722171000",
   "source": "CHMI",
   "products": [
     "maxz",
@@ -8,5 +8,5 @@
     "pseudocappi2km",
     "fct_maxz_ft30"
   ],
-  "cellsEnriched": 2
+  "cellsEnriched": 5
 }
