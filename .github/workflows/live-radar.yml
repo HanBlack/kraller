@@ -9,16 +9,17 @@ on:
   repository_dispatch:
     types: [live-radar]
   schedule:
-    # GitHub cron je nespolehlivý — záloha; hlavní je Cloudflare Cron Worker
-    - cron: "*/5 * * * *"
-    - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
+    # GitHub cron je nespolehlivý — záloha; hlavní je Cloudflare Cron Worker (*/5)
+    - cron: "*/10 * * * *"
 
 permissions:
   contents: write
 
+# Nezrušovat běh uprostřed — jinak se R2 nikdy neaktualizuje při více triggerech
+# (CF Worker */5 + watchdog + schedule). Čekající běhy se sloučí do fronty.
 concurrency:
   group: live-radar
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   update:
