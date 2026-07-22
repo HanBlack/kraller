@@ -12,6 +12,8 @@ export type EnvironmentSignals = {
   srh01: number;
   /** Záporné = ochlazování / rostoucí nestabilita (°C / 15 min). */
   cloudTopCoolingCPer15min: number;
+  /** ΔT škálované na 45 min (satelit) — diagnostika / long trend. */
+  cloudTopCoolingCPer45min?: number;
   /** Odkud cooling pochází — satelit vs Open-Meteo LI proxy. */
   coolingSource?: "satellite" | "model";
   /** Satelit CTT (°C) — diagnostika. */
@@ -20,6 +22,10 @@ export type EnvironmentSignals = {
   cloudTopHeightM?: number;
   /** Δ výšky vrcholu (m / 15 min). */
   cloudTopHeightDeltaMPer15min?: number;
+  /** High/ice cloud type u vzorku. */
+  deepIceTop?: boolean;
+  /** MTG LI flashes / ~15 min v okolí. */
+  lightningFlashes15min?: number;
   /** Lifted index (°C); záporné = nestabilní prostředí. */
   liftedIndexC?: number;
   /** Výška nulové izotermy (m n. m.) — Waldvogel / riziko krup. */

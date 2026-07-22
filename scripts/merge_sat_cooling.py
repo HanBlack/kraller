@@ -83,17 +83,37 @@ def merge() -> int:
             env["coolingSource"] = env.get("coolingSource") or "model"
             continue
         val = hit.get("cloudTopCoolingCPer15min")
-        if val is None or not math.isfinite(float(val)):
-            continue
+        val45 = hit.get("cloudTopCoolingCPer45min")
         if hit.get("cloudTopTempC") is None:
             continue
-        env["cloudTopCoolingCPer15min"] = round(float(val), 2)
+        # Prefer 15min; pokud slabý ale 45min silný → škáluj do 15min proxy
+        cooling = None
+        if val is not None and math.isfinite(float(val)):
+            cooling = float(val)
+        if val45 is not None and math.isfinite(float(val45)):
+            growth45 = max(0.0, -float(val45))
+            growth15 = max(0.0, -(cooling or 0.0))
+            if growth15 < 1.5 and growth45 >= 4.0:
+                cooling = -(growth45 * (15.0 / 45.0))
+        if cooling is None:
+            continue
+        env["cloudTopCoolingCPer15min"] = round(cooling, 2)
         env["coolingSource"] = "satellite"
         env["cloudTopTempC"] = hit["cloudTopTempC"]
         if hit.get("cloudTopHeightM") is not None:
             env["cloudTopHeightM"] = hit["cloudTopHeightM"]
         if hit.get("cloudTopHeightDeltaMPer15min") is not None:
             env["cloudTopHeightDeltaMPer15min"] = hit["cloudTopHeightDeltaMPer15min"]
+        if val45 is not None and math.isfinite(float(val45)):
+            env["cloudTopCoolingCPer45min"] = round(float(val45), 2)
+        if hit.get("deepIceTop") is True:
+            env["deepIceTop"] = True
+        li_n = hit.get("lightningFlashes15min")
+        if li_n is not None:
+            try:
+                env["lightningFlashes15min"] = int(li_n)
+            except (TypeError, ValueError):
+                pass
         n_sat += 1
 
     form["coolingMerge"] = {

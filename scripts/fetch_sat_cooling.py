@@ -4,9 +4,9 @@
 Bez EUMETSAT_CONSUMER_KEY / EUMETSAT_CONSUMER_SECRET:
   zapíše cooling.json se statusem no_credentials (formation zůstane na model proxy).
 
-S klíči:
-  stáhne 2 snímky Cloud Top Temperature (~15 min od sebe) + cloud mask + cloud type,
-  vzorkuje CTT/CTH jen u pixelů s mrakem (cma), zapíše cooling.json.
+S klíči (běží v Live radar až PO R2 uploadu radaru):
+  stáhne 3 snímky CTTH (~15 + ~30–45 min trend) + cloud mask + cloud type
+  + MTG Lightning flashes u vzorků, zapíše cooling.json.
 
 Klíče: https://api.eumetsat.int/api-key/ (free EO Portal účet).
 """
@@ -35,8 +35,12 @@ COLLECTIONS = (
 )
 MASK_COLLECTION = "EO:EUM:DAT:0678"  # MTG Cloud Mask (netCDF, cma)
 TYPE_COLLECTION = "EO:EUM:DAT:0680"  # MTG Cloud Type (netCDF, ct)
+LI_COLLECTION = "EO:EUM:DAT:0691"  # MTG LI Lightning Flashes
 MSG_TAILOR_CHAIN = {"product": "HRSEVIRI", "format": "netcdf4", "projection": "geographic"}
 DT_MINUTES = 15
+DT_LONG_MINUTES = 45
+LI_RADIUS_KM = 25.0
+LI_WINDOW_MIN = 15.0
 
 
 def lat_lons() -> tuple[list[float], list[float]]:
@@ -458,6 +462,15 @@ def _cloud_level_from_type(code: int | None) -> str | None:
     return "other"
 
 
+def _is_deep_ice_top(code: int | None, level: str | None) -> bool:
+    """High / opaque ice cloud type ≈ hluboká konvekce nahoře."""
+    if level == "high":
+        return True
+    if code is not None and code in (8, 9, 12, 13, 14, 15):
+        return True
+    return False
+
+
 def _find_ctth_status_var(ds) -> str | None:
     prefer = (
         "ctth_status_flag",
@@ -821,76 +834,175 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 def _build_sat_point(
     lat: float,
     lon: float,
-    t0: float | None,
-    t1: float | None,
-    h0: float | None,
-    h1: float | None,
-    dt_min: float,
+    t_mid: float | None,
+    t_new: float | None,
+    h_mid: float | None,
+    h_new: float | None,
+    dt_short_min: float,
     source: str,
     *,
     cloudy_now: bool,
     cloud_type_code: int | None = None,
+    t_old: float | None = None,
+    dt_long_min: float | None = None,
+    lightning_flashes: int | None = None,
 ) -> dict | None:
-    if not cloudy_now or t1 is None:
+    if not cloudy_now or t_new is None:
         if source in ("cell", "formation"):
-            return {
+            pt_clear: dict = {
                 "lat": round(lat, 4),
                 "lon": round(lon, 4),
                 "hasCloudTop": False,
                 "sampleSource": source,
             }
+            if lightning_flashes is not None and lightning_flashes > 0:
+                pt_clear["lightningFlashes15min"] = lightning_flashes
+            return pt_clear
         return None
 
-    scale = 15.0 / max(5.0, dt_min)
-    d_per_15 = (t1 - t0) * scale if t0 is not None else 0.0
+    scale15 = 15.0 / max(5.0, dt_short_min)
+    d_per_15 = (t_new - t_mid) * scale15 if t_mid is not None else 0.0
     d_per_15 = max(-8.0, min(4.0, d_per_15))
     pt: dict = {
         "lat": round(lat, 4),
         "lon": round(lon, 4),
         "hasCloudTop": True,
-        "cloudTopTempC": round(t1, 2),
+        "cloudTopTempC": round(t_new, 2),
         "cloudTopCoolingCPer15min": round(d_per_15, 2),
         "sampleSource": source,
     }
-    h1m = _normalize_height_m(h1)
-    h0m = _normalize_height_m(h0)
+    if t_old is not None and dt_long_min is not None and dt_long_min >= 20:
+        scale45 = 45.0 / max(20.0, dt_long_min)
+        d_per_45 = (t_new - t_old) * scale45
+        d_per_45 = max(-12.0, min(6.0, d_per_45))
+        pt["cloudTopCoolingCPer45min"] = round(d_per_45, 2)
+    h1m = _normalize_height_m(h_new)
+    h0m = _normalize_height_m(h_mid)
     if h1m is not None:
         pt["cloudTopHeightM"] = round(h1m, 0)
     if h0m is not None and h1m is not None:
-        dh = (h1m - h0m) * scale
+        dh = (h1m - h0m) * scale15
         pt["cloudTopHeightDeltaMPer15min"] = round(max(-5000.0, min(5000.0, dh)), 0)
     if cloud_type_code is not None:
         pt["cloudTypeCode"] = cloud_type_code
         level = _cloud_level_from_type(cloud_type_code)
         if level:
             pt["cloudLevel"] = level
+        if _is_deep_ice_top(cloud_type_code, level):
+            pt["deepIceTop"] = True
+    if lightning_flashes is not None:
+        pt["lightningFlashes15min"] = int(lightning_flashes)
     return pt
 
 
-def _cooling_from_two_files(
-    older: Path,
+def _count_lightning_near(
+    flashes: list[tuple[float, float]],
+    lat: float,
+    lon: float,
+    radius_km: float = LI_RADIUS_KM,
+) -> int:
+    if not flashes:
+        return 0
+    n = 0
+    for flat, flon in flashes:
+        if haversine_km(lat, lon, flat, flon) <= radius_km:
+            n += 1
+    return n
+
+
+def _extract_flash_latlons(ds) -> list[tuple[float, float]]:
+    """LI Flash NetCDF — lat/lon pole (různé názvy)."""
+    import numpy as np
+
+    names = _list_array_vars(ds)
+    lower = {str(n).lower(): str(n) for n in names}
+    lat_name = None
+    lon_name = None
+    for cand in ("latitude", "lat", "flash_lat", "flash_latitude"):
+        if cand in lower:
+            lat_name = lower[cand]
+            break
+    for cand in ("longitude", "lon", "flash_lon", "flash_longitude"):
+        if cand in lower:
+            lon_name = lower[cand]
+            break
+    if not lat_name or not lon_name:
+        return []
+    lats = np.asarray(ds[lat_name].values, dtype=float).ravel()
+    lons = np.asarray(ds[lon_name].values, dtype=float).ravel()
+    out: list[tuple[float, float]] = []
+    for a, b in zip(lats, lons):
+        if math.isfinite(a) and math.isfinite(b) and SOUTH - 1 <= a <= NORTH + 1:
+            if WEST - 1 <= b <= EAST + 1:
+                out.append((float(a), float(b)))
+    return out
+
+
+def _fetch_lightning_flashes(datastore, dest: Path, *, now: datetime) -> list[tuple[float, float]]:
+    """Stáhni poslední LI flashes; vrať (lat, lon) v okně domény."""
+    try:
+        collection = datastore.get_collection(LI_COLLECTION)
+        products = list(
+            collection.search(
+                dtstart=now - timedelta(minutes=LI_WINDOW_MIN + 5),
+                dtend=now + timedelta(minutes=2),
+            )
+        )
+        if not products:
+            print(f"  lightning: žádný produkt {LI_COLLECTION}", flush=True)
+            return []
+        # Vezmi až 2 nejnovější chunky
+        flashes: list[tuple[float, float]] = []
+        for i, prod in enumerate(products[-2:]):
+            print(f"  download lightning {prod}", flush=True)
+            frame = dest / f"li_{i}"
+            frame.mkdir(parents=True, exist_ok=True)
+            _download_product(prod, frame)
+
+            for path in _rank_nc_candidates(frame):
+                try:
+                    ds = _open_dataset(path)
+                    got = _extract_flash_latlons(ds)
+                    ds.close()
+                    if got:
+                        flashes.extend(got)
+                        print(f"  lightning: +{len(got)} flashes from {path.name}", flush=True)
+                        break
+                except Exception as e:
+                    print(f"  lightning skip {path.name}: {e}", flush=True)
+        print(f"  lightning: total {len(flashes)} flashes in domain window", flush=True)
+        return flashes
+    except Exception as e:
+        print(f"  lightning {LI_COLLECTION}: {e}", flush=True)
+        return []
+
+
+def _cooling_from_frames(
+    mid: Path,
     newer: Path,
-    dt_min: float,
+    dt_short_min: float,
     *,
+    oldest: Path | None = None,
+    dt_long_min: float | None = None,
     mask_newer: Path | None = None,
-    mask_older: Path | None = None,
     type_newer: Path | None = None,
+    lightning: list[tuple[float, float]] | None = None,
 ) -> list[dict]:
-    ds0 = _open_dataset(older)
-    ds1 = _open_dataset(newer)
-    ds_mask0 = _open_dataset(mask_older) if mask_older else None
+    ds_mid = _open_dataset(mid)
+    ds_new = _open_dataset(newer)
+    ds_old = _open_dataset(oldest) if oldest else None
     ds_mask1 = _open_dataset(mask_newer) if mask_newer else None
     ds_type1 = _open_dataset(type_newer) if type_newer else None
     try:
-        var0 = _find_temp_var(ds0)
-        var1 = _find_temp_var(ds1)
-        if not var0 or not var1:
+        var_mid = _find_temp_var(ds_mid)
+        var_new = _find_temp_var(ds_new)
+        if not var_mid or not var_new:
             raise RuntimeError(
-                f"V datech není CTT (vars older={[v for v in getattr(ds0, 'data_vars', [])]})"
+                f"V datech není CTT (vars newer={[v for v in getattr(ds_new, 'data_vars', [])]})"
             )
-        hvar0 = _find_height_var(ds0)
-        hvar1 = _find_height_var(ds1)
-        mvar0 = _find_mask_var(ds_mask0) if ds_mask0 is not None else None
+        var_old = _find_temp_var(ds_old) if ds_old is not None else None
+        hvar_mid = _find_height_var(ds_mid)
+        hvar_new = _find_height_var(ds_new)
         mvar1 = _find_mask_var(ds_mask1) if ds_mask1 is not None else None
         tvar1 = _find_type_var(ds_type1) if ds_type1 is not None else None
         if ds_mask1 is not None and not mvar1:
@@ -901,17 +1013,17 @@ def _cooling_from_two_files(
         n_none = 0
         n_fill = 0
         n_cold = 0
+        n_li = 0
         temps: list[float] = []
         heights: list[float] = []
         print(
-            f"  CTTH vars temp={var1} height={hvar1} mask={mvar1} type={tvar1} "
-            f"locs={len(locations)}",
+            f"  CTTH vars temp={var_new} height={hvar_new} mask={mvar1} type={tvar1} "
+            f"long={'yes' if ds_old else 'no'} li={len(lightning or [])} locs={len(locations)}",
             flush=True,
         )
         for lat, lon, source in locations:
-            # Vždy vzorkuj CTTH — maska nesmí být absolutní veto (dřív: 0 cloudy / 0 sampled)
-            t1 = _sample_temp_c(ds1, var1, lat, lon)
-            h1_raw = _sample_height_raw(ds1, hvar1, lat, lon) if hvar1 else None
+            t1 = _sample_temp_c(ds_new, var_new, lat, lon)
+            h1_raw = _sample_height_raw(ds_new, hvar_new, lat, lon) if hvar_new else None
             h1m = _normalize_height_m(h1_raw)
             if t1 is None:
                 n_none += 1
@@ -935,31 +1047,49 @@ def _cooling_from_two_files(
                 mvar=mvar1,
                 ds_type=ds_type1,
                 tvar=tvar1,
-                ds_ctth=ds1,
+                ds_ctth=ds_new,
                 t_c=t1,
                 h_m=h1m,
             )
-            t0 = None
-            h0_raw = None
+            t_mid = None
+            h_mid_raw = None
+            t_old = None
             if cloudy_now:
-                t0 = _sample_temp_c(ds0, var0, lat, lon)
-                h0_raw = _sample_height_raw(ds0, hvar0, lat, lon) if hvar0 else None
-                # ΔT jen když i předchozí snímek vypadá jako cloud-top
-                h0m = _normalize_height_m(h0_raw)
-                if t0 is not None and not _looks_like_cloud_top(t0, h0m) and _looks_like_fill_temp(t0, h0m):
-                    t0 = None
-                    h0_raw = None
+                t_mid = _sample_temp_c(ds_mid, var_mid, lat, lon)
+                h_mid_raw = (
+                    _sample_height_raw(ds_mid, hvar_mid, lat, lon) if hvar_mid else None
+                )
+                h_mid_m = _normalize_height_m(h_mid_raw)
+                if (
+                    t_mid is not None
+                    and not _looks_like_cloud_top(t_mid, h_mid_m)
+                    and _looks_like_fill_temp(t_mid, h_mid_m)
+                ):
+                    t_mid = None
+                    h_mid_raw = None
+                if ds_old is not None and var_old:
+                    t_old = _sample_temp_c(ds_old, var_old, lat, lon)
+                    h_old_m = None
+                    if t_old is not None and _looks_like_fill_temp(t_old, h_old_m):
+                        if not _looks_like_cloud_top(t_old, None):
+                            t_old = None
+            flashes = _count_lightning_near(lightning or [], lat, lon)
+            if flashes > 0:
+                n_li += 1
             pt = _build_sat_point(
                 lat,
                 lon,
-                t0,
+                t_mid,
                 t1 if cloudy_now else None,
-                h0_raw,
+                h_mid_raw,
                 h1_raw if cloudy_now else None,
-                dt_min,
+                dt_short_min,
                 source,
                 cloudy_now=bool(cloudy_now),
                 cloud_type_code=ctype if cloudy_now else None,
+                t_old=t_old if cloudy_now else None,
+                dt_long_min=dt_long_min if cloudy_now else None,
+                lightning_flashes=flashes if flashes > 0 or source in ("cell", "formation") else None,
             )
             if pt:
                 points.append(pt)
@@ -975,18 +1105,38 @@ def _cooling_from_two_files(
         )
         print(
             f"  CTTH diag: none={n_none} fill={n_fill} cold/tall={n_cold} "
-            f"out={len(points)} {t_info} {h_info}",
+            f"liPts={n_li} out={len(points)} {t_info} {h_info}",
             flush=True,
         )
         return points
     finally:
-        for ds in (ds0, ds1, ds_mask0, ds_mask1, ds_type1):
+        for ds in (ds_mid, ds_new, ds_old, ds_mask1, ds_type1):
             if ds is None:
                 continue
             try:
                 ds.close()
             except Exception:
                 pass
+
+
+# Alias pro starší volání / testy
+def _cooling_from_two_files(
+    older: Path,
+    newer: Path,
+    dt_min: float,
+    *,
+    mask_newer: Path | None = None,
+    mask_older: Path | None = None,
+    type_newer: Path | None = None,
+) -> list[dict]:
+    del mask_older  # unused — CTTH-primary
+    return _cooling_from_frames(
+        older,
+        newer,
+        dt_min,
+        mask_newer=mask_newer,
+        type_newer=type_newer,
+    )
 
 
 def fetch_with_eumdac(key: str, secret: str) -> int:
@@ -1032,8 +1182,8 @@ def fetch_with_eumdac(key: str, secret: str) -> int:
         )
         return 1
 
-    # Seřadit od nejstaršího; zkus každou kolekci (MTG → MSG fallback)
-    products = list(reversed(products[:4]))
+    # Seřadit od nejstaršího; víc snímků = lepší span ~45 min
+    products = list(reversed(products[:8]))
     last_error = "Stažené produkty neobsahují čitelný netCDF s CTT"
 
     for coll_id in ([used_collection] if used_collection else []) + [
@@ -1049,7 +1199,7 @@ def fetch_with_eumdac(key: str, secret: str) -> int:
                 got = list(selected)[:8]
                 if len(got) < 2:
                     continue
-                products = list(reversed(got[:4]))
+                products = list(reversed(got[:8]))
                 used_collection = coll_id
                 print(f"  fallback collection {coll_id}", flush=True)
             except Exception as e:
@@ -1059,8 +1209,15 @@ def fetch_with_eumdac(key: str, secret: str) -> int:
         use_tailor = coll_id == "EO:EUM:DAT:MSG:HRSEVIRI"
         with tempfile.TemporaryDirectory(prefix="sat_cool_") as tmp:
             tmp_path = Path(tmp)
+            # 3 CTTH: ~45 min zpět + ~15 min + teď (při ~10min kadenci)
+            if len(products) >= 5:
+                frame_prods = [products[-5], products[-2], products[-1]]
+            elif len(products) >= 3:
+                frame_prods = [products[0], products[-2], products[-1]]
+            else:
+                frame_prods = products[-2:]
             paths: list[Path] = []
-            for i, prod in enumerate(products[-2:]):
+            for i, prod in enumerate(frame_prods):
                 print(f"  download {prod}", flush=True)
                 dest = tmp_path / f"frame_{i}"
                 try:
@@ -1079,11 +1236,15 @@ def fetch_with_eumdac(key: str, secret: str) -> int:
                 last_error = "Stažené produkty neobsahují čitelný netCDF s CTT"
                 continue
 
+            oldest_path = paths[0] if len(paths) >= 3 else None
+            mid_path = paths[-2]
+            newer_path = paths[-1]
+            dt_long = float(DT_LONG_MINUTES) if oldest_path else None
+
             mask_newer = None
             type_newer = None
+            lightning: list[tuple[float, float]] = []
             if coll_id == "EO:EUM:DAT:0681":
-                # Jen 1× maska (novější) — CTTH T/H je primární; stará maska + type
-                # zbytečně +2–3 min downloadu a blokovaly radar cadence.
                 mask_newer = _fetch_companion_nc(
                     datastore,
                     MASK_COLLECTION,
@@ -1092,11 +1253,13 @@ def fetch_with_eumdac(key: str, secret: str) -> int:
                     now=now,
                     label="cloud_mask",
                 )
-                if os.environ.get("SAT_FETCH_CLOUD_TYPE", "").strip() in (
+                # Cloud type default ON (sat běží až po R2 — neblokuje radar)
+                skip_type = os.environ.get("SAT_SKIP_CLOUD_TYPE", "").strip().lower() in (
                     "1",
                     "true",
                     "yes",
-                ):
+                )
+                if not skip_type:
                     type_newer = _fetch_companion_nc(
                         datastore,
                         TYPE_COLLECTION,
@@ -1105,15 +1268,26 @@ def fetch_with_eumdac(key: str, secret: str) -> int:
                         now=now,
                         label="cloud_type",
                     )
+                skip_li = os.environ.get("SAT_SKIP_LIGHTNING", "").strip().lower() in (
+                    "1",
+                    "true",
+                    "yes",
+                )
+                if not skip_li:
+                    lightning = _fetch_lightning_flashes(
+                        datastore, tmp_path / "lightning", now=now
+                    )
 
             try:
-                points = _cooling_from_two_files(
-                    paths[0],
-                    paths[1],
+                points = _cooling_from_frames(
+                    mid_path,
+                    newer_path,
                     float(DT_MINUTES),
+                    oldest=oldest_path,
+                    dt_long_min=dt_long,
                     mask_newer=mask_newer,
-                    mask_older=None,
                     type_newer=type_newer,
+                    lightning=lightning,
                 )
             except Exception as e:
                 traceback.print_exc()
@@ -1126,14 +1300,14 @@ def fetch_with_eumdac(key: str, secret: str) -> int:
                 status=status,
                 source=f"EUMETSAT/{used_collection}",
                 message=(
-                    f"ΔT/ΔCTH / {DT_MINUTES} min (mask+type, "
-                    f"{len(cloudy_pts)} cloudy / {len(points)} sampled)"
+                    f"ΔT15/ΔT45+type+LI (mask, "
+                    f"{len(cloudy_pts)} cloudy / {len(points)} sampled, "
+                    f"li={len(lightning)})"
                 ),
                 points=points,
                 valid_at=now,
             )
-            # empty ≠ hard fail pipeline — radar dál běží; příští kolo zkusí znovu
-            return 0 if status == "ok" else 0
+            return 0
 
     write_cooling(
         status="error",

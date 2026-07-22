@@ -322,7 +322,15 @@ export function explainDemiseWhy(
     }
   }
 
-  if (peakSat?.trend === "growing" || peakSat?.towerRising || peakSat?.coldTop) {
+  if (
+    peakSat?.trend === "growing" ||
+    peakSat?.trend === "growing_long" ||
+    peakSat?.towerRising ||
+    peakSat?.coldTop ||
+    peakSat?.deepIceTop ||
+    (peakSat != null &&
+      peakSat.lightningFlashes15min >= stormConfig.satellite.lightningActiveMin)
+  ) {
     const growLine = peakSat ? satelliteReasonLines(peakSat).find((l) => !l.includes("slábne")) : null;
     if (growLine && !reasons.some((r) => r.includes("útlum není jistý"))) {
       reasons.push(`${growLine} — útlum není jistý`);

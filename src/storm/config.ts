@@ -77,6 +77,10 @@ export const stormConfig = {
     towerRisingMPer15min: 1500,
     /** m / 15 min — klesající věž (zánik). */
     towerFallingMPer15min: 1000,
+    /** °C / 45 min — dlouhodobé ochlazování (vznik před echom). */
+    longCoolingCPer45min: 4,
+    /** Min. LI flashes / 15 min v okolí jádra = elektrifikace. */
+    lightningActiveMin: 3,
     /** Přesný vzorek u jádra (km). */
     exactMatchKm: 3,
     /** Max vzdálenost k sat bodu (km). */

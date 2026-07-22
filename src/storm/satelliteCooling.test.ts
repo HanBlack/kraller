@@ -23,10 +23,13 @@ const grid: SatelliteCoolingGrid = {
       hasCloudTop: true,
       cloudTopTempC: -12,
       cloudTopCoolingCPer15min: -3.2,
+      cloudTopCoolingCPer45min: -6.5,
       cloudTopHeightM: 9000,
       cloudTopHeightDeltaMPer15min: 1800,
       cloudTypeCode: 8,
       cloudLevel: "high",
+      deepIceTop: true,
+      lightningFlashes15min: 12,
       sampleSource: "cell",
     },
     {
@@ -52,6 +55,23 @@ const grid: SatelliteCoolingGrid = {
       cloudTopHeightM: 8500,
       sampleSource: "grid",
     },
+    {
+      lat: 48.5,
+      lon: 17.0,
+      hasCloudTop: true,
+      cloudTopTempC: -20,
+      cloudTopCoolingCPer15min: -0.5,
+      cloudTopCoolingCPer45min: -5.2,
+      deepIceTop: true,
+      sampleSource: "cell",
+    },
+    {
+      lat: 46.7,
+      lon: 7.2,
+      hasCloudTop: false,
+      lightningFlashes15min: 8,
+      sampleSource: "cell",
+    },
   ],
 };
 
@@ -61,6 +81,8 @@ describe("satelliteCooling", () => {
     expect(s?.trend).toBe("growing");
     expect(s?.towerRising).toBe(true);
     expect(s?.exactMatch).toBe(true);
+    expect(s?.deepIceTop).toBe(true);
+    expect(s?.lightningFlashes15min).toBe(12);
   });
 
   it("exact cell clear — fallback na blízký cloudy grid", () => {
@@ -82,6 +104,34 @@ describe("satelliteCooling", () => {
         cloudTopTempC: -35,
       }),
     ).toBe("cold_top");
+  });
+
+  it("classify growing_long when 15min weak but 45min strong", () => {
+    expect(
+      classifySatelliteTrend({
+        coolingPer15min: -0.5,
+        coolingPer45min: -5.2,
+        cloudTopTempC: -20,
+      }),
+    ).toBe("growing_long");
+  });
+
+  it("sample long cooling trend", () => {
+    const s = sampleSatelliteCooling(grid, 48.5, 17.0);
+    expect(s?.trend).toBe("growing_long");
+    expect(s?.deepIceTop).toBe(true);
+  });
+
+  it("clear cell with lightning only", () => {
+    const s = sampleSatelliteCooling(grid, 46.7, 7.2);
+    expect(s?.lightningFlashes15min).toBe(8);
+    expect(s?.cloudTopTempC).toBeUndefined();
+    expect(s?.exactMatch).toBe(true);
+  });
+
+  it("explainSatelliteStatus includes lightning / ice extras when growing", () => {
+    const line = explainSatelliteStatus(grid, 49.0, 14.0);
+    expect(line.detail).toMatch(/ochlazuje|blesky|ice/i);
   });
 
   it("explainSatelliteStatus — stabilní", () => {

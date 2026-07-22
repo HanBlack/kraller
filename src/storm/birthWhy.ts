@@ -5,13 +5,18 @@ import { scoreFormation } from "./scoreFormation";
 import { distanceKm } from "../lib/geo";
 import {
   explainSatelliteColdTop,
+  explainSatelliteDeepIce,
   explainSatelliteGrowth,
+  explainSatelliteLightning,
+  explainSatelliteLongGrowth,
   explainSatelliteTowerRising,
   explainSatelliteWarming,
   satelliteGrowthRate,
+  satelliteLongGrowthRate,
   satelliteReasonLines,
   type SatelliteSample,
 } from "./satelliteCooling";
+import { stormConfig } from "./config";
 
 export type BirthFactorKey =
   | "moisture"
@@ -102,10 +107,20 @@ export function explainBirthWhy(
   const a = assessment ?? scoreFormation(env);
   const drivers: Driver[] = [];
   const sat = opts?.satellite;
-  const satGrowth =
+  const satGrowth15 =
     sat?.trend === "growing"
       ? satelliteGrowthRate(sat.cloudTopCoolingCPer15min)
       : 0;
+  const satGrowth45 =
+    sat?.trend === "growing_long"
+      ? satelliteLongGrowthRate(sat.cloudTopCoolingCPer45min)
+      : 0;
+  const satGrowth =
+    satGrowth15 > 0
+      ? satGrowth15
+      : satGrowth45 > 0
+        ? satGrowth45 * (15 / 45)
+        : 0;
   const cooling = satGrowth > 0 ? satGrowth : Math.max(0, -env.cloudTopCoolingCPer15min);
   const coolingFromSat = satGrowth > 0;
   const li = env.liftedIndexC ?? 2;
@@ -177,13 +192,19 @@ export function explainBirthWhy(
 
   if (cooling >= 2) {
     const fromSat = coolingFromSat || env.coolingSource === "satellite";
+    const longDetail =
+      sat?.trend === "growing_long"
+        ? explainSatelliteLongGrowth(sat).replace(/^vrchol se /i, "")
+        : null;
     drivers.push({
       sortKey: "cooling",
       key: "cooling",
       label: fromSat ? "Ochlazování vrcholu" : "Rostoucí nestabilita (model)",
-      detail: fromSat
-        ? `satelit u jádra: −${cooling.toFixed(1)} °C / 15 min`
-        : `model proxy −${cooling.toFixed(1)} °C / 15 min (ne satelit)`,
+      detail: longDetail
+        ? `satelit u jádra: ${longDetail}`
+        : fromSat
+          ? `satelit u jádra: −${cooling.toFixed(1)} °C / 15 min`
+          : `model proxy −${cooling.toFixed(1)} °C / 15 min (ne satelit)`,
       weight: 30 + Math.min(25, cooling * 4),
     });
   } else if (sat?.towerRising) {
@@ -202,6 +223,14 @@ export function explainBirthWhy(
       detail: explainSatelliteColdTop(sat).replace(/^studený vrchol mraku /i, ""),
       weight: 22,
     });
+  } else if (sat?.deepIceTop) {
+    drivers.push({
+      sortKey: "cooling-ice",
+      key: "cooling",
+      label: "Hluboká ledová vrstva (satelit)",
+      detail: explainSatelliteDeepIce(sat),
+      weight: 18,
+    });
   } else if (sat?.trend === "warming") {
     drivers.push({
       sortKey: "cooling-warm",
@@ -209,6 +238,19 @@ export function explainBirthWhy(
       label: "Vrchol mraku (satelit)",
       detail: explainSatelliteWarming(sat).replace(/^vrchol mraku /i, ""),
       weight: 6,
+    });
+  }
+
+  if (
+    sat &&
+    sat.lightningFlashes15min >= stormConfig.satellite.lightningActiveMin
+  ) {
+    drivers.push({
+      sortKey: "lightning",
+      key: "other",
+      label: "Blesky (MTG LI)",
+      detail: explainSatelliteLightning(sat),
+      weight: 20 + Math.min(15, sat.lightningFlashes15min),
     });
   }
 
