@@ -253,7 +253,8 @@ def _pick_readable_nc(dest: Path) -> Path | None:
     return None
 
 
-def _sample_field(ds, var: str, lat: float, lon: float) -> float | None:
+def _sample_temp_c(ds, var: str, lat: float, lon: float) -> float | None:
+    """CTT → °C (K nebo už °C)."""
     v = _sample_raw_pixel(ds, var, lat, lon)
     if v is None or not math.isfinite(v):
         return None
@@ -262,6 +263,19 @@ def _sample_field(ds, var: str, lat: float, lon: float) -> float | None:
     if -90 < v < 40:
         return v
     return None
+
+
+def _sample_height_raw(ds, var: str, lat: float, lon: float) -> float | None:
+    """Surová CTH (m nebo km) — bez převodu K→°C."""
+    v = _sample_raw_pixel(ds, var, lat, lon)
+    if v is None or not math.isfinite(v) or v <= 0:
+        return None
+    return float(v)
+
+
+# Zpětná kompatibilita
+def _sample_field(ds, var: str, lat: float, lon: float) -> float | None:
+    return _sample_temp_c(ds, var, lat, lon)
 
 
 def _open_dataset(path: Path):
@@ -446,6 +460,50 @@ def _is_valid_ctth_status(value: float | None) -> bool | None:
     return None
 
 
+def _looks_like_fill_temp(t_c: float | None, h_m: float | None) -> bool:
+    """Flat ~13 °C bez výšky = typický clear/fill, ne cloud-top."""
+    if t_c is None:
+        return True
+    if h_m is not None and h_m >= 1000:
+        return False
+    return 8.0 <= t_c <= 22.0
+
+
+def _looks_like_cloud_top(t_c: float | None, h_m: float | None) -> bool:
+    """Primární signál z CTTH: studený / vysoký vrchol."""
+    if h_m is not None and h_m >= 1500:
+        return True
+    if t_c is not None and t_c <= 5.0:
+        return True
+    return False
+
+
+def _cloudy_from_signals(
+    *,
+    t_c: float | None,
+    h_m: float | None,
+    mask_cloudy: bool | None,
+    type_code: int | None,
+    ctth_status_ok: bool | None,
+) -> bool:
+    """
+    Cloud-top presence: CTTH T/H first, mask/type soft.
+
+    Mask alone must NOT veto a physically cold/tall top (was wiping whole domain).
+    """
+    if _looks_like_cloud_top(t_c, h_m):
+        return True
+    if _looks_like_fill_temp(t_c, h_m):
+        return False
+    if ctth_status_ok is True and t_c is not None:
+        return True
+    if type_code is not None and type_code > 1 and t_c is not None and t_c < 8.0:
+        return True
+    if mask_cloudy is True and t_c is not None and not _looks_like_fill_temp(t_c, h_m):
+        return True
+    return False
+
+
 def _cloudy_at_point(
     lat: float,
     lon: float,
@@ -455,23 +513,27 @@ def _cloudy_at_point(
     ds_type,
     tvar: str | None,
     ds_ctth,
+    t_c: float | None = None,
+    h_m: float | None = None,
 ) -> bool:
-    if ds_mask is not None and mvar:
-        flag = _sample_cloud_flag(ds_mask, mvar, lat, lon)
-        if flag is not None:
-            return flag
-    if ds_type is not None and tvar:
-        code = _sample_cloud_type_code(ds_type, tvar, lat, lon)
-        if code is not None:
-            return code > 1
+    mask_flag = _sample_cloud_flag(ds_mask, mvar, lat, lon) if ds_mask is not None else None
+    type_code = (
+        _sample_cloud_type_code(ds_type, tvar, lat, lon)
+        if ds_type is not None
+        else None
+    )
+    ctth_ok = None
     if ds_ctth is not None:
         svar = _find_ctth_status_var(ds_ctth)
         if svar:
-            st = _sample_raw_pixel(ds_ctth, svar, lat, lon)
-            valid = _is_valid_ctth_status(st)
-            if valid is not None:
-                return valid
-    return False
+            ctth_ok = _is_valid_ctth_status(_sample_raw_pixel(ds_ctth, svar, lat, lon))
+    return _cloudy_from_signals(
+        t_c=t_c,
+        h_m=h_m,
+        mask_cloudy=mask_flag,
+        type_code=type_code,
+        ctth_status_ok=ctth_ok,
+    )
 
 
 def _sample_raw_pixel(ds, var: str, lat: float, lon: float) -> float | None:
@@ -762,6 +824,15 @@ def _cooling_from_two_files(
         locations = _collect_sample_locations()
         points: list[dict] = []
         for lat, lon, source in locations:
+            # Vždy vzorkuj CTTH — maska nesmí být absolutní veto (dřív: 0 cloudy / 0 sampled)
+            t1 = _sample_temp_c(ds1, var1, lat, lon)
+            h1_raw = _sample_height_raw(ds1, hvar1, lat, lon) if hvar1 else None
+            h1m = _normalize_height_m(h1_raw)
+            ctype = (
+                _sample_cloud_type_code(ds_type1, tvar1, lat, lon)
+                if ds_type1 is not None
+                else None
+            )
             cloudy_now = _cloudy_at_point(
                 lat,
                 lon,
@@ -770,42 +841,30 @@ def _cooling_from_two_files(
                 ds_type=ds_type1,
                 tvar=tvar1,
                 ds_ctth=ds1,
+                t_c=t1,
+                h_m=h1m,
             )
-            cloudy_before: bool | None = None
-            if mask_older is not None or ds_mask0 is not None:
-                cloudy_before = _cloudy_at_point(
-                    lat,
-                    lon,
-                    ds_mask=ds_mask0,
-                    mvar=mvar0,
-                    ds_type=None,
-                    tvar=None,
-                    ds_ctth=ds0,
-                )
-            t0 = _sample_field(ds0, var0, lat, lon) if cloudy_before is not False else None
-            t1 = _sample_field(ds1, var1, lat, lon) if cloudy_now else None
-            h0 = (
-                _sample_field(ds0, hvar0, lat, lon)
-                if hvar0 and cloudy_before is not False
-                else None
-            )
-            h1 = _sample_field(ds1, hvar1, lat, lon) if hvar1 and cloudy_now else None
-            ctype = (
-                _sample_cloud_type_code(ds_type1, tvar1, lat, lon)
-                if cloudy_now and ds_type1 is not None
-                else None
-            )
+            t0 = None
+            h0_raw = None
+            if cloudy_now:
+                t0 = _sample_temp_c(ds0, var0, lat, lon)
+                h0_raw = _sample_height_raw(ds0, hvar0, lat, lon) if hvar0 else None
+                # ΔT jen když i předchozí snímek vypadá jako cloud-top
+                h0m = _normalize_height_m(h0_raw)
+                if t0 is not None and not _looks_like_cloud_top(t0, h0m) and _looks_like_fill_temp(t0, h0m):
+                    t0 = None
+                    h0_raw = None
             pt = _build_sat_point(
                 lat,
                 lon,
                 t0,
-                t1,
-                h0,
-                h1,
+                t1 if cloudy_now else None,
+                h0_raw,
+                h1_raw if cloudy_now else None,
                 dt_min,
                 source,
                 cloudy_now=bool(cloudy_now),
-                cloud_type_code=ctype,
+                cloud_type_code=ctype if cloudy_now else None,
             )
             if pt:
                 points.append(pt)

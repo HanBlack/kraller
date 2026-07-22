@@ -43,6 +43,15 @@ const grid: SatelliteCoolingGrid = {
       hasCloudTop: false,
       sampleSource: "cell",
     },
+    {
+      lat: 49.9,
+      lon: 18.35,
+      hasCloudTop: true,
+      cloudTopTempC: -28,
+      cloudTopCoolingCPer15min: -1.2,
+      cloudTopHeightM: 8500,
+      sampleSource: "grid",
+    },
   ],
 };
 
@@ -54,14 +63,16 @@ describe("satelliteCooling", () => {
     expect(s?.exactMatch).toBe(true);
   });
 
-  it("exact cell sample u Ostravy — bez mraku", () => {
+  it("exact cell clear — fallback na blízký cloudy grid", () => {
     const s = sampleSatelliteCooling(grid, 49.83, 18.29);
-    expect(s).toBeNull();
+    expect(s).not.toBeNull();
+    expect(s?.cloudTopTempC).toBe(-28);
+    expect(s?.exactMatch).toBe(false);
   });
 
-  it("explainSatelliteStatus — bez mraku u jádra", () => {
+  it("explainSatelliteStatus — nearby cloudy after clear marker", () => {
     const line = explainSatelliteStatus(grid, 49.83, 18.29);
-    expect(line.detail).toMatch(/bez detekovaného vrcholu/i);
+    expect(line.detail).not.toMatch(/bez detekovaného vrcholu/i);
   });
 
   it("classify cold top", () => {
