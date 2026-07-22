@@ -14,6 +14,12 @@ export type EnvironmentSignals = {
   cloudTopCoolingCPer15min: number;
   /** Odkud cooling pochází — satelit vs Open-Meteo LI proxy. */
   coolingSource?: "satellite" | "model";
+  /** Satelit CTT (°C) — diagnostika. */
+  cloudTopTempC?: number;
+  /** Satelit CTH (m n. m.). */
+  cloudTopHeightM?: number;
+  /** Δ výšky vrcholu (m / 15 min). */
+  cloudTopHeightDeltaMPer15min?: number;
   /** Lifted index (°C); záporné = nestabilní prostředí. */
   liftedIndexC?: number;
   /** Výška nulové izotermy (m n. m.) — Waldvogel / riziko krup. */

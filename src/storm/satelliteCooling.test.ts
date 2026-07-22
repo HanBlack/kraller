@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   classifySatelliteTrend,
+  explainSatelliteStatus,
   sampleSatelliteCooling,
   type SatelliteCoolingGrid,
 } from "./satelliteCooling";
@@ -16,30 +17,62 @@ const grid: SatelliteCoolingGrid = {
   dtMinutes: 15,
   validAt: "2026-07-22T08:00:00Z",
   points: [
-    { lat: 49.0, lon: 14.0, cloudTopTempC: -12, cloudTopCoolingCPer15min: -3.2 },
-    { lat: 50.0, lon: 16.0, cloudTopTempC: -8, cloudTopCoolingCPer15min: 2.1 },
+    {
+      lat: 49.0,
+      lon: 14.0,
+      cloudTopTempC: -12,
+      cloudTopCoolingCPer15min: -3.2,
+      cloudTopHeightM: 9000,
+      cloudTopHeightDeltaMPer15min: 1800,
+      sampleSource: "cell",
+    },
+    {
+      lat: 50.0,
+      lon: 16.0,
+      cloudTopTempC: -8,
+      cloudTopCoolingCPer15min: 2.1,
+      sampleSource: "grid",
+    },
+    {
+      lat: 49.83,
+      lon: 18.29,
+      cloudTopTempC: 13.5,
+      cloudTopCoolingCPer15min: 0,
+      sampleSource: "cell",
+    },
   ],
 };
 
 describe("satelliteCooling", () => {
-  it("sample u bodu s ochlazováním", () => {
-    const s = sampleSatelliteCooling(grid, 49.01, 14.01);
+  it("sample u cell bodu s ochlazováním a věží", () => {
+    const s = sampleSatelliteCooling(grid, 49.0, 14.0);
     expect(s?.trend).toBe("growing");
-    expect(s?.cloudTopCoolingCPer15min).toBe(-3.2);
+    expect(s?.towerRising).toBe(true);
+    expect(s?.exactMatch).toBe(true);
   });
 
-  it("sample u bodu s oteplováním", () => {
-    const s = sampleSatelliteCooling(grid, 50.0, 16.0);
-    expect(s?.trend).toBe("warming");
+  it("exact cell sample u Ostravy", () => {
+    const s = sampleSatelliteCooling(grid, 49.83, 18.29);
+    expect(s?.exactMatch).toBe(true);
+    expect(s?.distanceKm).toBeLessThan(1);
   });
 
-  it("mimo pokrytí vrátí null", () => {
-    expect(sampleSatelliteCooling(grid, 46.6, 7.1)).toBeNull();
+  it("classify cold top", () => {
+    expect(
+      classifySatelliteTrend({
+        coolingPer15min: 0,
+        cloudTopTempC: -35,
+      }),
+    ).toBe("cold_top");
   });
 
-  it("classifySatelliteTrend", () => {
-    expect(classifySatelliteTrend(-2.5)).toBe("growing");
-    expect(classifySatelliteTrend(2)).toBe("warming");
-    expect(classifySatelliteTrend(0.2)).toBe("steady");
+  it("explainSatelliteStatus — stabilní", () => {
+    const line = explainSatelliteStatus(grid, 49.83, 18.29);
+    expect(line.detail).toMatch(/stabilní/i);
+  });
+
+  it("explainSatelliteStatus — bez mraku", () => {
+    const line = explainSatelliteStatus(grid, 46.6, 7.1);
+    expect(line.detail).toMatch(/bez detekovaného vrcholu/i);
   });
 });

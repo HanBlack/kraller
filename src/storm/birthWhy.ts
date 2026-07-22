@@ -4,9 +4,12 @@ import type { ScoredFormationPoint } from "./formationData";
 import { scoreFormation } from "./scoreFormation";
 import { distanceKm } from "../lib/geo";
 import {
+  explainSatelliteColdTop,
   explainSatelliteGrowth,
+  explainSatelliteTowerRising,
   explainSatelliteWarming,
   satelliteGrowthRate,
+  satelliteReasonLines,
   type SatelliteSample,
 } from "./satelliteCooling";
 
@@ -183,6 +186,22 @@ export function explainBirthWhy(
         : `model proxy −${cooling.toFixed(1)} °C / 15 min (ne satelit)`,
       weight: 30 + Math.min(25, cooling * 4),
     });
+  } else if (sat?.towerRising) {
+    drivers.push({
+      sortKey: "cooling-tower",
+      key: "cooling",
+      label: "Stoupající věž (satelit)",
+      detail: explainSatelliteTowerRising(sat).replace(/^věž mraku /i, ""),
+      weight: 28,
+    });
+  } else if (sat?.coldTop) {
+    drivers.push({
+      sortKey: "cooling-cold",
+      key: "cooling",
+      label: "Studený vrchol (satelit)",
+      detail: explainSatelliteColdTop(sat).replace(/^studený vrchol mraku /i, ""),
+      weight: 22,
+    });
   } else if (sat?.trend === "warming") {
     drivers.push({
       sortKey: "cooling-warm",
@@ -281,6 +300,8 @@ export function explainBirthWhy(
       headline = `Zrod podporuje střih větru (${shear.toFixed(0)} m/s) — pomáhá buňce vzniknout a vydržet.`;
     } else if (top.key === "cooling" && coolingFromSat) {
       headline = `Satelit u jádra: ${explainSatelliteGrowth(sat!)}`;
+    } else if (sat && satelliteReasonLines(sat).length > 0) {
+      headline = `Satelit u jádra: ${satelliteReasonLines(sat)[0]}`;
     } else if (shearFactor) {
       headline = `Hlavní faktor: ${top.label.toLowerCase()}. Doplňuje ho střih větru ${shear.toFixed(0)} m/s.`;
     } else if (a.score >= 35 || env.capeJkg >= 250 || cooling >= 3) {

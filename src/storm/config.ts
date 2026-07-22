@@ -69,6 +69,20 @@ export const stormConfig = {
     tornadoShowThresholdPct: 50,
   },
 
+  /** Satelit MTG — CTT/CTH u jádra buňky. */
+  satellite: {
+    /** °C — studený vrchol = hluboká konvekce. */
+    coldTopTempC: -32,
+    /** m / 15 min — rostoucí věž. */
+    towerRisingMPer15min: 1500,
+    /** m / 15 min — klesající věž (zánik). */
+    towerFallingMPer15min: 1000,
+    /** Přesný vzorek u jádra (km). */
+    exactMatchKm: 3,
+    /** Max vzdálenost k sat bodu (km). */
+    maxMatchKm: 55,
+  },
+
   /**
    * BOUŘE V PROGRESU (active) — radar + pohyb.
    */

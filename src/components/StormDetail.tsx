@@ -58,6 +58,7 @@ import type { RadarProgressFeature } from "../storm/radarCells";
 import type { UserLocation } from "../types";
 
 import { nearestFormationPoint } from "../storm/birthEnv";
+import { explainSatelliteStatus } from "../storm/satelliteCooling";
 import {
   formatStormWindDetail,
   stormWindAtCell,
@@ -230,6 +231,11 @@ function RadarLifecycleDetail({
         ?.environment ?? null,
     );
   const windLines = formatStormWindDetail(windAt, locale);
+  const satStatus = explainSatelliteStatus(
+    satelliteCooling,
+    feature.peak[1],
+    feature.peak[0],
+  );
 
 
 
@@ -310,6 +316,11 @@ function RadarLifecycleDetail({
           </div>
         )}
 
+        <div className="storm-wind-at-cell storm-sat-at-cell">
+          <p className="storm-wind-title">{satStatus.title}</p>
+          <p className="lifecycle-step-body">{satStatus.detail}</p>
+        </div>
+
       </section>
 
     );
@@ -368,6 +379,11 @@ function RadarLifecycleDetail({
           </ul>
         </div>
       )}
+
+      <div className="storm-wind-at-cell storm-sat-at-cell">
+        <p className="storm-wind-title">{satStatus.title}</p>
+        <p className="lifecycle-step-body">{satStatus.detail}</p>
+      </div>
 
       {toYou && feature.threatens === 1 && (
 
