@@ -138,6 +138,9 @@ export function MapLegend({
                   <span className="swatch form-grid" /> {t("legend.formGrid")}
                 </li>
                 <li>
+                  <span className="swatch form-moderate" /> {t("legend.formHeat")}
+                </li>
+                <li>
                   <span className="swatch form-moderate" /> {t("legend.formZone")}
                 </li>
                 <li>

@@ -57,7 +57,11 @@ export function explainGrowthWhy(
     }
     const cooling = Math.max(0, -env.cloudTopCoolingCPer15min);
     if (cooling >= 1.5) {
-      reasons.push(`vrchol mraku se ochlazuje — konvekce ještě roste`);
+      reasons.push(
+        env.coolingSource === "satellite"
+          ? `vrchol mraku se ochlazuje (satelit −${cooling.toFixed(1)} °C / 15 min) — konvekce ještě roste`
+          : `rostoucí nestabilita v modelu (−${cooling.toFixed(1)} °C proxy) — konvekce může sílit`,
+      );
     }
     const li = env.liftedIndexC;
     if (li != null && li <= 0) {

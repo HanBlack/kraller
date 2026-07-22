@@ -1,6 +1,7 @@
 import { t, type Locale } from "../i18n";
 import { stormConfig } from "../storm/config";
 import type { StormAlert } from "../types";
+import { formatWatchStrengthLine } from "./stormStrength";
 
 function strengthLabel(
   severity: StormAlert["severity"],
@@ -57,26 +58,19 @@ export function formatStormAlert(
 
 /**
  * Hero řádek před příchodem: síla · jádro/okraj · mm/h.
- * Čitelné dřív, než bouřka dorazí — ne schované jen v „Čekej:“.
  */
 export function formatStormAlertHero(
   alert: StormAlert,
   locale?: Locale,
 ): string {
-  const parts: string[] = [strengthLabel(alert.severity, locale)];
-  if (alert.hitType) {
-    parts.push(hitLabel(alert.hitType, locale));
-  }
-  if (alert.rainMmPerHour) {
-    const [lo, hi] = alert.rainMmPerHour;
-    parts.push(t("alert.rainShort", { lo, hi }, locale));
-  } else {
-    const z = alert.atUserDbz ?? alert.maxDbz;
-    if (z != null) {
-      parts.push(`~${Math.round(z)} dBZ`);
-    }
-  }
-  return parts.join(" · ");
+  return formatWatchStrengthLine({
+    severity: alert.severity,
+    hitType: alert.hitType,
+    atUserDbz: alert.atUserDbz,
+    maxDbz: alert.maxDbz,
+    rainMmPerHour: alert.rainMmPerHour,
+    locale,
+  });
 }
 
 /** Co čekat: zásah jádra/okraje · déšť / kroupy — před příchodem. */

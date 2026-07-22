@@ -1,5 +1,5 @@
 import { useI18n } from "../i18n";
-import { formatStormAlertHero } from "../lib/formatAlert";
+import { etaClockLabel, formatStormAlertHero } from "../lib/formatAlert";
 import type { ThreatBannerItem } from "../storm/userThreats";
 import {
   formatThreatBannerMessage,
@@ -13,7 +13,7 @@ type Props = {
   onSelectThreat?: (item: ThreatBannerItem) => void;
 };
 
-/** Stav sledované lokace — klid vs. blížící se bouřka. */
+/** Stav sledované lokace — síla / zásah / ETA před příchodem. */
 export function LocationWatch({
   location,
   threats,
@@ -34,17 +34,21 @@ export function LocationWatch({
   }
 
   const expect = formatThreatExpect(primary, locale);
-  const hero =
-    primary.kind === "radar"
-      ? formatStormAlertHero(primary.alert, locale)
-      : null;
+  const strengthLine = formatStormAlertHero(primary.alert, locale);
+  const etaLine = t("watch.etaLine", {
+    eta: primary.alert.etaMinutes,
+    clock: etaClockLabel(primary.alert.etaMinutes),
+  });
 
   return (
     <section className={`panel location-watch threat ${primary.alert.severity}`}>
       <p className="location-watch-title">
         {t("watch.threatTitle", { place: location.placeName })}
       </p>
-      {hero && <p className="location-watch-hero">{hero}</p>}
+      <p className="location-watch-strength" role="status">
+        {strengthLine}
+      </p>
+      <p className="location-watch-eta">{etaLine}</p>
       <p className="location-watch-body">
         {formatThreatBannerMessage(primary, locale)}
       </p>

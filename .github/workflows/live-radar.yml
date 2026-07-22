@@ -53,7 +53,7 @@ jobs:
           EUMETSAT_CONSUMER_KEY: ${{ secrets.CONSUMER_KEY_EUMETSAT }}
           EUMETSAT_CONSUMER_SECRET: ${{ secrets.CONSUMER_SECRET_EUMETSAT }}
         run: |
-          python scripts/opera_fetch_convert.py --frames 6
+          python scripts/opera_fetch_convert.py --frames 7
           python scripts/chmi_radar.py
           python scripts/chmi_dualpol.py
           python scripts/refresh_env_if_stale.py

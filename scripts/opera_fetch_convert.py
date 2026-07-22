@@ -280,37 +280,37 @@ def _chaikin_closed(ring: list[list[float]], iterations: int = 1) -> list[list[f
 _DBZ_STOPS = np.array([18, 25, 30, 35, 40, 45, 50, 55, 60, 65, 75], dtype=np.float64)
 _DBZ_RGB = np.array(
     [
-        [40, 40, 90],
-        [50, 70, 180],
-        [40, 160, 200],
-        [30, 180, 90],
-        [160, 210, 40],
-        [240, 220, 40],
-        [250, 150, 30],
-        [230, 50, 40],
-        [200, 30, 120],
-        [180, 40, 200],
-        [255, 200, 255],
+        [35, 50, 120],
+        [40, 90, 210],
+        [25, 175, 210],
+        [20, 200, 85],
+        [170, 230, 30],
+        [255, 230, 25],
+        [255, 145, 15],
+        [245, 40, 35],
+        [220, 20, 130],
+        [195, 35, 220],
+        [255, 210, 255],
     ],
     dtype=np.float64,
 )
 
 
 def _dbz_to_rgba(dbz: np.ndarray) -> np.ndarray:
-    """Spojité barvy + měkká alfa (bez ostrých schodů mezi pásy)."""
+    """Spojité barvy + silnější alfa — echo musí jít dobře číst na mapě."""
     z = np.nan_to_num(dbz, nan=0.0).astype(np.float64)
     rgb = np.zeros(z.shape + (3,), dtype=np.float64)
     for c in range(3):
         rgb[..., c] = np.interp(z, _DBZ_STOPS, _DBZ_RGB[:, c])
 
     alpha = np.zeros_like(z, dtype=np.float64)
-    # Fade-in okraje — jako profesionální radar, ne stencil
+    # Silnější než dřív — soft déšť i jádra musí být vidět přes basemap
     soft = (z >= 18) & (z < 28)
     mid = (z >= 28) & (z < 45)
     hard = z >= 45
-    alpha[soft] = 0.12 + 0.45 * ((z[soft] - 18) / 10.0)
-    alpha[mid] = 0.57 + 0.18 * ((z[mid] - 28) / 17.0)
-    alpha[hard] = np.clip(0.75 + 0.15 * ((z[hard] - 45) / 25.0), 0.0, 0.9)
+    alpha[soft] = 0.28 + 0.42 * ((z[soft] - 18) / 10.0)
+    alpha[mid] = 0.72 + 0.16 * ((z[mid] - 28) / 17.0)
+    alpha[hard] = np.clip(0.90 + 0.10 * ((z[hard] - 45) / 25.0), 0.0, 0.98)
     alpha[z < 18] = 0.0
 
     out = np.zeros(z.shape + (4,), dtype=np.uint8)
@@ -1110,8 +1110,8 @@ def main() -> int:
     ap.add_argument(
         "--history-frames",
         type=int,
-        default=6,
-        help="Kolik framů jít do UI history/ (slider)",
+        default=7,
+        help="Kolik framů jít do UI history/ (slider −30…Teď po 5 min)",
     )
     ap.add_argument("--cache", default=os.path.join(".cache", "opera"))
     args = ap.parse_args()

@@ -10,7 +10,7 @@ import type { RadarRasterMeta } from "./radarRaster";
 export type StormEvolution = {
   /** Vážený průměr (pred − current) dBZ. */
   meanDeltaDbz: number;
-  /** MapLibre raster-opacity (základ ~0.9). */
+  /** MapLibre raster-opacity (základ ~1). */
   rasterOpacity: number;
   /** Škála stopy srážek kolem středu (0.94–1.08). */
   footprintScale: number;
@@ -52,7 +52,7 @@ export function stormEvolutionAt(
   minutes: number,
 ): StormEvolution {
   if (minutes <= 0.05 || features.length === 0) {
-    return { meanDeltaDbz: 0, rasterOpacity: 0.9, footprintScale: 1 };
+    return { meanDeltaDbz: 0, rasterOpacity: 1, footprintScale: 1 };
   }
 
   const evo = stormConfig.evolution;
@@ -66,7 +66,7 @@ export function stormEvolutionAt(
   }
   const meanDeltaDbz = wSum > 0 ? dSum / wSum : 0;
 
-  const rasterOpacity = clamp(0.9 + meanDeltaDbz * evo.opacityPerDbz, 0.55, 0.95);
+  const rasterOpacity = clamp(1 + meanDeltaDbz * evo.opacityPerDbz, 0.7, 1);
   const footprintScale = clamp(
     1 + meanDeltaDbz * evo.footprintPerDbz,
     evo.footprintMin,

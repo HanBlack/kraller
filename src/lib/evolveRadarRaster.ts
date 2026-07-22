@@ -19,9 +19,65 @@ function loadImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
-let cachedEvolveKey: string | null = null;
-let cachedEvolveUrl: string | null = null;
+const MAX_EVOLVE_CACHE = 32;
+const evolveCache = new Map<string, string>();
 let displayedEvolveUrl: string | null = null;
+
+function buildEvolveCacheKey(
+  meta: RadarRasterMeta,
+  features: RadarProgressFeature[],
+  intensByCell: Map<string, CellIntensification> | undefined,
+  minutes: number,
+): string {
+  const qMin = quantizeEvolveMinutes(minutes);
+  const evolution = stormEvolutionAt(features, intensByCell, qMin);
+  const moving = features.filter((f) => f.speedKmh >= 5);
+  return [
+    meta.url,
+    qMin.toFixed(1),
+    evolution.meanDeltaDbz.toFixed(2),
+    evolution.rasterOpacity.toFixed(2),
+    moving
+      .map(
+        (f) =>
+          `${f.id}:${f.maxDbz.toFixed(0)}:${f.speedKmh.toFixed(0)}:${f.headingDeg.toFixed(0)}`,
+      )
+      .join("|"),
+  ].join("::");
+}
+
+function rememberEvolvedUrl(key: string, url: string) {
+  if (evolveCache.has(key)) {
+    evolveCache.delete(key);
+  }
+  evolveCache.set(key, url);
+  while (evolveCache.size > MAX_EVOLVE_CACHE) {
+    const oldest = evolveCache.keys().next().value;
+    if (!oldest) break;
+    const oldUrl = evolveCache.get(oldest);
+    evolveCache.delete(oldest);
+    if (
+      oldUrl?.startsWith("blob:") &&
+      oldUrl !== displayedEvolveUrl
+    ) {
+      URL.revokeObjectURL(oldUrl);
+    }
+  }
+}
+
+/** Sync hit — bez canvas práce při opakovaném scrubu. */
+export function peekEvolvedRadarRaster(
+  meta: RadarRasterMeta,
+  features: RadarProgressFeature[],
+  intensByCell: Map<string, CellIntensification> | undefined,
+  minutes: number,
+): RadarRasterMeta | null {
+  if (!meta.url || minutes <= 0.05) return null;
+  const key = buildEvolveCacheKey(meta, features, intensByCell, minutes);
+  const cachedUrl = evolveCache.get(key);
+  if (!cachedUrl) return null;
+  return { ...meta, url: cachedUrl };
+}
 
 /** Uvolni starý evolved blob až po zobrazení nového. */
 export function commitEvolvedRasterSwap(activeUrl: string | null | undefined) {
@@ -45,19 +101,11 @@ export async function renderEvolvedRadarRaster(
   if (!meta.url || minutes <= 0.05) return meta;
 
   const qMin = quantizeEvolveMinutes(minutes);
-  const evolution = stormEvolutionAt(features, intensByCell, qMin);
-    const moving = features.filter((f) => f.speedKmh >= 5);
-  const cacheKey = [
-    meta.url,
-    qMin.toFixed(1),
-    evolution.meanDeltaDbz.toFixed(2),
-    evolution.rasterOpacity.toFixed(2),
-    moving.map((f) => `${f.id}:${f.maxDbz.toFixed(0)}:${f.speedKmh.toFixed(0)}`).join("|"),
-  ].join("::");
+  const cached = peekEvolvedRadarRaster(meta, features, intensByCell, minutes);
+  if (cached) return cached;
 
-  if (cacheKey === cachedEvolveKey && cachedEvolveUrl) {
-    return { ...meta, url: cachedEvolveUrl };
-  }
+  const evolution = stormEvolutionAt(features, intensByCell, qMin);
+  const cacheKey = buildEvolveCacheKey(meta, features, intensByCell, minutes);
 
   try {
     const img = await loadImage(meta.url);
@@ -95,7 +143,7 @@ export async function renderEvolvedRadarRaster(
     sctx.drawImage(img, 0, 0, width, height);
     const srcData = sctx.getImageData(0, 0, width, height);
 
-    const globalAlpha = evolution.rasterOpacity / 0.9;
+    const globalAlpha = evolution.rasterOpacity;
     const outData = advectRadarPixels(
       srcData.data,
       width,
@@ -119,9 +167,8 @@ export async function renderEvolvedRadarRaster(
     });
     if (!blob || blob.size < 32) return meta;
 
-    cachedEvolveKey = cacheKey;
     const newUrl = URL.createObjectURL(blob);
-    cachedEvolveUrl = newUrl;
+    rememberEvolvedUrl(cacheKey, newUrl);
     return { ...meta, url: newUrl };
   } catch {
     return meta;

@@ -19,6 +19,8 @@ import {
 import type { WindLayerMode } from "./lib/windField";
 import type { ScoredFormationPoint } from "./storm/formationData";
 import type { ThreatBannerItem } from "./storm/userThreats";
+import { applyTimeOffsetRaster } from "./lib/radarMapBridge";
+import { HISTORY_MIN_OFFSET } from "./lib/radarHistory";
 import type { UserLocation } from "./types";
 import "./App.css";
 
@@ -65,7 +67,7 @@ export default function App() {
   const [formationPoints, setFormationPoints] = useState<ScoredFormationPoint[]>(
     [],
   );
-  const [controlsOpen, setControlsOpen] = useState(false);
+  const [controlsOpen, setControlsOpen] = useState(true);
 
   useEffect(() => {
     if (!booting) return;
@@ -184,7 +186,7 @@ export default function App() {
                 />
               </CollapsibleSection>
             )}
-            <CollapsibleSection title={t("sections.layers")}>
+            <CollapsibleSection title={t("sections.layers")} defaultOpen>
               <LayerToggle
                 showFormation={showFormation}
                 showProgress={showProgress}
@@ -202,7 +204,11 @@ export default function App() {
                 }}
                 onToggleRadar={() => setShowRadar((v) => !v)}
                 onWindMode={setWindMode}
-                onTimeOffsetMinutes={setTimeOffsetMinutes}
+                onTimeOffsetMinutes={(v) => {
+                  const clamped = Math.min(0, Math.max(HISTORY_MIN_OFFSET, v));
+                  applyTimeOffsetRaster(clamped);
+                  setTimeOffsetMinutes(clamped);
+                }}
               />
             </CollapsibleSection>
             {selected && (

@@ -159,11 +159,14 @@ export function explainBirthWhy(
   }
 
   if (cooling >= 2) {
+    const fromSat = env.coolingSource === "satellite";
     drivers.push({
       sortKey: "cooling",
       key: "cooling",
-      label: "Rostoucí konvekce",
-      detail: `vrchol mraku chladne −${cooling.toFixed(1)} °C / 15 min`,
+      label: fromSat ? "Ochlazování vrcholu" : "Rostoucí nestabilita (model)",
+      detail: fromSat
+        ? `satelit: vrchol chladne −${cooling.toFixed(1)} °C / 15 min`
+        : `model proxy −${cooling.toFixed(1)} °C / 15 min (ne satelit)`,
       weight: 30 + Math.min(25, cooling * 4),
     });
   }
@@ -212,8 +215,14 @@ export function explainBirthWhy(
         drivers.push({
           sortKey: "local-cool",
           key: "cooling",
-          label: "Aktivní růst právě tady",
-          detail: "silnější chladnutí vrcholu než v okolí",
+          label:
+            env.coolingSource === "satellite"
+              ? "Silnější cooling právě tady"
+              : "Aktivní růst právě tady",
+          detail:
+            env.coolingSource === "satellite"
+              ? "silnější ochlazování vrcholu (satelit) než v okolí"
+              : "silnější modelová nestabilita než v okolí",
           weight: 26,
         });
       }

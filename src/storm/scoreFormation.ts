@@ -68,7 +68,11 @@ export function scoreFormation(
     reasons.push(`shear ${env.shear0to6Ms.toFixed(0)} m/s`);
   }
   if (cooling >= cfg.cloudTopCoolingCPer15min.growing) {
-    reasons.push(`rostoucí nestabilita (model)`);
+    reasons.push(
+      env.coolingSource === "satellite"
+        ? "ochlazování vrcholu (satelit)"
+        : "rostoucí nestabilita (model)",
+    );
   }
   if ((env.liftedIndexC ?? 0) <= -1) {
     reasons.push(`lifted index ${(env.liftedIndexC ?? 0).toFixed(1)} °C`);

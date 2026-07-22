@@ -86,4 +86,21 @@ describe("radarTrackCorridors — pás místo přímky", () => {
       Number(mature.features[0].properties?.halfKm),
     );
   });
+
+  it("bez hrozby / výběru koridor nevykreslí", () => {
+    const fc = radarTrackCorridorsGeoJSONAt(
+      [feature({ threatens: 0, id: "safe" })],
+      0,
+    );
+    expect(fc.features).toHaveLength(0);
+  });
+
+  it("vybraná buňka bez hrozby má koridor", () => {
+    const fc = radarTrackCorridorsGeoJSONAt(
+      [feature({ threatens: 0, id: "picked" })],
+      0,
+      "picked",
+    );
+    expect(fc.features).toHaveLength(1);
+  });
 });

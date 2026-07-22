@@ -21,8 +21,9 @@ export type RadarHistoryManifest = {
   frames: RadarHistoryFrame[];
 };
 
-export const HISTORY_MIN_OFFSET = -25;
-export const FORECAST_MAX_OFFSET = 30;
+export const HISTORY_MIN_OFFSET = -30;
+/** Budoucnost na slideru vypnutá — žádný „radar za N min“. */
+export const FORECAST_MAX_OFFSET = 0;
 export const TIME_STEP_MINUTES = 5;
 
 const EMPTY_FC: FeatureCollection = { type: "FeatureCollection", features: [] };
@@ -74,6 +75,7 @@ export function frameForOffset(
 export async function loadRadarHistoryFrame(
   frame: RadarHistoryFrame,
   cacheBust?: number,
+  opts?: { smooth?: boolean },
 ): Promise<FeatureCollection> {
   const key = frameCacheKey(frame, cacheBust);
   const cached = frameCache.get(key);
@@ -82,10 +84,11 @@ export async function loadRadarHistoryFrame(
   try {
     const res = await fetchData(frame.path, cacheBust);
     if (!res) return EMPTY_FC;
-    const fc = smoothPolygonFeatures(
-      (await res.json()) as FeatureCollection,
-      1,
-    );
+    const raw = (await res.json()) as FeatureCollection;
+    const fc =
+      opts?.smooth === false
+        ? raw
+        : smoothPolygonFeatures(raw, 1);
     frameCache.set(key, fc);
     return fc;
   } catch {
@@ -124,20 +127,50 @@ export async function loadRadarHistoryRaster(
   return ready;
 }
 
+/** Okamžitý hit z boot preload — slider nemusí čekat na Promise. */
+export function cachedHistoryFrame(
+  frame: RadarHistoryFrame,
+): FeatureCollection | undefined {
+  return frameCache.get(frameCacheKey(frame));
+}
+
+export function cachedHistoryRaster(
+  frame: RadarHistoryFrame,
+): RadarRasterMeta | undefined {
+  return rasterCache.get(rasterCacheKey(frame));
+}
+
+/** Přednačte PNG historie — blokující pro boot (slider pak okamžitý). */
+export async function preloadRadarHistoryRasters(
+  manifest: RadarHistoryManifest | null,
+  cacheBust?: number,
+): Promise<void> {
+  if (!manifest?.frames.length) return;
+  await Promise.all(
+    manifest.frames.map((frame) => loadRadarHistoryRaster(frame, cacheBust)),
+  );
+}
+
+/** GeoJSON historie — může běžet na pozadí po zobrazení mapy. */
+export async function preloadRadarHistoryGeojson(
+  manifest: RadarHistoryManifest | null,
+  cacheBust?: number,
+): Promise<void> {
+  if (!manifest?.frames.length) return;
+  await Promise.all(
+    manifest.frames.map((frame) =>
+      loadRadarHistoryFrame(frame, cacheBust, { smooth: false }),
+    ),
+  );
+}
+
 /** Přednačte všechny historické snímky při startu stránky (geojson + PNG). */
 export async function preloadRadarHistoryFrames(
   manifest: RadarHistoryManifest | null,
   cacheBust?: number,
 ): Promise<void> {
-  if (!manifest?.frames.length) return;
-  frameCache.clear();
-  rasterCache.clear();
-  await Promise.all(
-    manifest.frames.map(async (frame) => {
-      await loadRadarHistoryFrame(frame, cacheBust);
-      await loadRadarHistoryRaster(frame, cacheBust);
-    }),
-  );
+  await preloadRadarHistoryRasters(manifest, cacheBust);
+  await preloadRadarHistoryGeojson(manifest, cacheBust);
 }
 
 export function formatTimeOffsetLabel(
