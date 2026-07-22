@@ -321,23 +321,39 @@ def _normalize_height_m(value: float | None) -> float | None:
     return v * 1000.0
 
 
+def _list_array_vars(ds) -> list[str]:
+    names: list[str] = []
+    if hasattr(ds, "data_vars"):
+        names.extend(str(n) for n in ds.data_vars)
+    if hasattr(ds, "variables"):
+        names.extend(str(n) for n in ds.variables)
+    # uniq, preserve order
+    seen: set[str] = set()
+    out: list[str] = []
+    for n in names:
+        if n not in seen:
+            seen.add(n)
+            out.append(n)
+    return out
+
+
 def _find_mask_var(ds) -> str | None:
-    prefer = ("cma", "cloud_mask", "clm", "CloudMask", "mask")
-    names = list(getattr(ds, "data_vars", ds.variables if hasattr(ds, "variables") else []))
+    prefer = ("cld_mask", "cloud_mask", "cma", "clm", "CloudMask", "mask")
+    names = _list_array_vars(ds)
     lower = {str(n).lower(): str(n) for n in names}
     for p in prefer:
         if p.lower() in lower:
             return lower[p.lower()]
     for n in names:
         nl = str(n).lower()
-        if "mask" in nl and "status" not in nl and "snow" not in nl:
+        if "mask" in nl and "status" not in nl and "snow" not in nl and "test" not in nl:
             return str(n)
     return None
 
 
 def _find_type_var(ds) -> str | None:
-    prefer = ("ct", "cloud_type", "CloudType", "ctype")
-    names = list(getattr(ds, "data_vars", ds.variables if hasattr(ds, "variables") else []))
+    prefer = ("cloud_type", "ct", "CloudType", "ctype")
+    names = _list_array_vars(ds)
     lower = {str(n).lower(): str(n) for n in names}
     for p in prefer:
         if p.lower() in lower:
@@ -397,6 +413,65 @@ def _cloud_level_from_type(code: int | None) -> str | None:
     if code in (8, 9, 12, 13, 14, 15):
         return "high"
     return "other"
+
+
+def _find_ctth_status_var(ds) -> str | None:
+    prefer = (
+        "ctth_status_flag",
+        "ctth_status",
+        "cloud_top_status",
+        "status_flag",
+    )
+    names = _list_array_vars(ds)
+    lower = {str(n).lower(): str(n) for n in names}
+    for p in prefer:
+        if p.lower() in lower:
+            return lower[p.lower()]
+    for n in names:
+        nl = str(n).lower()
+        if "status" in nl and ("ctth" in nl or "cloud_top" in nl):
+            return str(n)
+    return None
+
+
+def _is_valid_ctth_status(value: float | None) -> bool | None:
+    """CTTH status: 255 / 0 = bez vrcholu; 1–2 = platný retrieval."""
+    if value is None or not math.isfinite(float(value)):
+        return None
+    v = int(round(float(value)))
+    if v in (0, 255):
+        return False
+    if 1 <= v <= 10:
+        return True
+    return None
+
+
+def _cloudy_at_point(
+    lat: float,
+    lon: float,
+    *,
+    ds_mask,
+    mvar: str | None,
+    ds_type,
+    tvar: str | None,
+    ds_ctth,
+) -> bool:
+    if ds_mask is not None and mvar:
+        flag = _sample_cloud_flag(ds_mask, mvar, lat, lon)
+        if flag is not None:
+            return flag
+    if ds_type is not None and tvar:
+        code = _sample_cloud_type_code(ds_type, tvar, lat, lon)
+        if code is not None:
+            return code > 1
+    if ds_ctth is not None:
+        svar = _find_ctth_status_var(ds_ctth)
+        if svar:
+            st = _sample_raw_pixel(ds_ctth, svar, lat, lon)
+            valid = _is_valid_ctth_status(st)
+            if valid is not None:
+                return valid
+    return False
 
 
 def _sample_raw_pixel(ds, var: str, lat: float, lon: float) -> float | None:
@@ -495,8 +570,6 @@ def _pick_readable_nc_for_var(
     dest: Path, find_var, label: str = "var"
 ) -> Path | None:
     for path in _rank_nc_candidates(dest):
-        if not _is_hdf5(path):
-            continue
         try:
             ds = _open_dataset(path)
             var = find_var(ds)
@@ -506,6 +579,14 @@ def _pick_readable_nc_for_var(
                 return path
         except Exception as e:
             print(f"  skip {path.name}: {e}", flush=True)
+    for path in _rank_nc_candidates(dest)[:1]:
+        try:
+            ds = _open_dataset(path)
+            vars_preview = _list_array_vars(ds)[:16]
+            print(f"  {label}: no var in {path.name}, vars={vars_preview}", flush=True)
+            ds.close()
+        except Exception:
+            pass
     return None
 
 
@@ -522,10 +603,17 @@ def _fetch_companion_nc(
         collection = datastore.get_collection(coll_id)
         products = list(
             collection.search(
-                dtstart=now - timedelta(hours=2),
-                dtend=now,
+                dtstart=now - timedelta(minutes=50),
+                dtend=now + timedelta(minutes=5),
             )
         )
+        if not products:
+            products = list(
+                collection.search(
+                    dtstart=now - timedelta(hours=2),
+                    dtend=now,
+                )
+            )
         if not products:
             print(f"  {label}: žádný produkt v {coll_id}", flush=True)
             return None
@@ -541,7 +629,8 @@ def _fetch_companion_nc(
         print(f"  {label} {coll_id}: {e}", flush=True)
         return None
 
-    """Mřížka + jádra buněk + formation body (bez duplicit ~8 km)."""
+
+def _collect_sample_locations() -> list[tuple[float, float, str]]:
     lats, lons = lat_lons()
     out: list[tuple[float, float, str]] = [(lat, lon, "grid") for lat in lats for lon in lons]
 
@@ -668,25 +757,38 @@ def _cooling_from_two_files(
         mvar1 = _find_mask_var(ds_mask1) if ds_mask1 is not None else None
         tvar1 = _find_type_var(ds_type1) if ds_type1 is not None else None
         if ds_mask1 is not None and not mvar1:
-            print("  warn: cloud mask soubor bez proměnné cma — CTT bez filtru", flush=True)
+            print("  warn: cloud mask soubor bez cld_mask/cma — fallback cloud type/CTTH", flush=True)
 
         locations = _collect_sample_locations()
         points: list[dict] = []
         for lat, lon, source in locations:
-            cloudy_now = _sample_cloud_flag(ds_mask1, mvar1, lat, lon)
-            if cloudy_now is None and ds_mask1 is None:
-                cloudy_now = True  # fallback bez masky (MSG)
-            elif cloudy_now is None:
-                cloudy_now = False
-
-            cloudy_before = _sample_cloud_flag(ds_mask0, mvar0, lat, lon) if ds_mask0 else None
-            t0 = (
-                _sample_field(ds0, var0, lat, lon)
-                if cloudy_before is not False
+            cloudy_now = _cloudy_at_point(
+                lat,
+                lon,
+                ds_mask=ds_mask1,
+                mvar=mvar1,
+                ds_type=ds_type1,
+                tvar=tvar1,
+                ds_ctth=ds1,
+            )
+            cloudy_before: bool | None = None
+            if mask_older is not None or ds_mask0 is not None:
+                cloudy_before = _cloudy_at_point(
+                    lat,
+                    lon,
+                    ds_mask=ds_mask0,
+                    mvar=mvar0,
+                    ds_type=None,
+                    tvar=None,
+                    ds_ctth=ds0,
+                )
+            t0 = _sample_field(ds0, var0, lat, lon) if cloudy_before is not False else None
+            t1 = _sample_field(ds1, var1, lat, lon) if cloudy_now else None
+            h0 = (
+                _sample_field(ds0, hvar0, lat, lon)
+                if hvar0 and cloudy_before is not False
                 else None
             )
-            t1 = _sample_field(ds1, var1, lat, lon) if cloudy_now else None
-            h0 = _sample_field(ds0, hvar0, lat, lon) if hvar0 and cloudy_before is not False else None
             h1 = _sample_field(ds1, hvar1, lat, lon) if hvar1 and cloudy_now else None
             ctype = (
                 _sample_cloud_type_code(ds_type1, tvar1, lat, lon)
@@ -852,9 +954,6 @@ def fetch_with_eumdac(key: str, secret: str) -> int:
                 continue
 
             cloudy_pts = [p for p in points if p.get("hasCloudTop") is not False]
-            if not cloudy_pts:
-                last_error = "Žádné validní CTT vzorky pod mrakem (cloud mask)"
-                continue
 
             write_cooling(
                 status="ok",
