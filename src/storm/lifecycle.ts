@@ -19,10 +19,12 @@ import { dewpointCOr } from "./types";
 import { distanceKm } from "../lib/geo";
 import { stormConfig } from "./config";
 import {
-  explainSatelliteGrowth,
+  explainSatelliteTowerFalling,
   explainSatelliteWarming,
   sampleSatelliteCooling,
+  satelliteReasonLines,
   satelliteWarmingRate,
+  towerFallRate,
   type SatelliteCoolingGrid,
   type SatelliteSample,
 } from "./satelliteCooling";
@@ -277,7 +279,9 @@ export function explainDemiseWhy(
   const decayPerMin = decayDbzPerMin(feature);
   const peakSat = satAtPeak ?? feature.satAtPeak ?? null;
 
-  if (peakSat?.trend === "warming" && satelliteWarmingRate(peakSat.cloudTopCoolingCPer15min) >= 1.5) {
+  if (peakSat?.towerFalling && towerFallRate(peakSat.cloudTopHeightDeltaMPer15min) >= stormConfig.satellite.towerFallingMPer15min) {
+    reasons.push(explainSatelliteTowerFalling(peakSat));
+  } else if (peakSat?.trend === "warming" && satelliteWarmingRate(peakSat.cloudTopCoolingCPer15min) >= 1.5) {
     reasons.push(explainSatelliteWarming(peakSat));
   }
 
@@ -318,8 +322,11 @@ export function explainDemiseWhy(
     }
   }
 
-  if (peakSat?.trend === "growing") {
-    reasons.push(`${explainSatelliteGrowth(peakSat)} — útlum není jistý`);
+  if (peakSat?.trend === "growing" || peakSat?.towerRising || peakSat?.coldTop) {
+    const growLine = peakSat ? satelliteReasonLines(peakSat).find((l) => !l.includes("slábne")) : null;
+    if (growLine && !reasons.some((r) => r.includes("útlum není jistý"))) {
+      reasons.push(`${growLine} — útlum není jistý`);
+    }
   }
 
   if (intens?.willIntensify && intens.enterEtaMin != null && etaMin > intens.enterEtaMin + 15) {
@@ -429,10 +436,14 @@ export function estimateDemise(
     lifeMin = Math.max(lifeMin, intens.enterEtaMin + 15 + boost);
   }
 
-  if (peakSat?.trend === "warming" && satelliteWarmingRate(peakSat.cloudTopCoolingCPer15min) >= 1.5) {
+  if (peakSat?.trend === "warming" || peakSat?.towerFalling) {
     lifeMin = Math.round(lifeMin * 0.75);
     if (confidence === "climatology") confidence = "trending";
-  } else if (peakSat?.trend === "growing") {
+  } else if (
+    peakSat?.trend === "growing" ||
+    peakSat?.towerRising ||
+    peakSat?.coldTop
+  ) {
     lifeMin = Math.round(lifeMin * 1.2);
   }
 

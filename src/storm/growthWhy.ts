@@ -3,9 +3,8 @@ import { getLocale } from "../i18n";
 import type { RadarProgressFeature } from "./radarCells";
 import { dewpointCOr } from "./types";
 import {
-  explainSatelliteGrowth,
-  explainSatelliteWarming,
   satelliteGrowthRate,
+  satelliteReasonLines,
   type SatelliteSample,
 } from "./satelliteCooling";
 
@@ -32,10 +31,10 @@ export function explainGrowthWhy(
   const age = Math.max(1, feature.ageMinutes);
   const peakSat = satAtPeak ?? feature.satAtPeak ?? null;
 
-  if (peakSat?.trend === "growing") {
-    reasons.push(explainSatelliteGrowth(peakSat));
-  } else if (peakSat?.trend === "warming") {
-    reasons.push(explainSatelliteWarming(peakSat));
+  if (peakSat) {
+    for (const line of satelliteReasonLines(peakSat)) {
+      if (!reasons.includes(line)) reasons.push(line);
+    }
   }
 
   if (growth >= 3) {

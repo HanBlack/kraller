@@ -361,6 +361,126 @@ def _open_dataset(path: Path):
     raise RuntimeError(f"Nelze otevřít {path.name}: {'; '.join(errors)}")
 
 
+def _find_height_var(ds) -> str | None:
+    """Hledej cloud-top height v netCDF/xarray datasetu."""
+    prefer = (
+        "cloud_top_height",
+        "cth",
+        "CTH",
+        "CloudTopHeight",
+        "cloud_top_altitude",
+        "height",
+    )
+    names = list(getattr(ds, "data_vars", ds.variables if hasattr(ds, "variables") else []))
+    lower = {str(n).lower(): str(n) for n in names}
+    for p in prefer:
+        if p.lower() in lower:
+            return lower[p.lower()]
+    for n in names:
+        nl = str(n).lower()
+        if "height" in nl and "temp" not in nl and "pressure" not in nl:
+            return str(n)
+    return None
+
+
+def _normalize_height_m(value: float | None) -> float | None:
+    if value is None or not math.isfinite(float(value)):
+        return None
+    v = float(value)
+    if v <= 0:
+        return None
+    # MTG CTH může být v metrech nebo kilometrech
+    if v < 25:
+        return v * 1000.0
+    if v > 100:
+        return v
+    return v * 1000.0
+
+
+def _collect_sample_locations() -> list[tuple[float, float, str]]:
+    """Mřížka + jádra buněk + formation body (bez duplicit ~8 km)."""
+    lats, lons = lat_lons()
+    out: list[tuple[float, float, str]] = [(lat, lon, "grid") for lat in lats for lon in lons]
+
+    def far_enough(lat: float, lon: float, min_km: float = 8.0) -> bool:
+        return all(haversine_km(lat, lon, a, b) >= min_km for a, b, _ in out)
+
+    cells_path = Path("public/data/opera/cells.geojson")
+    if cells_path.is_file():
+        try:
+            fc = json.loads(cells_path.read_text(encoding="utf-8"))
+            for feat in fc.get("features") or []:
+                props = feat.get("properties") or {}
+                lat = props.get("peakLat")
+                lon = props.get("peakLon")
+                if lat is None or lon is None:
+                    continue
+                lat_f, lon_f = float(lat), float(lon)
+                if not far_enough(lat_f, lon_f, 6.0):
+                    continue
+                out.append((lat_f, lon_f, "cell"))
+        except Exception as e:
+            print(f"  cells.geojson sample skip ({e})", flush=True)
+
+    form_path = Path("public/data/formation/grid.json")
+    if form_path.is_file():
+        try:
+            grid = json.loads(form_path.read_text(encoding="utf-8"))
+            for p in grid.get("points") or []:
+                lat_f, lon_f = float(p["lat"]), float(p["lon"])
+                if not far_enough(lat_f, lon_f, 6.0):
+                    continue
+                out.append((lat_f, lon_f, "formation"))
+        except Exception as e:
+            print(f"  formation grid sample skip ({e})", flush=True)
+
+    return out
+
+
+def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    r = 6371.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dl = math.radians(lon2 - lon1)
+    a = (
+        math.sin(dphi / 2) ** 2
+        + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    )
+    return 2 * r * math.asin(math.sqrt(a))
+
+
+def _build_sat_point(
+    lat: float,
+    lon: float,
+    t0: float | None,
+    t1: float | None,
+    h0: float | None,
+    h1: float | None,
+    dt_min: float,
+    source: str,
+) -> dict | None:
+    if t1 is None:
+        return None
+    scale = 15.0 / max(5.0, dt_min)
+    d_per_15 = (t1 - t0) * scale if t0 is not None else 0.0
+    d_per_15 = max(-8.0, min(4.0, d_per_15))
+    pt: dict = {
+        "lat": round(lat, 4),
+        "lon": round(lon, 4),
+        "cloudTopTempC": round(t1, 2),
+        "cloudTopCoolingCPer15min": round(d_per_15, 2),
+        "sampleSource": source,
+    }
+    h1m = _normalize_height_m(h1)
+    h0m = _normalize_height_m(h0)
+    if h1m is not None:
+        pt["cloudTopHeightM"] = round(h1m, 0)
+    if h0m is not None and h1m is not None:
+        dh = (h1m - h0m) * scale
+        pt["cloudTopHeightDeltaMPer15min"] = round(max(-5000.0, min(5000.0, dh)), 0)
+    return pt
+
+
 def _cooling_from_two_files(
     older: Path, newer: Path, dt_min: float
 ) -> list[dict]:
@@ -373,26 +493,18 @@ def _cooling_from_two_files(
             raise RuntimeError(
                 f"V datech není CTT (vars older={[v for v in getattr(ds0, 'data_vars', [])]})"
             )
-        lats, lons = lat_lons()
+        hvar0 = _find_height_var(ds0)
+        hvar1 = _find_height_var(ds1)
+        locations = _collect_sample_locations()
         points: list[dict] = []
-        scale = 15.0 / max(5.0, dt_min)  # normalizuj na °C / 15 min
-        for lat in lats:
-            for lon in lons:
-                t0 = _sample_field(ds0, var0, lat, lon)
-                t1 = _sample_field(ds1, var1, lat, lon)
-                if t0 is None or t1 is None:
-                    continue
-                # Záporné = ochlazování (rostoucí věž)
-                d_per_15 = (t1 - t0) * scale
-                d_per_15 = max(-8.0, min(4.0, d_per_15))
-                points.append(
-                    {
-                        "lat": round(lat, 4),
-                        "lon": round(lon, 4),
-                        "cloudTopTempC": round(t1, 2),
-                        "cloudTopCoolingCPer15min": round(d_per_15, 2),
-                    }
-                )
+        for lat, lon, source in locations:
+            t0 = _sample_field(ds0, var0, lat, lon)
+            t1 = _sample_field(ds1, var1, lat, lon)
+            h0 = _sample_field(ds0, hvar0, lat, lon) if hvar0 else None
+            h1 = _sample_field(ds1, hvar1, lat, lon) if hvar1 else None
+            pt = _build_sat_point(lat, lon, t0, t1, h0, h1, dt_min, source)
+            if pt:
+                points.append(pt)
         return points
     finally:
         try:
@@ -509,7 +621,7 @@ def fetch_with_eumdac(key: str, secret: str) -> int:
             write_cooling(
                 status="ok",
                 source=f"EUMETSAT/{used_collection}",
-                message=f"ΔT / {DT_MINUTES} min z cloud-top temperature",
+                message=f"ΔT/ΔCTH / {DT_MINUTES} min (CTT+CTH, grid+cells)",
                 points=points,
                 valid_at=now,
             )

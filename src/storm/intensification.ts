@@ -10,7 +10,9 @@ import { circlePolygon } from "./mapFeatures";
 import type { EnvironmentSignals } from "./types";
 import { dewpointCOr } from "./types";
 import {
+  explainSatelliteColdTop,
   explainSatelliteGrowth,
+  explainSatelliteTowerRising,
   explainSatelliteWarming,
   mergeSatelliteIntoEnv,
   satelliteWarmingRate,
@@ -315,6 +317,10 @@ export function forecastCellIntensification(
       }
       if (feature.satAtPeak?.trend === "growing") {
         reasons.push(explainSatelliteGrowth(feature.satAtPeak));
+      } else if (feature.satAtPeak?.towerRising) {
+        reasons.push(explainSatelliteTowerRising(feature.satAtPeak));
+      } else if (feature.satAtPeak?.coldTop) {
+        reasons.push(explainSatelliteColdTop(feature.satAtPeak));
       }
       if (here && env.capeJkg >= here.environment.capeJkg + 40) {
         reasons.push(

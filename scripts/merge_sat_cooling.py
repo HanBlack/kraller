@@ -89,6 +89,10 @@ def merge() -> int:
         env["coolingSource"] = "satellite"
         if hit.get("cloudTopTempC") is not None:
             env["cloudTopTempC"] = hit["cloudTopTempC"]
+        if hit.get("cloudTopHeightM") is not None:
+            env["cloudTopHeightM"] = hit["cloudTopHeightM"]
+        if hit.get("cloudTopHeightDeltaMPer15min") is not None:
+            env["cloudTopHeightDeltaMPer15min"] = hit["cloudTopHeightDeltaMPer15min"]
         n_sat += 1
 
     form["coolingMerge"] = {
