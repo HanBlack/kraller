@@ -11,7 +11,10 @@ import type { EnvironmentSignals } from "./types";
 import { dewpointCOr } from "./types";
 import {
   explainSatelliteColdTop,
+  explainSatelliteDeepIce,
   explainSatelliteGrowth,
+  explainSatelliteLightning,
+  explainSatelliteLongGrowth,
   explainSatelliteTowerRising,
   explainSatelliteWarming,
   mergeSatelliteIntoEnv,
@@ -317,10 +320,21 @@ export function forecastCellIntensification(
       }
       if (feature.satAtPeak?.trend === "growing") {
         reasons.push(explainSatelliteGrowth(feature.satAtPeak));
+      } else if (feature.satAtPeak?.trend === "growing_long") {
+        reasons.push(explainSatelliteLongGrowth(feature.satAtPeak));
       } else if (feature.satAtPeak?.towerRising) {
         reasons.push(explainSatelliteTowerRising(feature.satAtPeak));
       } else if (feature.satAtPeak?.coldTop) {
         reasons.push(explainSatelliteColdTop(feature.satAtPeak));
+      } else if (feature.satAtPeak?.deepIceTop) {
+        reasons.push(explainSatelliteDeepIce(feature.satAtPeak));
+      }
+      if (
+        feature.satAtPeak &&
+        feature.satAtPeak.lightningFlashes15min >=
+          stormConfig.satellite.lightningActiveMin
+      ) {
+        reasons.push(explainSatelliteLightning(feature.satAtPeak));
       }
       if (here && env.capeJkg >= here.environment.capeJkg + 40) {
         reasons.push(

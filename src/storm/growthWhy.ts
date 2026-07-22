@@ -4,6 +4,7 @@ import type { RadarProgressFeature } from "./radarCells";
 import { dewpointCOr } from "./types";
 import {
   satelliteGrowthRate,
+  satelliteLongGrowthRate,
   satelliteReasonLines,
   type SatelliteSample,
 } from "./satelliteCooling";
@@ -73,7 +74,9 @@ export function explainGrowthWhy(
     const satRate =
       peakSat?.trend === "growing"
         ? satelliteGrowthRate(peakSat.cloudTopCoolingCPer15min)
-        : 0;
+        : peakSat?.trend === "growing_long"
+          ? satelliteLongGrowthRate(peakSat.cloudTopCoolingCPer45min) * (15 / 45)
+          : 0;
     if (satRate < 1.5 && cooling >= 1.5) {
       reasons.push(
         env.coolingSource === "satellite"

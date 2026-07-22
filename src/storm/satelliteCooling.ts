@@ -10,10 +10,16 @@ export type SatelliteCoolingPoint = {
   hasCloudTop?: boolean;
   cloudTopTempC?: number;
   cloudTopCoolingCPer15min?: number;
+  /** ΔT škálované na 45 min (delší trend vzniku). */
+  cloudTopCoolingCPer45min?: number;
   cloudTopHeightM?: number;
   cloudTopHeightDeltaMPer15min?: number;
   cloudTypeCode?: number;
   cloudLevel?: "high" | "mid" | "low" | "fractional" | "other";
+  /** High/opaque ice cloud type — hluboká konvekce. */
+  deepIceTop?: boolean;
+  /** MTG LI flashes v okolí (~25 km / ~15 min). */
+  lightningFlashes15min?: number;
   sampleSource?: "grid" | "cell" | "formation";
 };
 
@@ -37,9 +43,10 @@ export type SatelliteTrend =
   | "warming"
   | "steady"
   | "cold_top"
-  | "tower_rising";
+  | "tower_rising"
+  | "growing_long";
 
-/** Satelitní vzorek u souřadnice buňky (MTG CTT + CTH). */
+/** Satelitní vzorek u souřadnice buňky (MTG CTT + CTH + LI). */
 export type SatelliteSample = {
   available: true;
   distanceKm: number;
@@ -47,10 +54,13 @@ export type SatelliteSample = {
   cloudTopTempC?: number;
   /** Záporné = ochlazování vrcholu (°C / 15 min). */
   cloudTopCoolingCPer15min: number;
+  cloudTopCoolingCPer45min?: number;
   cloudTopHeightM?: number;
   cloudTopHeightDeltaMPer15min?: number;
   cloudTypeCode?: number;
   cloudLevel?: SatelliteCoolingPoint["cloudLevel"];
+  deepIceTop: boolean;
+  lightningFlashes15min: number;
   trend: SatelliteTrend;
   coldTop: boolean;
   towerRising: boolean;
@@ -83,6 +93,10 @@ export function satelliteGrowthRate(coolingPer15min: number): number {
 
 export function satelliteWarmingRate(coolingPer15min: number): number {
   return Math.max(0, coolingPer15min);
+}
+
+export function satelliteLongGrowthRate(coolingPer45min: number | undefined): number {
+  return Math.max(0, -(coolingPer45min ?? 0));
 }
 
 export function towerRiseRate(deltaMPer15min: number | undefined): number {
@@ -120,13 +134,16 @@ function findNearestPoint(
 
 export function classifySatelliteTrend(input: {
   coolingPer15min: number;
+  coolingPer45min?: number;
   cloudTopTempC?: number;
   heightDeltaMPer15min?: number;
 }): SatelliteTrend {
   const cfg = stormConfig;
-  const growth = satelliteGrowthRate(input.coolingPer15min);
+  const growth15 = satelliteGrowthRate(input.coolingPer15min);
+  const growth45 = satelliteLongGrowthRate(input.coolingPer45min);
   const rise = towerRiseRate(input.heightDeltaMPer15min);
-  if (growth >= cfg.formation.cloudTopCoolingCPer15min.growing) return "growing";
+  if (growth15 >= cfg.formation.cloudTopCoolingCPer15min.growing) return "growing";
+  if (growth45 >= cfg.satellite.longCoolingCPer45min) return "growing_long";
   if (rise >= cfg.satellite.towerRisingMPer15min) return "tower_rising";
   if (
     input.cloudTopTempC != null &&
@@ -147,24 +164,78 @@ export function sampleSatelliteCooling(
 ): SatelliteSample | null {
   if (!isSatelliteCoolingLive(grid)) return null;
   const exactKm = stormConfig.satellite.exactMatchKm;
-  const exactCloudy = grid!.points.find(
+  const exactCell = grid!.points.find(
     (p) =>
       (p.sampleSource === "cell" || p.sampleSource === "formation") &&
-      distanceKm(lat, lon, p.lat, p.lon) <= exactKm &&
-      pointHasCloudTop(p),
+      distanceKm(lat, lon, p.lat, p.lon) <= exactKm,
   );
-  // Clear marker u jádra NENÍ absolutní veto — zkus nejbližší cloudy pixel
-  // (maska dřív falešně clearovala celé buňky).
+  const exactCloudy =
+    exactCell && pointHasCloudTop(exactCell) ? exactCell : undefined;
+
+  // Clear marker u jádra s LI — drž blesky i když blízký cloudy pixel existuje
+  if (
+    exactCell &&
+    !pointHasCloudTop(exactCell) &&
+    (exactCell.lightningFlashes15min ?? 0) > 0
+  ) {
+    const nearbyCloudy = findNearestPoint(grid!, lat, lon, pointHasCloudTop);
+    if (nearbyCloudy && nearbyCloudy.distanceKm <= maxKm) {
+      const base = sampleFromPoint(
+        nearbyCloudy.point,
+        nearbyCloudy.distanceKm,
+        false,
+        grid!.validAt,
+      );
+      return {
+        ...base,
+        lightningFlashes15min: exactCell.lightningFlashes15min ?? 0,
+        exactMatch: true,
+      };
+    }
+    return {
+      available: true,
+      distanceKm: distanceKm(lat, lon, exactCell.lat, exactCell.lon),
+      exactMatch: true,
+      cloudTopCoolingCPer15min: 0,
+      deepIceTop: false,
+      lightningFlashes15min: exactCell.lightningFlashes15min ?? 0,
+      trend: "steady",
+      coldTop: false,
+      towerRising: false,
+      towerFalling: false,
+      validAt: grid!.validAt,
+    };
+  }
+
+  // Clear marker bez LI — zkus nejbližší cloudy pixel
   const hit = exactCloudy
     ? {
         point: exactCloudy,
         distanceKm: distanceKm(lat, lon, exactCloudy.lat, exactCloudy.lon),
       }
     : findNearestPoint(grid!, lat, lon, pointHasCloudTop);
-  if (!hit || hit.distanceKm > maxKm || !pointHasCloudTop(hit.point)) return null;
+  if (!hit || hit.distanceKm > maxKm || !pointHasCloudTop(hit.point)) {
+    return null;
+  }
 
-  const { point, distanceKm: dKm } = hit;
+  return sampleFromPoint(
+    hit.point,
+    hit.distanceKm,
+    hit.distanceKm <= exactKm &&
+      (hit.point.sampleSource === "cell" ||
+        hit.point.sampleSource === "formation"),
+    grid!.validAt,
+  );
+}
+
+function sampleFromPoint(
+  point: SatelliteCoolingPoint,
+  dKm: number,
+  exactMatch: boolean,
+  validAt?: string,
+): SatelliteSample {
   const cooling = point.cloudTopCoolingCPer15min ?? 0;
+  const cooling45 = point.cloudTopCoolingCPer45min;
   const heightDelta = point.cloudTopHeightDeltaMPer15min;
   const coldTop =
     point.cloudTopTempC != null &&
@@ -173,28 +244,35 @@ export function sampleSatelliteCooling(
     towerRiseRate(heightDelta) >= stormConfig.satellite.towerRisingMPer15min;
   const towerFalling =
     towerFallRate(heightDelta) >= stormConfig.satellite.towerFallingMPer15min;
+  const deepIceTop =
+    point.deepIceTop === true ||
+    point.cloudLevel === "high" ||
+    (point.cloudTypeCode != null &&
+      [8, 9, 12, 13, 14, 15].includes(point.cloudTypeCode));
 
   return {
     available: true,
     distanceKm: dKm,
-    exactMatch:
-      dKm <= exactKm &&
-      (point.sampleSource === "cell" || point.sampleSource === "formation"),
+    exactMatch,
     cloudTopTempC: point.cloudTopTempC,
     cloudTopCoolingCPer15min: cooling,
+    cloudTopCoolingCPer45min: cooling45,
     cloudTopHeightM: point.cloudTopHeightM,
     cloudTopHeightDeltaMPer15min: heightDelta,
     cloudTypeCode: point.cloudTypeCode,
     cloudLevel: point.cloudLevel,
+    deepIceTop,
+    lightningFlashes15min: point.lightningFlashes15min ?? 0,
     trend: classifySatelliteTrend({
       coolingPer15min: cooling,
+      coolingPer45min: cooling45,
       cloudTopTempC: point.cloudTopTempC,
       heightDeltaMPer15min: heightDelta,
     }),
     coldTop,
     towerRising,
     towerFalling,
-    validAt: grid!.validAt,
+    validAt,
   };
 }
 
@@ -232,43 +310,63 @@ export function explainSatelliteStatus(
       detail: "v místě bez detekovaného vrcholu mraku — FCI nevidí cloud-top",
     };
   }
-  if (sample.trend === "growing") {
-    return {
-      title: "Satelit (MTG)",
-      detail: explainSatelliteGrowth(sample),
-    };
-  }
-  if (sample.trend === "tower_rising") {
-    return {
-      title: "Satelit (MTG)",
-      detail: explainSatelliteTowerRising(sample),
-    };
-  }
-  if (sample.trend === "cold_top") {
-    return {
-      title: "Satelit (MTG)",
-      detail: explainSatelliteColdTop(sample),
-    };
-  }
-  if (sample.trend === "warming" || sample.towerFalling) {
-    return {
-      title: "Satelit (MTG)",
-      detail: explainSatelliteWarming(sample),
-    };
-  }
-  const temp =
-    sample.cloudTopTempC != null
-      ? `vrchol ~${sample.cloudTopTempC.toFixed(0)} °C`
-      : "vrchol detekován";
+  const extras = satelliteExtraHints(sample);
+  const base = (() => {
+    if (sample.trend === "growing") return explainSatelliteGrowth(sample);
+    if (sample.trend === "growing_long") return explainSatelliteLongGrowth(sample);
+    if (sample.trend === "tower_rising") return explainSatelliteTowerRising(sample);
+    if (sample.trend === "cold_top") return explainSatelliteColdTop(sample);
+    if (sample.trend === "warming" || sample.towerFalling) {
+      return explainSatelliteWarming(sample);
+    }
+    if (sample.lightningFlashes15min >= stormConfig.satellite.lightningActiveMin) {
+      return explainSatelliteLightning(sample);
+    }
+    if (sample.deepIceTop) return explainSatelliteDeepIce(sample);
+    const temp =
+      sample.cloudTopTempC != null
+        ? `vrchol ~${sample.cloudTopTempC.toFixed(0)} °C`
+        : "vrchol detekován";
+    return `${temp} — stabilní (ΔT ≈ 0 za 15 min), bez signálu růstu`;
+  })();
   return {
     title: "Satelit (MTG)",
-    detail: `${temp} — stabilní (ΔT ≈ 0 za 15 min), bez signálu růstu`,
+    detail: extras.length ? `${base} · ${extras.join(" · ")}` : base,
   };
+}
+
+function satelliteExtraHints(sample: SatelliteSample): string[] {
+  const hints: string[] = [];
+  if (
+    sample.lightningFlashes15min >= stormConfig.satellite.lightningActiveMin &&
+    sample.trend !== "steady"
+  ) {
+    hints.push(explainSatelliteLightning(sample));
+  }
+  if (sample.deepIceTop && sample.trend !== "cold_top" && sample.cloudTopTempC != null) {
+    hints.push("high/ice cloud type");
+  }
+  if (
+    sample.cloudTopCoolingCPer45min != null &&
+    sample.trend === "growing" &&
+    satelliteLongGrowthRate(sample.cloudTopCoolingCPer45min) >=
+      stormConfig.satellite.longCoolingCPer45min
+  ) {
+    hints.push(
+      `trend 45 min −${satelliteLongGrowthRate(sample.cloudTopCoolingCPer45min).toFixed(1)} °C`,
+    );
+  }
+  return hints;
 }
 
 export function explainSatelliteGrowth(sample: SatelliteSample): string {
   const rate = satelliteGrowthRate(sample.cloudTopCoolingCPer15min);
   return `vrchol mraku se ochlazuje (satelit −${rate.toFixed(1)} °C / 15 min) — konvekce roste nahoře`;
+}
+
+export function explainSatelliteLongGrowth(sample: SatelliteSample): string {
+  const rate = satelliteLongGrowthRate(sample.cloudTopCoolingCPer45min);
+  return `vrchol se ochlazuje dlouhodobě (satelit −${rate.toFixed(1)} °C / 45 min) — růst před silnějším echom`;
 }
 
 export function explainSatelliteTowerRising(sample: SatelliteSample): string {
@@ -286,6 +384,19 @@ export function explainSatelliteColdTop(sample: SatelliteSample): string {
   return `studený vrchol mraku (~${t.toFixed(0)} °C) — hluboká konvekce nahoře`;
 }
 
+export function explainSatelliteDeepIce(sample: SatelliteSample): string {
+  const t =
+    sample.cloudTopTempC != null
+      ? `~${sample.cloudTopTempC.toFixed(0)} °C`
+      : "high/ice";
+  return `hluboká ledová vrstva (cloud type, ${t}) — ne mělká přeháňka`;
+}
+
+export function explainSatelliteLightning(sample: SatelliteSample): string {
+  const n = sample.lightningFlashes15min;
+  return `blesky MTG LI · ${n} flash/15 min v okolí — buňka elektrifikovaná`;
+}
+
 export function explainSatelliteWarming(sample: SatelliteSample): string {
   if (sample.towerFalling) {
     return explainSatelliteTowerFalling(sample);
@@ -298,9 +409,16 @@ export function explainSatelliteWarming(sample: SatelliteSample): string {
 export function satelliteReasonLines(sample: SatelliteSample): string[] {
   const lines: string[] = [];
   if (sample.trend === "growing") lines.push(explainSatelliteGrowth(sample));
+  if (sample.trend === "growing_long") lines.push(explainSatelliteLongGrowth(sample));
   if (sample.towerRising) lines.push(explainSatelliteTowerRising(sample));
   if (sample.coldTop && sample.trend !== "growing") {
     lines.push(explainSatelliteColdTop(sample));
+  }
+  if (sample.deepIceTop && !sample.coldTop) {
+    lines.push(explainSatelliteDeepIce(sample));
+  }
+  if (sample.lightningFlashes15min >= stormConfig.satellite.lightningActiveMin) {
+    lines.push(explainSatelliteLightning(sample));
   }
   if (sample.trend === "warming" || sample.towerFalling) {
     lines.push(explainSatelliteWarming(sample));
@@ -314,12 +432,27 @@ export function mergeSatelliteIntoEnv(
   sample: SatelliteSample | null | undefined,
 ): EnvironmentSignals {
   if (!sample) return env;
+  const cooling15 = sample.cloudTopCoolingCPer15min;
+  const longRate = satelliteLongGrowthRate(sample.cloudTopCoolingCPer45min);
+  // Delší trend: pokud 15min slabý ale 45min silný, použij škálovaný proxy do skóre
+  const coolingForScore =
+    satelliteGrowthRate(cooling15) >= 1.5
+      ? cooling15
+      : longRate >= stormConfig.satellite.longCoolingCPer45min
+        ? -(longRate * (15 / 45))
+        : cooling15;
   return {
     ...env,
-    cloudTopCoolingCPer15min: sample.cloudTopCoolingCPer15min,
+    cloudTopCoolingCPer15min: coolingForScore,
     coolingSource: "satellite",
     cloudTopTempC: sample.cloudTopTempC,
     cloudTopHeightM: sample.cloudTopHeightM,
     cloudTopHeightDeltaMPer15min: sample.cloudTopHeightDeltaMPer15min,
+    cloudTopCoolingCPer45min: sample.cloudTopCoolingCPer45min,
+    deepIceTop: sample.deepIceTop || undefined,
+    lightningFlashes15min:
+      sample.lightningFlashes15min > 0
+        ? sample.lightningFlashes15min
+        : undefined,
   };
 }

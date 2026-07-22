@@ -25,6 +25,7 @@ import {
 import { birthEnvironmentAt, nearestFormationPoint, type BirthEnvironment } from "./birthEnv";
 import type { ScoredFormationPoint } from "./formationData";
 import {
+  mergeSatelliteIntoEnv,
   sampleSatelliteCooling,
   type SatelliteCoolingGrid,
   type SatelliteSample,
@@ -670,11 +671,7 @@ export function buildRadarProgressFeatures(
     const satAtPeak = sampleSatelliteCooling(satelliteGrid, peakLat, peakLon);
     const peakEnv =
       peakEnvRaw && satAtPeak
-        ? {
-            ...peakEnvRaw,
-            cloudTopCoolingCPer15min: satAtPeak.cloudTopCoolingCPer15min,
-            coolingSource: "satellite" as const,
-          }
+        ? mergeSatelliteIntoEnv(peakEnvRaw, satAtPeak)
         : peakEnvRaw;
 
     const assessment = scoreActiveStorm(
