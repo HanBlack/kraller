@@ -4,10 +4,15 @@ Nahraje public/data/* do Cloudflare R2 (S3 API) — rychlé doručení bez git C
 Potřebné env (GitHub Secrets nebo lokálně):
   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET
 Volitelně: R2_PUBLIC_URL (jen informativní log)
+
+CLI:
+  --exclude data/satellite/   (lze opakovat) — neuploaduj prefix
+  --only data/satellite/      (lze opakovat) — upload jen tyto prefixy
 """
 
 from __future__ import annotations
 
+import argparse
 import mimetypes
 import os
 import sys
@@ -41,10 +46,32 @@ def _mime(path: Path) -> str:
     return guessed or "application/octet-stream"
 
 
-def _should_upload(rel: str) -> bool:
+def _norm_prefix(p: str) -> str:
+    return p.replace("\\", "/").lstrip("/")
+
+
+def _matches_prefix(rel: str, pref: str) -> bool:
+    n = _norm_prefix(pref)
+    if n.endswith("/"):
+        return rel.startswith(n)
+    return rel == n or rel.startswith(n + "/")
+
+
+def _should_upload(
+    rel: str,
+    *,
+    only: list[str] | None = None,
+    exclude: list[str] | None = None,
+) -> bool:
     if not rel.startswith("data/"):
         return False
-    return not any(rel.startswith(p) for p in SKIP_PREFIXES)
+    if any(rel.startswith(p) for p in SKIP_PREFIXES):
+        return False
+    if exclude and any(_matches_prefix(rel, p) for p in exclude):
+        return False
+    if only:
+        return any(_matches_prefix(rel, p) for p in only)
+    return True
 
 
 def _cors_origins() -> list[str]:
@@ -85,7 +112,7 @@ def ensure_bucket_cors(client, bucket: str) -> bool:
         return False
 
 
-def upload_tree() -> int:
+def upload_tree(*, only: list[str] | None = None, exclude: list[str] | None = None) -> int:
     account = os.environ.get("R2_ACCOUNT_ID", "").strip()
     access = os.environ.get("R2_ACCESS_KEY_ID", "").strip()
     secret = os.environ.get("R2_SECRET_ACCESS_KEY", "").strip()
@@ -117,17 +144,18 @@ def upload_tree() -> int:
     ensure_bucket_cors(client, bucket)
 
     uploaded = 0
+    skipped = 0
     for path in sorted(PUBLIC.rglob("*")):
         if not path.is_file():
             continue
         rel = path.relative_to(PUBLIC).as_posix()
-        if not _should_upload(rel):
+        if not _should_upload(rel, only=only, exclude=exclude):
+            skipped += 1
             continue
-        key = rel
         client.upload_file(
             str(path),
             bucket,
-            key,
+            rel,
             ExtraArgs={
                 "ContentType": _mime(path),
                 "CacheControl": CACHE_CONTROL,
@@ -136,14 +164,40 @@ def upload_tree() -> int:
         uploaded += 1
 
     public_url = os.environ.get("R2_PUBLIC_URL", "").strip()
-    print(f"R2: uploaded {uploaded} file(s) to s3://{bucket}/", flush=True)
+    filt = []
+    if only:
+        filt.append(f"only={only}")
+    if exclude:
+        filt.append(f"exclude={exclude}")
+    extra = f" ({', '.join(filt)})" if filt else ""
+    print(
+        f"R2: uploaded {uploaded} file(s) to s3://{bucket}/{extra} (skipped {skipped})",
+        flush=True,
+    )
     if public_url:
         print(f"R2: public base {public_url.rstrip('/')}/", flush=True)
     return 0
 
 
 def main() -> int:
-    return upload_tree()
+    ap = argparse.ArgumentParser(description="Upload public/data to Cloudflare R2")
+    ap.add_argument(
+        "--exclude",
+        action="append",
+        default=[],
+        help="Skip this prefix (repeatable), e.g. data/satellite/",
+    )
+    ap.add_argument(
+        "--only",
+        action="append",
+        default=[],
+        help="Upload only this prefix (repeatable)",
+    )
+    args = ap.parse_args()
+    return upload_tree(
+        only=args.only or None,
+        exclude=args.exclude or None,
+    )
 
 
 if __name__ == "__main__":
