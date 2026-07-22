@@ -2865,36 +2865,6 @@
       "steerHdg": 147.6,
       "steerSpd": 24.2
     },
-    "t:20260722054000:49.49:15.08:15:20260722054000": {
-      "trackKey": "t:20260722054000:49.49:15.08",
-      "horizonMin": 15,
-      "fromTs": "20260722054000",
-      "fromDbz": 39.0,
-      "predDbz": 39.0,
-      "predEvolveDbz": 39.0,
-      "predFootprintScale": 1.0,
-      "fromAreaPx": null,
-      "growthDbz": null,
-      "willIntensify": false,
-      "slope": 0.0,
-      "lat": 49.49205781875316,
-      "lon": 15.08446150693752,
-      "surfaceDbz": null,
-      "echoTopKm": null,
-      "fctAgree": null,
-      "envDistKm": 19.1,
-      "cape": 60.0,
-      "capeNow": 10.0,
-      "dew": 8.3,
-      "shear": 6.6,
-      "srh01": 62.2,
-      "cooling": -1.0,
-      "li": null,
-      "freezingLevelM": 2410.0,
-      "cinJkg": 57.0,
-      "steerHdg": 161.9,
-      "steerSpd": 33.0
-    },
     "t:20260722054000:49.49:15.08:30:20260722054000": {
       "trackKey": "t:20260722054000:49.49:15.08",
       "horizonMin": 30,
@@ -2977,5 +2947,5 @@
     "EVOLVE_FOOTPRINT_PER_DBZ": 0.01
   },
   "schemaVersion": 2,
-  "updatedAt": "2026-07-22T06:12:15Z"
+  "updatedAt": "2026-07-22T06:19:11Z"
 }
