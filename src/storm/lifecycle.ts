@@ -18,6 +18,14 @@ import type { EnvironmentSignals } from "./types";
 import { dewpointCOr } from "./types";
 import { distanceKm } from "../lib/geo";
 import { stormConfig } from "./config";
+import {
+  explainSatelliteGrowth,
+  explainSatelliteWarming,
+  sampleSatelliteCooling,
+  satelliteWarmingRate,
+  type SatelliteCoolingGrid,
+  type SatelliteSample,
+} from "./satelliteCooling";
 
 export type BuildLifecycleOpts = {
   /** Minuty od času snímku (Teď / +N) — stejné jako posun PNG a jádra. */
@@ -257,6 +265,7 @@ export function explainDemiseWhy(
   etaMin: number,
   atEnv?: EnvironmentSignals | null,
   intens?: CellIntensification | null,
+  satAtPeak?: SatelliteSample | null,
 ): { reason: string; reasons: string[] } {
   const shear =
     feature.birthEnv?.shearMs ??
@@ -266,6 +275,11 @@ export function explainDemiseWhy(
   const dbz = feature.maxDbz;
   const reasons: string[] = [];
   const decayPerMin = decayDbzPerMin(feature);
+  const peakSat = satAtPeak ?? feature.satAtPeak ?? null;
+
+  if (peakSat?.trend === "warming" && satelliteWarmingRate(peakSat.cloudTopCoolingCPer15min) >= 1.5) {
+    reasons.push(explainSatelliteWarming(peakSat));
+  }
 
   if (decayPerMin != null && decayPerMin < -0.15) {
     reasons.push(
@@ -304,6 +318,10 @@ export function explainDemiseWhy(
     }
   }
 
+  if (peakSat?.trend === "growing") {
+    reasons.push(`${explainSatelliteGrowth(peakSat)} — útlum není jistý`);
+  }
+
   if (intens?.willIntensify && intens.enterEtaMin != null && etaMin > intens.enterEtaMin + 15) {
     reasons.push("po případném zesílení dojde palivo / podmínky slábnou dál po trase");
   }
@@ -328,8 +346,9 @@ export function estimateDemise(
   feature: RadarProgressFeature,
   intens?: CellIntensification | null,
   points: ScoredFormationPoint[] = [],
-  opts?: { predictedDbz15?: number },
+  opts?: { predictedDbz15?: number; satAtPeak?: SatelliteSample | null },
 ): DemiseEstimate {
+  const peakSat = opts?.satAtPeak ?? feature.satAtPeak ?? null;
   const shear =
     feature.birthEnv?.shearMs ??
     feature.birthEnv?.environment.shear0to6Ms ??
@@ -410,6 +429,13 @@ export function estimateDemise(
     lifeMin = Math.max(lifeMin, intens.enterEtaMin + 15 + boost);
   }
 
+  if (peakSat?.trend === "warming" && satelliteWarmingRate(peakSat.cloudTopCoolingCPer15min) >= 1.5) {
+    lifeMin = Math.round(lifeMin * 0.75);
+    if (confidence === "climatology") confidence = "trending";
+  } else if (peakSat?.trend === "growing") {
+    lifeMin = Math.round(lifeMin * 1.2);
+  }
+
   // Růst / pozitivní vývoj PNG → ne tvrdit brzký zánik (kromě měřeného rozpadu)
   if (
     (growingForecast || growingPhase) &&
@@ -438,7 +464,13 @@ export function estimateDemise(
   );
 
   const at = nearestPoint(lat, lon, points);
-  const why = explainDemiseWhy(feature, lifeMin, at?.environment ?? null, intens);
+  const why = explainDemiseWhy(
+    feature,
+    lifeMin,
+    at?.environment ?? null,
+    intens,
+    peakSat,
+  );
 
   let reasons = why.reasons;
   if (confidence === "climatology") {
@@ -509,6 +541,7 @@ export function buildStormLifecycle(
   intens?: CellIntensification | null,
   points: ScoredFormationPoint[] = [],
   opts: BuildLifecycleOpts = {},
+  satelliteGrid?: SatelliteCoolingGrid | null,
 ): StormLifecycle {
   const forecastMinutes = opts.forecastMinutes ?? 0;
   const systemDelta =
@@ -532,8 +565,12 @@ export function buildStormLifecycle(
 
   const dir = headingToCzech(feature.headingDeg);
   const place = feature.placeLabel || "neznámá oblast";
+  const satAtAnchor =
+    feature.satAtPeak ??
+    sampleSatelliteCooling(satelliteGrid, anchorPeak[1], anchorPeak[0]);
   const demise = estimateDemise(anchorFeature, intens, points, {
     predictedDbz15,
+    satAtPeak: satAtAnchor,
   });
   const env = feature.birthEnv;
   const intensPt = intensifyPoint(feature, intens, anchorPeak);

@@ -3,6 +3,12 @@ import { dewpointCOr } from "./types";
 import type { ScoredFormationPoint } from "./formationData";
 import { scoreFormation } from "./scoreFormation";
 import { distanceKm } from "../lib/geo";
+import {
+  explainSatelliteGrowth,
+  explainSatelliteWarming,
+  satelliteGrowthRate,
+  type SatelliteSample,
+} from "./satelliteCooling";
 
 export type BirthFactorKey =
   | "moisture"
@@ -74,6 +80,8 @@ export function explainBirthWhy(
     lat?: number;
     lon?: number;
     nearbyPoints?: ScoredFormationPoint[];
+    /** Satelit přímo u jádra / zrodu — má prioritu před grid proxy. */
+    satellite?: SatelliteSample | null;
   },
 ): BirthWhyResult {
   if (!env) {
@@ -90,7 +98,13 @@ export function explainBirthWhy(
 
   const a = assessment ?? scoreFormation(env);
   const drivers: Driver[] = [];
-  const cooling = Math.max(0, -env.cloudTopCoolingCPer15min);
+  const sat = opts?.satellite;
+  const satGrowth =
+    sat?.trend === "growing"
+      ? satelliteGrowthRate(sat.cloudTopCoolingCPer15min)
+      : 0;
+  const cooling = satGrowth > 0 ? satGrowth : Math.max(0, -env.cloudTopCoolingCPer15min);
+  const coolingFromSat = satGrowth > 0;
   const li = env.liftedIndexC ?? 2;
   const shear = env.shear0to6Ms;
   const dew = dewpointCOr(env);
@@ -159,15 +173,23 @@ export function explainBirthWhy(
   }
 
   if (cooling >= 2) {
-    const fromSat = env.coolingSource === "satellite";
+    const fromSat = coolingFromSat || env.coolingSource === "satellite";
     drivers.push({
       sortKey: "cooling",
       key: "cooling",
       label: fromSat ? "Ochlazování vrcholu" : "Rostoucí nestabilita (model)",
       detail: fromSat
-        ? `satelit: vrchol chladne −${cooling.toFixed(1)} °C / 15 min`
+        ? `satelit u jádra: −${cooling.toFixed(1)} °C / 15 min`
         : `model proxy −${cooling.toFixed(1)} °C / 15 min (ne satelit)`,
       weight: 30 + Math.min(25, cooling * 4),
+    });
+  } else if (sat?.trend === "warming") {
+    drivers.push({
+      sortKey: "cooling-warm",
+      key: "cooling",
+      label: "Vrchol mraku (satelit)",
+      detail: explainSatelliteWarming(sat).replace(/^vrchol mraku /i, ""),
+      weight: 6,
     });
   }
 
@@ -216,12 +238,12 @@ export function explainBirthWhy(
           sortKey: "local-cool",
           key: "cooling",
           label:
-            env.coolingSource === "satellite"
+            coolingFromSat || env.coolingSource === "satellite"
               ? "Silnější cooling právě tady"
               : "Aktivní růst právě tady",
           detail:
-            env.coolingSource === "satellite"
-              ? "silnější ochlazování vrcholu (satelit) než v okolí"
+            coolingFromSat || env.coolingSource === "satellite"
+              ? "silnější ochlazování vrcholu (satelit u jádra) než v okolí"
               : "silnější modelová nestabilita než v okolí",
           weight: 26,
         });
@@ -257,6 +279,8 @@ export function explainBirthWhy(
     const shearFactor = factors.find((f) => f.key === "shear" && f.weight >= 11);
     if (top.key === "shear") {
       headline = `Zrod podporuje střih větru (${shear.toFixed(0)} m/s) — pomáhá buňce vzniknout a vydržet.`;
+    } else if (top.key === "cooling" && coolingFromSat) {
+      headline = `Satelit u jádra: ${explainSatelliteGrowth(sat!)}`;
     } else if (shearFactor) {
       headline = `Hlavní faktor: ${top.label.toLowerCase()}. Doplňuje ho střih větru ${shear.toFixed(0)} m/s.`;
     } else if (a.score >= 35 || env.capeJkg >= 250 || cooling >= 3) {

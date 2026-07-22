@@ -2,6 +2,12 @@ import { distanceKm } from "../lib/geo";
 import type { ScoredFormationPoint } from "./formationData";
 import { explainBirthWhy, type BirthFactor } from "./birthWhy";
 import type { EnvironmentSignals } from "./types";
+import {
+  mergeSatelliteIntoEnv,
+  sampleSatelliteCooling,
+  type SatelliteCoolingGrid,
+  type SatelliteSample,
+} from "./satelliteCooling";
 
 export function nearestFormationPoint(
   lat: number,
@@ -32,22 +38,28 @@ export type BirthEnvironment = {
   whyFactors: BirthFactor[];
   shearMs: number | null;
   uncertain: boolean;
+  /** Satelit u místa (jádro / zrod), ne formation grid. */
+  satellite?: SatelliteSample | null;
 };
 
 export function birthEnvironmentAt(
   lat: number,
   lon: number,
   points: ScoredFormationPoint[],
+  satelliteGrid?: SatelliteCoolingGrid | null,
 ): BirthEnvironment | null {
   const near = nearestFormationPoint(lat, lon, points);
   if (!near) return null;
-  const why = explainBirthWhy(near.environment, near.assessment, {
+  const satellite = sampleSatelliteCooling(satelliteGrid, lat, lon);
+  const environment = mergeSatelliteIntoEnv(near.environment, satellite);
+  const why = explainBirthWhy(environment, near.assessment, {
     lat,
     lon,
     nearbyPoints: points,
+    satellite,
   });
   return {
-    environment: near.environment,
+    environment,
     score: why.score,
     whyHeadline: why.headline,
     whyPrimary: why.primary,
@@ -55,5 +67,6 @@ export function birthEnvironmentAt(
     whyFactors: why.factors,
     shearMs: why.shearMs,
     uncertain: why.uncertain,
+    satellite,
   };
 }

@@ -179,7 +179,8 @@ function RadarLifecycleDetail({
 }) {
 
   const { t, locale } = useI18n();
-  const { operaTime, chmiTime, windLow, windUpper } = useStormDataContext();
+  const { operaTime, chmiTime, windLow, windUpper, satelliteCooling } =
+    useStormDataContext();
   const motionMinutes = motionMinutesForView({
     timeOffsetMinutes: forecastMinutes,
     productIso: operaTime ?? chmiTime,
@@ -196,6 +197,7 @@ function RadarLifecycleDetail({
         forecastMinutes: motionMinutes,
         systemDelta: meanForecastDelta([feature], motionMinutes),
       },
+      satelliteCooling,
     );
   } catch {
     life = null;

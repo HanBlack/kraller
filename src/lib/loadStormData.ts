@@ -11,6 +11,10 @@ import type { TrackedCell } from "../storm/radarCells";
 import type { RadarHistoryManifest } from "./radarHistory";
 import { loadRadarHistoryManifest } from "./radarHistory";
 import type { RadarRasterMeta } from "./radarRaster";
+import {
+  loadSatelliteCooling,
+  type SatelliteCoolingGrid,
+} from "../storm/satelliteCooling";
 
 export type DataSourceStatus = {
   ok: boolean;
@@ -51,6 +55,7 @@ export type StormDataBundle = {
   chmiTime: string | null;
   dataSources: DataMeta["sources"] | null;
   radarHistory: RadarHistoryManifest | null;
+  satelliteCooling: SatelliteCoolingGrid | null;
 };
 
 const EMPTY_FC: FeatureCollection = { type: "FeatureCollection", features: [] };
@@ -79,7 +84,7 @@ export async function loadStormData(
   cacheBust: number,
   fallbackFormation: FormationZone[],
 ): Promise<StormDataBundle> {
-  const [meta, radarData, chmiRadar, cellsData, wind, radarHistory, rasterMeta] =
+  const [meta, radarData, chmiRadar, cellsData, wind, radarHistory, rasterMeta, satelliteCooling] =
     await Promise.all([
       fetchJson<DataMeta>("data/meta.json", cacheBust),
       fetchJson<FeatureCollection>("data/opera/latest.geojson", cacheBust),
@@ -88,6 +93,7 @@ export async function loadStormData(
       loadWindGrids(cacheBust),
       loadRadarHistoryManifest(cacheBust),
       fetchJson<RadarRasterMeta>("data/opera/latest-raster.json", cacheBust),
+      loadSatelliteCooling(cacheBust),
     ]);
 
   const cellsFc = cellsData ?? EMPTY_FC;
@@ -125,5 +131,6 @@ export async function loadStormData(
     chmiTime: meta?.chmiTime ?? null,
     dataSources: meta?.sources ?? null,
     radarHistory,
+    satelliteCooling,
   };
 }

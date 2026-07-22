@@ -13,6 +13,7 @@ import type { WindGrid } from "../lib/windField";
 import type { TrackedCell } from "../storm/radarCells";
 import type { RadarHistoryManifest } from "../lib/radarHistory";
 import type { ScoredFormationPoint } from "../storm/formationData";
+import type { SatelliteCoolingGrid } from "../storm/satelliteCooling";
 import {
   commitLiveRasterBlobSwap,
   preloadRadarRaster,
@@ -41,6 +42,7 @@ export type StormDataState = {
     formation?: DataSourceStatus;
   } | null;
   radarHistory: RadarHistoryManifest | null;
+  satelliteCooling: SatelliteCoolingGrid | null;
   /** První načtení při startu stránky — UI čeká, dokud není hotovo. */
   booting: boolean;
   bootPhase: BootPhase;
@@ -76,6 +78,8 @@ export function useStormData(
   const [radarHistory, setRadarHistory] = useState<RadarHistoryManifest | null>(
     null,
   );
+  const [satelliteCooling, setSatelliteCooling] =
+    useState<SatelliteCoolingGrid | null>(null);
   const [booting, setBooting] = useState(true);
   const [bootPhase, setBootPhase] = useState<BootPhase>("data");
   const [loading, setLoading] = useState(false);
@@ -124,6 +128,7 @@ export function useStormData(
       setChmiTime(data.chmiTime);
       setDataSources(data.dataSources ?? null);
       setRadarHistory(data.radarHistory);
+      setSatelliteCooling(data.satelliteCooling);
       bootedRef.current = true;
     } catch {
       /* ponechat poslední známá data */
@@ -155,6 +160,7 @@ export function useStormData(
     chmiTime,
     dataSources,
     radarHistory,
+    satelliteCooling,
     booting,
     bootPhase,
     loading,
