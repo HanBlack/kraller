@@ -2112,39 +2112,57 @@
       "li": null,
       "freezingLevelM": 2390.0,
       "cinJkg": 21.0
+    },
+    "z:46.50:22.50": {
+      "lat": 46.5,
+      "lon": 22.5,
+      "score": 40.5,
+      "fromTs": "20260722085000",
+      "cape": 150.0,
+      "shear": 11.0,
+      "dew": 12.8,
+      "li": null,
+      "freezingLevelM": 2980.0,
+      "cinJkg": 8.0
+    },
+    "z:48.26:22.50": {
+      "lat": 48.2647,
+      "lon": 22.5,
+      "score": 28.5,
+      "fromTs": "20260722085000",
+      "cape": 60.0,
+      "shear": 8.5,
+      "dew": 10.1,
+      "li": null,
+      "freezingLevelM": 2690.0,
+      "cinJkg": 23.0
+    },
+    "z:50.74:15.04": {
+      "lat": 50.7353,
+      "lon": 15.037,
+      "score": 30.400000000000002,
+      "fromTs": "20260722085000",
+      "cape": 110.0,
+      "shear": 8.3,
+      "dew": 10.2,
+      "li": null,
+      "freezingLevelM": 2430.0,
+      "cinJkg": 0.0
+    },
+    "z:51.09:15.04": {
+      "lat": 51.0882,
+      "lon": 15.037,
+      "score": 31.200000000000003,
+      "fromTs": "20260722085000",
+      "cape": 60.0,
+      "shear": 9.4,
+      "dew": 9.9,
+      "li": null,
+      "freezingLevelM": 2430.0,
+      "cinJkg": 13.0
     }
   },
   "intensityPending": {
-    "t:20260722082000:50.02:18.32:15:20260722082000": {
-      "trackKey": "t:20260722082000:50.02:18.32",
-      "horizonMin": 15,
-      "fromTs": "20260722082000",
-      "fromDbz": 37.5,
-      "predDbz": 37.5,
-      "predEvolveDbz": 37.5,
-      "predFootprintScale": 1.0,
-      "fromAreaPx": null,
-      "growthDbz": null,
-      "willIntensify": false,
-      "slope": 0.0,
-      "lat": 50.01675256997893,
-      "lon": 18.322843518346797,
-      "surfaceDbz": null,
-      "echoTopKm": null,
-      "fctAgree": null,
-      "envDistKm": 11.4,
-      "cape": 80.0,
-      "capeNow": 80.0,
-      "dew": 11.7,
-      "shear": 2.2,
-      "srh01": 52.3,
-      "cooling": 0.0,
-      "li": null,
-      "freezingLevelM": 2470.0,
-      "cinJkg": 1.0,
-      "steerHdg": 145.4,
-      "steerSpd": 20.8
-    },
     "t:20260722082000:50.02:18.32:30:20260722082000": {
       "trackKey": "t:20260722082000:50.02:18.32",
       "horizonMin": 30,
@@ -2263,5 +2281,5 @@
     "EVOLVE_FOOTPRINT_PER_DBZ": 0.01
   },
   "schemaVersion": 2,
-  "updatedAt": "2026-07-22T08:52:28Z"
+  "updatedAt": "2026-07-22T08:58:55Z"
 }
