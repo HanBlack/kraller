@@ -8,6 +8,7 @@ Prah (cíl UI ≤ ~15 min):
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -24,6 +25,25 @@ SAT_REFRESH_MIN = 15.0
 WIND = "public/data/wind/low.json"
 FORM = "public/data/formation/grid.json"
 SAT = "public/data/satellite/cooling.json"
+
+
+def _sat_needs_refresh(sat_age: float) -> bool:
+    """Prázdné points = rozbitý ingest — obnov vždy, i když validAt je čerstvé."""
+    if sat_age > SAT_REFRESH_MIN:
+        return True
+    if not os.path.isfile(SAT):
+        return True
+    try:
+        with open(SAT, encoding="utf-8") as f:
+            data = json.load(f)
+        if data.get("status") != "ok":
+            return True
+        if not (data.get("points") or []):
+            print("  sat cooling empty points — force refresh", flush=True)
+            return True
+    except (OSError, json.JSONDecodeError, TypeError):
+        return True
+    return False
 
 
 def _run(script: str, *args: str) -> int:
@@ -63,7 +83,7 @@ def main() -> int:
         _run("merge_sat_cooling.py")
         return rc
 
-    if sat_age > SAT_REFRESH_MIN:
+    if _sat_needs_refresh(sat_age):
         print("  -> sat cooling + merge", flush=True)
         _run("fetch_sat_cooling.py")
         _run("merge_sat_cooling.py")
@@ -75,7 +95,7 @@ def main() -> int:
             rc = r
         return rc
 
-    if form_age <= FORMATION_REFRESH_MIN and sat_age <= SAT_REFRESH_MIN:
+    if form_age <= FORMATION_REFRESH_MIN and not _sat_needs_refresh(sat_age):
         print("  env fresh — skip Open-Meteo / sat", flush=True)
     return rc
 

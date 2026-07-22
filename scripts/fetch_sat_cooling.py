@@ -253,9 +253,11 @@ def _pick_readable_nc(dest: Path) -> Path | None:
     return None
 
 
-def _sample_temp_c(ds, var: str, lat: float, lon: float) -> float | None:
-    """CTT → °C (K nebo už °C)."""
-    v = _sample_raw_pixel(ds, var, lat, lon)
+def _sample_temp_c(
+    ds, var: str, lat: float, lon: float, *, neighborhood: int = 1
+) -> float | None:
+    """CTT → °C (K nebo už °C). neighborhood=1 → studenější pixel v 3×3."""
+    v = _sample_raw_pixel(ds, var, lat, lon, neighborhood=neighborhood)
     if v is None or not math.isfinite(v):
         return None
     if 150 <= v <= 350:
@@ -265,17 +267,44 @@ def _sample_temp_c(ds, var: str, lat: float, lon: float) -> float | None:
     return None
 
 
-def _sample_height_raw(ds, var: str, lat: float, lon: float) -> float | None:
-    """Surová CTH (m nebo km) — bez převodu K→°C."""
-    v = _sample_raw_pixel(ds, var, lat, lon)
-    if v is None or not math.isfinite(v) or v <= 0:
+def _sample_height_raw(
+    ds, var: str, lat: float, lon: float, *, neighborhood: int = 1
+) -> float | None:
+    """Surová CTH (m nebo km). neighborhood=1 → max výška v 3×3."""
+    import numpy as np
+
+    if neighborhood <= 0:
+        v = _sample_raw_pixel(ds, var, lat, lon, neighborhood=0)
+        if v is None or not math.isfinite(v) or v <= 0:
+            return None
+        return float(v)
+
+    # Pro výšku ber maximum v okolí (vyšší věž)
+    idx = None
+    if "mtg_geos_projection" in getattr(ds, "variables", ds):
+        idx = _geos_index(ds, lat, lon)
+    if idx is None:
+        v = _sample_raw_pixel(ds, var, lat, lon, neighborhood=0)
+        if v is None or not math.isfinite(v) or v <= 0:
+            return None
+        return float(v)
+    yi, xi = idx
+    vals = np.asarray(ds[var].values, dtype=float)
+    while vals.ndim > 2:
+        vals = vals[0]
+    r = neighborhood
+    y0, y1 = max(0, yi - r), min(vals.shape[0], yi + r + 1)
+    x0, x1 = max(0, xi - r), min(vals.shape[1], xi + r + 1)
+    patch = vals[y0:y1, x0:x1]
+    finite = patch[np.isfinite(patch) & (patch > 0)]
+    if finite.size == 0:
         return None
-    return float(v)
+    return float(np.max(finite))
 
 
 # Zpětná kompatibilita
 def _sample_field(ds, var: str, lat: float, lon: float) -> float | None:
-    return _sample_temp_c(ds, var, lat, lon)
+    return _sample_temp_c(ds, var, lat, lon, neighborhood=0)
 
 
 def _open_dataset(path: Path):
@@ -536,51 +565,97 @@ def _cloudy_at_point(
     )
 
 
-def _sample_raw_pixel(ds, var: str, lat: float, lon: float) -> float | None:
-    if "mtg_geos_projection" in getattr(ds, "variables", ds):
-        import numpy as np
-        from pyproj import CRS, Transformer
-
-        if "mtg_geos_projection" not in ds or "x" not in ds or "y" not in ds:
-            return None
-        proj = ds["mtg_geos_projection"]
-        lon_0 = float(proj.attrs["longitude_of_projection_origin"])
-        h = float(proj.attrs["perspective_point_height"])
-        a = float(proj.attrs.get("semi_major_axis", 6378137.0))
-        rf = float(proj.attrs.get("inverse_flattening", 298.257223563))
-        geos = CRS.from_proj4(
-            f"+proj=geos +lon_0={lon_0} +h={h} +a={a} +rf={rf} +sweep=y +units=m"
-        )
-        tf = Transformer.from_crs(CRS.from_epsg(4326), geos, always_xy=True)
-        x_m, y_m = tf.transform(lon, lat)
-        x = np.asarray(ds["x"].values, dtype=float)
-        y = np.asarray(ds["y"].values, dtype=float)
-        x_m_grid = -np.degrees(x) * h
-        y_m_grid = np.degrees(y) * h
-        xi = int(np.argmin(np.abs(x_m_grid - x_m)))
-        yi = int(np.argmin(np.abs(y_m_grid - y_m)))
-        data = ds[var]
-        vals = np.asarray(data.values)
-        while vals.ndim > 2:
-            vals = vals[0]
-        v = float(vals[yi, xi])
-        if not math.isfinite(v):
-            return None
-        return v
-
+def _geos_axes_meters(ds) -> tuple[object, object, float] | None:
+    """Převeď FCI x/y (radiany nebo stupně) → metry v geos projekci."""
     import numpy as np
 
+    if "mtg_geos_projection" not in ds or "x" not in ds or "y" not in ds:
+        return None
+    proj = ds["mtg_geos_projection"]
+    h = float(proj.attrs["perspective_point_height"])
+    x = np.asarray(ds["x"].values, dtype=float)
+    y = np.asarray(ds["y"].values, dtype=float)
+    x_units = str(getattr(ds["x"], "attrs", {}).get("units", "radian")).lower()
+    y_units = str(getattr(ds["y"], "attrs", {}).get("units", "radian")).lower()
+    # FCI L2: x/y = scanning angle v radiánech. Staré -degrees(x)*h bylo ~57× vedle.
+    if "deg" in x_units:
+        x_rad = np.deg2rad(x)
+    else:
+        x_rad = x
+    if "deg" in y_units:
+        y_rad = np.deg2rad(y)
+    else:
+        y_rad = y
+    # sweep=y: x znaménko typicky invertované (satpy / CF geos)
+    x_m_grid = -h * x_rad
+    y_m_grid = h * y_rad
+    return x_m_grid, y_m_grid, h
+
+
+def _geos_index(ds, lat: float, lon: float) -> tuple[int, int] | None:
+    import numpy as np
+    from pyproj import CRS, Transformer
+
+    axes = _geos_axes_meters(ds)
+    if axes is None:
+        return None
+    x_m_grid, y_m_grid, _h = axes
+    proj = ds["mtg_geos_projection"]
+    lon_0 = float(proj.attrs["longitude_of_projection_origin"])
+    h = float(proj.attrs["perspective_point_height"])
+    a = float(proj.attrs.get("semi_major_axis", 6378137.0))
+    rf = float(proj.attrs.get("inverse_flattening", 298.257223563))
+    geos = CRS.from_proj4(
+        f"+proj=geos +lon_0={lon_0} +h={h} +a={a} +rf={rf} +sweep=y +units=m"
+    )
+    tf = Transformer.from_crs(CRS.from_epsg(4326), geos, always_xy=True)
+    x_m, y_m = tf.transform(lon, lat)
+    if not (math.isfinite(x_m) and math.isfinite(y_m)):
+        return None
+    xi = int(np.argmin(np.abs(x_m_grid - x_m)))
+    yi = int(np.argmin(np.abs(y_m_grid - y_m)))
+    return yi, xi
+
+
+def _sample_raw_pixel(
+    ds, var: str, lat: float, lon: float, *, neighborhood: int = 0
+) -> float | None:
+    """Vzorek pixelu; neighborhood>0 → min v okolí (studenější / vyšší top)."""
+    import numpy as np
+
+    if "mtg_geos_projection" in getattr(ds, "variables", ds):
+        idx = _geos_index(ds, lat, lon)
+        if idx is None:
+            return None
+        yi, xi = idx
+        data = ds[var]
+        vals = np.asarray(data.values, dtype=float)
+        while vals.ndim > 2:
+            vals = vals[0]
+        if neighborhood <= 0:
+            v = float(vals[yi, xi])
+            return v if math.isfinite(v) else None
+        # 3×3 (nebo větší) — ber nejnižší finite (CTT studenější = silnější konvekce)
+        r = neighborhood
+        y0, y1 = max(0, yi - r), min(vals.shape[0], yi + r + 1)
+        x0, x1 = max(0, xi - r), min(vals.shape[1], xi + r + 1)
+        patch = vals[y0:y1, x0:x1]
+        finite = patch[np.isfinite(patch)]
+        if finite.size == 0:
+            return None
+        return float(np.min(finite))
+
     data = ds[var]
-    vals = np.asarray(data.values)
+    vals = np.asarray(data.values, dtype=float)
     while vals.ndim > 2:
         vals = vals[0]
     lat_name = None
     lon_name = None
-    for cand in ("lat", "latitude", "y"):
+    for cand in ("lat", "latitude"):
         if cand in ds.coords or cand in getattr(ds, "variables", {}):
             lat_name = cand
             break
-    for cand in ("lon", "longitude", "x"):
+    for cand in ("lon", "longitude"):
         if cand in ds.coords or cand in getattr(ds, "variables", {}):
             lon_name = cand
             break
@@ -823,11 +898,31 @@ def _cooling_from_two_files(
 
         locations = _collect_sample_locations()
         points: list[dict] = []
+        n_none = 0
+        n_fill = 0
+        n_cold = 0
+        temps: list[float] = []
+        heights: list[float] = []
+        print(
+            f"  CTTH vars temp={var1} height={hvar1} mask={mvar1} type={tvar1} "
+            f"locs={len(locations)}",
+            flush=True,
+        )
         for lat, lon, source in locations:
             # Vždy vzorkuj CTTH — maska nesmí být absolutní veto (dřív: 0 cloudy / 0 sampled)
             t1 = _sample_temp_c(ds1, var1, lat, lon)
             h1_raw = _sample_height_raw(ds1, hvar1, lat, lon) if hvar1 else None
             h1m = _normalize_height_m(h1_raw)
+            if t1 is None:
+                n_none += 1
+            else:
+                temps.append(t1)
+            if h1m is not None:
+                heights.append(h1m)
+            if t1 is not None and _looks_like_fill_temp(t1, h1m):
+                n_fill += 1
+            if _looks_like_cloud_top(t1, h1m):
+                n_cold += 1
             ctype = (
                 _sample_cloud_type_code(ds_type1, tvar1, lat, lon)
                 if ds_type1 is not None
@@ -868,6 +963,21 @@ def _cooling_from_two_files(
             )
             if pt:
                 points.append(pt)
+        t_info = (
+            f"t=[{min(temps):.1f}..{max(temps):.1f}]"
+            if temps
+            else "t=none"
+        )
+        h_info = (
+            f"h=[{min(heights):.0f}..{max(heights):.0f}]m"
+            if heights
+            else "h=none"
+        )
+        print(
+            f"  CTTH diag: none={n_none} fill={n_fill} cold/tall={n_cold} "
+            f"out={len(points)} {t_info} {h_info}",
+            flush=True,
+        )
         return points
     finally:
         for ds in (ds0, ds1, ds_mask0, ds_mask1, ds_type1):
@@ -1013,9 +1123,9 @@ def fetch_with_eumdac(key: str, secret: str) -> int:
                 continue
 
             cloudy_pts = [p for p in points if p.get("hasCloudTop") is not False]
-
+            status = "ok" if cloudy_pts else "empty"
             write_cooling(
-                status="ok",
+                status=status,
                 source=f"EUMETSAT/{used_collection}",
                 message=(
                     f"ΔT/ΔCTH / {DT_MINUTES} min (mask+type, "
@@ -1024,7 +1134,8 @@ def fetch_with_eumdac(key: str, secret: str) -> int:
                 points=points,
                 valid_at=now,
             )
-            return 0
+            # empty ≠ hard fail pipeline — radar dál běží; příští kolo zkusí znovu
+            return 0 if status == "ok" else 0
 
     write_cooling(
         status="error",

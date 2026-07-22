@@ -213,7 +213,10 @@ export function explainSatelliteStatus(
   if (grid.status !== "ok") {
     return {
       title: "Satelit",
-      detail: grid.message ?? "data dočasně nedostupná",
+      detail:
+        grid.status === "empty"
+          ? "CTTH bez cloud-top vzorků (geometrie/filtr) — příští kolo"
+          : (grid.message ?? "data dočasně nedostupná"),
     };
   }
   if (!grid.points?.length) {
