@@ -1,48 +1,5 @@
 {
-  "tracks": {
-    "t:20260722062500:48.92:14.06": {
-      "lat": 48.92242460252543,
-      "lon": 14.056643025087244,
-      "maxDbz": 41.0,
-      "lastTs": "20260722062500",
-      "cellId": "cell-2",
-      "firstTs": "20260722062500",
-      "preds": {
-        "15": {
-          "predLat": 48.8448,
-          "predLon": 14.0961,
-          "fromTs": "20260722062500",
-          "fromLat": 48.9224,
-          "fromLon": 14.0566,
-          "heading": 161.5,
-          "speed": 36.4,
-          "motionSource": "wind-fallback",
-          "windAlignDeg": null
-        },
-        "30": {
-          "predLat": 48.7672,
-          "predLon": 14.1354,
-          "fromTs": "20260722062500",
-          "fromLat": 48.9224,
-          "fromLon": 14.0566,
-          "heading": 161.5,
-          "speed": 36.4,
-          "motionSource": "wind-fallback",
-          "windAlignDeg": null
-        }
-      },
-      "dbzSlopePer15": null,
-      "areaPx": null,
-      "growthDbz": null,
-      "surfaceDbz": null,
-      "fctAgree": null,
-      "fctAngleDiffDeg": null,
-      "hailCmProxy": null,
-      "purpleCandidate": false,
-      "dbzDelta5": null,
-      "dbzDelta15": null
-    }
-  },
+  "tracks": {},
   "formationPending": {
     "z:46.50:7.00": {
       "lat": 46.5,
@@ -2906,5 +2863,5 @@
     "EVOLVE_FOOTPRINT_PER_DBZ": 0.01
   },
   "schemaVersion": 2,
-  "updatedAt": "2026-07-22T06:32:02Z"
+  "updatedAt": "2026-07-22T06:37:08Z"
 }
