@@ -87,6 +87,7 @@ def credentials() -> tuple[str, str] | None:
 def _find_temp_var(ds) -> str | None:
     """Hledej cloud-top temperature v netCDF/xarray datasetu."""
     prefer = (
+        "cloud_top_temperature",
         "ctt",
         "CTT",
         "cloud_top_temperature",
@@ -108,7 +109,106 @@ def _find_temp_var(ds) -> str | None:
     return None
 
 
+def _is_hdf5(path: Path) -> bool:
+    with path.open("rb") as f:
+        return f.read(4) == b"\x89HDF"
+
+
+def _rank_nc_candidates(dest: Path) -> list[Path]:
+    """Seřaď .nc soubory z produktu — preferuj datové chunky (_C_) před overview (_O_)."""
+    cands = [
+        p
+        for p in dest.rglob("*.nc")
+        if p.is_file() and p.stat().st_size > 10_000
+    ]
+    if not cands:
+        cands = [
+            p
+            for p in dest.rglob("*")
+            if p.is_file() and p.suffix.lower() in (".nc", ".nc4") and p.stat().st_size > 10_000
+        ]
+
+    def score(p: Path) -> tuple[int, int, int]:
+        name = p.name.upper()
+        # _C_ = datový chunk; _O_ = overview/metadata (často nečitelné netCDF4 knihovnou)
+        if "_C_" in name:
+            disp = 0
+        elif "_O_" in name:
+            disp = 2
+        else:
+            disp = 1
+        ctth = 0 if "CTTH" in name or "+FCI-2-CT" in name else 1
+        return (disp, ctth, -int(p.stat().st_size))
+
+    return sorted(cands, key=score)
+
+
+def _pick_readable_nc(dest: Path) -> Path | None:
+    for path in _rank_nc_candidates(dest):
+        if not _is_hdf5(path):
+            print(f"  skip {path.name}: not HDF5 ({path.stat().st_size} B)", flush=True)
+            continue
+        try:
+            ds = _open_dataset(path)
+            var = _find_temp_var(ds)
+            ds.close()
+            if var:
+                print(f"  using {path.name} (var={var})", flush=True)
+                return path
+            print(f"  skip {path.name}: no CTT variable", flush=True)
+        except Exception as e:
+            print(f"  skip {path.name}: {e}", flush=True)
+    return None
+
+
+def _sample_fci_geos(ds, var: str, lat: float, lon: float) -> float | None:
+    """Vzorek z MTG FCI L2 geostacionární mřížky (x/y + mtg_geos_projection)."""
+    import numpy as np
+    from pyproj import CRS, Transformer
+
+    if "mtg_geos_projection" not in ds or "x" not in ds or "y" not in ds:
+        return None
+
+    proj = ds["mtg_geos_projection"]
+    lon_0 = float(proj.attrs["longitude_of_projection_origin"])
+    h = float(proj.attrs["perspective_point_height"])
+    a = float(proj.attrs.get("semi_major_axis", 6378137.0))
+    rf = float(proj.attrs.get("inverse_flattening", 298.257223563))
+    geos = CRS.from_proj4(
+        f"+proj=geos +lon_0={lon_0} +h={h} +a={a} +rf={rf} +sweep=y +units=m"
+    )
+    tf = Transformer.from_crs(CRS.from_epsg(4326), geos, always_xy=True)
+    x_m, y_m = tf.transform(lon, lat)
+
+    x = np.asarray(ds["x"].values, dtype=float)
+    y = np.asarray(ds["y"].values, dtype=float)
+    # Satpy konvence: geos metry ≈ -degrees(x)*h, degrees(y)*h
+    x_m_grid = -np.degrees(x) * h
+    y_m_grid = np.degrees(y) * h
+
+    xi = int(np.argmin(np.abs(x_m_grid - x_m)))
+    yi = int(np.argmin(np.abs(y_m_grid - y_m)))
+
+    data = ds[var]
+    vals = np.asarray(data.values)
+    while vals.ndim > 2:
+        vals = vals[0]
+    v = float(vals[yi, xi])
+    if not math.isfinite(v):
+        return None
+    if 150 <= v <= 350:
+        return v - 273.15
+    if -90 < v < 40:
+        return v
+    return None
+
+
 def _sample_field(ds, var: str, lat: float, lon: float) -> float | None:
+    if "mtg_geos_projection" in getattr(ds, "variables", ds):
+        v = _sample_fci_geos(ds, var, lat, lon)
+        if v is not None:
+            return v
+
     import numpy as np
 
     data = ds[var]
@@ -151,18 +251,23 @@ def _sample_field(ds, var: str, lat: float, lon: float) -> float | None:
 
 
 def _open_dataset(path: Path):
-    try:
-        import xarray as xr
+    import xarray as xr
 
-        return xr.open_dataset(path)
-    except Exception:
-        pass
-    try:
-        from netCDF4 import Dataset
+    if not _is_hdf5(path):
+        raise RuntimeError(f"{path.name} není HDF5/netCDF (neúplný download?)")
 
-        return Dataset(str(path))
-    except Exception as e:
-        raise RuntimeError(f"Nelze otevřít {path}: {e}") from e
+    errors: list[str] = []
+    for engine in ("h5netcdf", "netcdf4", "scipy"):
+        try:
+            return xr.open_dataset(
+                path,
+                engine=engine,
+                decode_cf=True,
+                mask_and_scale=True,
+            )
+        except Exception as e:
+            errors.append(f"{engine}: {e}")
+    raise RuntimeError(f"Nelze otevřít {path.name}: {'; '.join(errors)}")
 
 
 def _cooling_from_two_files(
@@ -252,75 +357,80 @@ def fetch_with_eumdac(key: str, secret: str) -> int:
         )
         return 1
 
-    # Seřadit od nejstaršího
+    # Seřadit od nejstaršího; zkus každou kolekci (MTG → MSG fallback)
     products = list(reversed(products[:4]))
-    with tempfile.TemporaryDirectory(prefix="sat_cool_") as tmp:
-        tmp_path = Path(tmp)
-        paths: list[Path] = []
-        for i, prod in enumerate(products[-2:]):
-            print(f"  download {prod}", flush=True)
-            dest = tmp_path / f"frame_{i}"
-            dest.mkdir()
+    last_error = "Stažené produkty neobsahují čitelný netCDF s CTT"
+
+    for coll_id in ([used_collection] if used_collection else []) + [
+        c for c in COLLECTIONS if c != used_collection
+    ]:
+        if coll_id != used_collection:
             try:
-                prod.download(dir=str(dest))
-            except Exception:
-                # starší API: entries
-                for entry in prod.entries:
-                    try:
-                        with (dest / Path(entry).name).open("wb") as f:
-                            prod.entries[entry].download(f) if False else None
-                    except Exception:
-                        pass
-                # Fallback eumdac download via open
-                try:
-                    with prod.open() as src, (dest / "product.bin").open("wb") as dst:
-                        dst.write(src.read())
-                except Exception as e:
-                    print(f"  download fail: {e}", flush=True)
+                collection = datastore.get_collection(coll_id)
+                selected = collection.search(
+                    dtstart=now - timedelta(hours=2),
+                    dtend=now,
+                )
+                got = list(selected)[:8]
+                if len(got) < 2:
                     continue
-            # Najdi netcdf/grib/nc
-            cands = list(dest.rglob("*.nc")) + list(dest.rglob("*.nc4"))
-            if not cands:
-                cands = list(dest.rglob("*"))
-                cands = [p for p in cands if p.is_file() and p.stat().st_size > 1000]
-            if cands:
-                paths.append(cands[0])
+                products = list(reversed(got[:4]))
+                used_collection = coll_id
+                print(f"  fallback collection {coll_id}", flush=True)
+            except Exception as e:
+                print(f"  fallback {coll_id}: {e}", flush=True)
+                continue
 
-        if len(paths) < 2:
+        with tempfile.TemporaryDirectory(prefix="sat_cool_") as tmp:
+            tmp_path = Path(tmp)
+            paths: list[Path] = []
+            for i, prod in enumerate(products[-2:]):
+                print(f"  download {prod}", flush=True)
+                dest = tmp_path / f"frame_{i}"
+                dest.mkdir()
+                try:
+                    prod.download(dir=str(dest))
+                except Exception:
+                    try:
+                        with prod.open() as src, (dest / "product.bin").open("wb") as dst:
+                            dst.write(src.read())
+                    except Exception as e:
+                        print(f"  download fail: {e}", flush=True)
+                        continue
+                picked = _pick_readable_nc(dest)
+                if picked:
+                    paths.append(picked)
+
+            if len(paths) < 2:
+                last_error = "Stažené produkty neobsahují čitelný netCDF s CTT"
+                continue
+
+            try:
+                points = _cooling_from_two_files(paths[0], paths[1], float(DT_MINUTES))
+            except Exception as e:
+                traceback.print_exc()
+                last_error = f"Parse CTT selhal: {e}"
+                continue
+
+            if not points:
+                last_error = "Žádné validní CTT vzorky na mřížce"
+                continue
+
             write_cooling(
-                status="error",
+                status="ok",
                 source=f"EUMETSAT/{used_collection}",
-                message="Stažené produkty neobsahují čitelný netCDF s CTT",
+                message=f"ΔT / {DT_MINUTES} min z cloud-top temperature",
+                points=points,
+                valid_at=now,
             )
-            return 1
+            return 0
 
-        try:
-            points = _cooling_from_two_files(paths[0], paths[1], float(DT_MINUTES))
-        except Exception as e:
-            traceback.print_exc()
-            write_cooling(
-                status="error",
-                source=f"EUMETSAT/{used_collection}",
-                message=f"Parse CTT selhal: {e}",
-            )
-            return 1
-
-        if not points:
-            write_cooling(
-                status="error",
-                source=f"EUMETSAT/{used_collection}",
-                message="Žádné validní CTT vzorky na mřížce",
-            )
-            return 1
-
-        write_cooling(
-            status="ok",
-            source=f"EUMETSAT/{used_collection}",
-            message=f"ΔT / {DT_MINUTES} min z cloud-top temperature",
-            points=points,
-            valid_at=now,
-        )
-        return 0
+    write_cooling(
+        status="error",
+        source=f"EUMETSAT/{used_collection or 'unknown'}",
+        message=last_error,
+    )
+    return 1
 
 
 def main() -> int:
