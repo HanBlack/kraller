@@ -1,18 +1,18 @@
 {
-  "generatedAt": "2026-07-21T23:15:41Z",
+  "generatedAt": "2026-07-22T00:12:07Z",
   "sampleCounts": {
     "track": 120,
-    "formation": 4714,
-    "birth_features": 722,
+    "formation": 5000,
+    "birth_features": 723,
     "intensity": 6180,
-    "intensify": 1044,
+    "intensify": 1046,
     "demise": 2540,
-    "track_sample_events": 5228,
+    "track_sample_events": 5232,
     "withSurfaceDbz": 1918,
     "withFct": 707,
-    "withFreezingLevel": 5178,
+    "withFreezingLevel": 5182,
     "withHailProxy": 0,
-    "total": 15320
+    "total": 15609
   },
   "readyForApply": true,
   "proposals": [
@@ -44,7 +44,7 @@
         }
       },
       "confidence": "medium",
-      "n": 722,
+      "n": 723,
       "medianBirthDbzTrue": 37.0,
       "medianBirthDbzFalse": 41.5,
       "reason": "oddělení trueBirth vs příjezd podle birthDbz"
@@ -54,7 +54,7 @@
       "current": 28,
       "proposed": 28,
       "confidence": "low",
-      "n": 4714,
+      "n": 5000,
       "nUsable": 189,
       "nHit": 189,
       "nMiss": 0,
@@ -81,10 +81,10 @@
       "current": 46,
       "proposed": 48,
       "confidence": "high",
-      "n": 1044,
-      "hitRate": 0.187,
+      "n": 1046,
+      "hitRate": 0.186,
       "nHit": 195,
-      "nMiss": 849,
+      "nMiss": 851,
       "file": "src/storm/config.ts",
       "reason": "hit rate 19% — příliš false positive, zpřísnit",
       "alsoReview": {
@@ -135,8 +135,8 @@
     "hint": "errEvolveDbz ladí stormConfig.evolution; slope errDbz je baseline"
   },
   "intensifyPurple": {
-    "n": 1044,
-    "hitRate": 0.187,
+    "n": 1046,
+    "hitRate": 0.186,
     "hint": "upřímná fialová — nízký hitRate → vyšší alertScoreMin / suppress"
   },
   "demise": {
