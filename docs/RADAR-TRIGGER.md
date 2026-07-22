@@ -87,7 +87,9 @@ I při perfektním triggeru bývá Y **3–8 min** — to je limit zdroje, ne ch
 
 | Problém | Řešení |
 |---------|--------|
+| Git backup `push rejected (fetch first)` | R2 je už nahrané — git backup je `continue-on-error` + `pull --rebase` před push |
 | Actions „Canceling since a higher priority waiting request…“ | Více triggerů najednou + `cancel-in-progress` — běh se zruší před R2; opraveno v `live-radar.yml` |
+| Data „pozdě“ / fronta běhů | Debounce: skip když R2 meta < 4 min; Worker + workflow gate |
 | Worker neběží | Cloudflare → Workers → Triggers; `wrangler tail` |
 | Dispatch 401/403 | Token musí mít **Actions: Read and write** |
 | meta pořád staré | Actions log Live radar — OPERA/CHMI fetch fail |

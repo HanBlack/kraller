@@ -3,6 +3,63 @@
  * GitHub schedule cron alone is unreliable; this keeps meta.updatedAt ≤ ~7 min.
  */
 
+const GH_HEADERS = (token) => ({
+  Authorization: `Bearer ${token}`,
+  Accept: "application/vnd.github+json",
+  "X-GitHub-Api-Version": "2022-11-28",
+  "User-Agent": "kraller-radar-trigger",
+});
+
+async function metaAgeMin(env) {
+  const base = (env.R2_PUBLIC_URL || "").replace(/\/$/, "");
+  if (!base) return null;
+  try {
+    const res = await fetch(`${base}/data/meta.json`, {
+      headers: { "User-Agent": "kraller-radar-trigger" },
+    });
+    if (!res.ok) return null;
+    const meta = await res.json();
+    const updated = meta?.updatedAt;
+    if (!updated) return null;
+    const ts = Date.parse(String(updated));
+    if (!Number.isFinite(ts)) return null;
+    return (Date.now() - ts) / 60_000;
+  } catch {
+    return null;
+  }
+}
+
+async function liveRadarActive(env, token) {
+  const repo = env.GITHUB_REPO || "HanBlack/kraller";
+  const workflow = env.WORKFLOW_FILE || "live-radar.yml";
+  for (const status of ["in_progress", "queued"]) {
+    const url =
+      `https://api.github.com/repos/${repo}/actions/workflows/${workflow}/runs` +
+      `?status=${status}&per_page=1`;
+    const res = await fetch(url, { headers: GH_HEADERS(token) });
+    if (!res.ok) continue;
+    const data = await res.json();
+    if ((data.total_count ?? 0) > 0) return true;
+  }
+  return false;
+}
+
+async function shouldDispatch(env) {
+  const freshMin = Number(env.FRESH_MIN || "4");
+  const age = await metaAgeMin(env);
+  if (age != null && age < freshMin) {
+    console.log(`skip dispatch: R2 meta fresh (${age.toFixed(1)} min)`);
+    return false;
+  }
+  const token = env.GITHUB_TOKEN;
+  if (!token) throw new Error("GITHUB_TOKEN secret missing");
+  if (await liveRadarActive(env, token)) {
+    console.log("skip dispatch: Live radar already running or queued");
+    return false;
+  }
+  return true;
+}
+
 async function triggerLiveRadar(env) {
   const token = env.GITHUB_TOKEN;
   if (!token) throw new Error("GITHUB_TOKEN secret missing");
@@ -16,11 +73,8 @@ async function triggerLiveRadar(env) {
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
+        ...GH_HEADERS(token),
         "Content-Type": "application/json",
-        "User-Agent": "kraller-radar-trigger",
       },
       body: JSON.stringify({ ref }),
     },
@@ -37,7 +91,13 @@ async function triggerLiveRadar(env) {
 
 export default {
   async scheduled(_event, env, ctx) {
-    ctx.waitUntil(triggerLiveRadar(env));
+    ctx.waitUntil(
+      (async () => {
+        if (await shouldDispatch(env)) {
+          await triggerLiveRadar(env);
+        }
+      })(),
+    );
   },
 
   /** GET /trigger s Authorization: Bearer <TRIGGER_SECRET> — ruční test */
@@ -50,6 +110,10 @@ export default {
         return new Response("Unauthorized", { status: 401 });
       }
       try {
+        const force = url.searchParams.get("force") === "1";
+        if (!force && !(await shouldDispatch(env))) {
+          return new Response("SKIP — fresh or already running", { status: 200 });
+        }
         await triggerLiveRadar(env);
         return new Response("OK — Live radar dispatched", { status: 200 });
       } catch (err) {

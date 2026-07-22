@@ -10,3 +10,6 @@ crons = ["*/5 * * * *"]
 GITHUB_REPO = "HanBlack/kraller"
 WORKFLOW_FILE = "live-radar.yml"
 GITHUB_REF = "main"
+# Volitelně — stejná URL jako GitHub secret R2_PUBLIC_URL (debounce triggeru)
+# R2_PUBLIC_URL = "https://pub-....r2.dev"
+# FRESH_MIN = "4"
