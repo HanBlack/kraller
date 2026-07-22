@@ -120,6 +120,9 @@ def upload_tree(*, only: list[str] | None = None, exclude: list[str] | None = No
 
     if not all((account, access, secret, bucket)):
         print("R2: credentials missing — skip upload (set GitHub Secrets)", flush=True)
+        # Explicit --only/--exclude běhy (sat path) musí failnout, ne tiše uspět
+        if only or exclude:
+            return 1
         return 0
 
     try:
