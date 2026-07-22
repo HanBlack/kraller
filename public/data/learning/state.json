@@ -1,90 +1,6 @@
 {
   "tracks": {},
   "formationPending": {
-    "z:46.85:13.31": {
-      "lat": 46.8529,
-      "lon": 13.3148,
-      "score": 44.3,
-      "fromTs": "20260722082000",
-      "cape": 10.0,
-      "shear": 14.6,
-      "dew": 9.6,
-      "li": null,
-      "freezingLevelM": 2810.0,
-      "cinJkg": 12.0
-    },
-    "z:46.85:22.50": {
-      "lat": 46.8529,
-      "lon": 22.5,
-      "score": 40.0,
-      "fromTs": "20260722082000",
-      "cape": 80.0,
-      "shear": 12.0,
-      "dew": 10.5,
-      "li": null,
-      "freezingLevelM": 2930.0,
-      "cinJkg": 0.0
-    },
-    "z:50.38:15.04": {
-      "lat": 50.3824,
-      "lon": 15.037,
-      "score": 31.0,
-      "fromTs": "20260722082000",
-      "cape": 110.0,
-      "shear": 8.5,
-      "dew": 11.7,
-      "li": null,
-      "freezingLevelM": 2380.0,
-      "cinJkg": 36.0
-    },
-    "z:50.38:22.50": {
-      "lat": 50.3824,
-      "lon": 22.5,
-      "score": 29.599999999999998,
-      "fromTs": "20260722082000",
-      "cape": 40.0,
-      "shear": 9.2,
-      "dew": 8.9,
-      "li": null,
-      "freezingLevelM": 2270.0,
-      "cinJkg": 15.0
-    },
-    "z:51.09:15.61": {
-      "lat": 51.0882,
-      "lon": 15.6111,
-      "score": 35.099999999999994,
-      "fromTs": "20260722082000",
-      "cape": 60.0,
-      "shear": 10.7,
-      "dew": 9.8,
-      "li": null,
-      "freezingLevelM": 2430.0,
-      "cinJkg": 16.0
-    },
-    "z:51.44:15.61": {
-      "lat": 51.4412,
-      "lon": 15.6111,
-      "score": 32.5,
-      "fromTs": "20260722082000",
-      "cape": 20.0,
-      "shear": 10.5,
-      "dew": 9.5,
-      "li": null,
-      "freezingLevelM": 2410.0,
-      "cinJkg": 75.0
-    },
-    "z:51.79:15.04": {
-      "lat": 51.7941,
-      "lon": 15.037,
-      "score": 36.7,
-      "fromTs": "20260722082000",
-      "cape": 20.0,
-      "shear": 11.9,
-      "dew": 11.8,
-      "li": null,
-      "freezingLevelM": 2490.0,
-      "cinJkg": 0.0
-    },
     "z:46.50:7.00": {
       "lat": 46.5,
       "lon": 7.0,
@@ -2052,6 +1968,18 @@
       "li": null,
       "freezingLevelM": 2700.0,
       "cinJkg": 0.0
+    },
+    "z:47.21:22.50": {
+      "lat": 47.2059,
+      "lon": 22.5,
+      "score": 44.099999999999994,
+      "fromTs": "20260722095500",
+      "cape": 60.0,
+      "shear": 13.7,
+      "dew": 9.7,
+      "li": null,
+      "freezingLevelM": 2740.0,
+      "cinJkg": 11.0
     }
   },
   "intensityPending": {},
@@ -2082,5 +2010,5 @@
     "EVOLVE_FOOTPRINT_PER_DBZ": 0.01
   },
   "schemaVersion": 2,
-  "updatedAt": "2026-07-22T09:52:01Z"
+  "updatedAt": "2026-07-22T10:06:28Z"
 }
