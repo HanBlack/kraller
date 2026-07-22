@@ -1,42 +1,6 @@
 {
   "tracks": {},
   "formationPending": {
-    "z:46.85:13.31": {
-      "lat": 46.8529,
-      "lon": 13.3148,
-      "score": 44.400000000000006,
-      "fromTs": "20260722100500",
-      "cape": 0.0,
-      "shear": 14.8,
-      "dew": 8.6,
-      "li": null,
-      "freezingLevelM": 2970.0,
-      "cinJkg": 19.0
-    },
-    "z:46.85:22.50": {
-      "lat": 46.8529,
-      "lon": 22.5,
-      "score": 43.0,
-      "fromTs": "20260722100500",
-      "cape": 110.0,
-      "shear": 12.5,
-      "dew": 10.1,
-      "li": null,
-      "freezingLevelM": 2830.0,
-      "cinJkg": 0.0
-    },
-    "z:51.09:15.61": {
-      "lat": 51.0882,
-      "lon": 15.6111,
-      "score": 28.5,
-      "fromTs": "20260722100500",
-      "cape": 60.0,
-      "shear": 8.5,
-      "dew": 9.2,
-      "li": null,
-      "freezingLevelM": 2440.0,
-      "cinJkg": 13.0
-    },
     "z:46.50:7.00": {
       "lat": 46.5,
       "lon": 7.0,
@@ -1747,5 +1711,5 @@
     "EVOLVE_FOOTPRINT_PER_DBZ": 0.01
   },
   "schemaVersion": 2,
-  "updatedAt": "2026-07-22T11:45:45Z"
+  "updatedAt": "2026-07-22T11:48:35Z"
 }
