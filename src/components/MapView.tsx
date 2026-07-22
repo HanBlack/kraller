@@ -1780,6 +1780,7 @@ export function MapView({
     formationReal,
     formationScoredPoints,
     radarHistory,
+    satelliteCooling,
     operaTime,
     chmiTime,
   } = useStormDataContext();
@@ -1807,8 +1808,17 @@ export function MapView({
         formationScoredPoints,
         windUpper,
         locale,
+        satelliteCooling,
       ),
-    [trackedCells, windLow, windUpper, location, formationScoredPoints, locale],
+    [
+      trackedCells,
+      windLow,
+      windUpper,
+      location,
+      formationScoredPoints,
+      locale,
+      satelliteCooling,
+    ],
   );
 
   const intensForecasts = useMemo(
@@ -2719,6 +2729,7 @@ export function MapView({
             forecastMinutes: overlayMotionMinutes,
             systemDelta,
           },
+          satelliteCooling,
         );
         (map.getSource(LIFE_SOURCE) as maplibregl.GeoJSONSource)?.setData(
           lifecycleMapGeoJSON(live, life),
@@ -2740,6 +2751,7 @@ export function MapView({
     formationScoredPoints,
     showProgress,
     overlayMotionMinutes,
+    satelliteCooling,
   ]);
 
   useEffect(() => {

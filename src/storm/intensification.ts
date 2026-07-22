@@ -9,6 +9,13 @@ import type { ScoredFormationPoint } from "./formationData";
 import { circlePolygon } from "./mapFeatures";
 import type { EnvironmentSignals } from "./types";
 import { dewpointCOr } from "./types";
+import {
+  explainSatelliteGrowth,
+  explainSatelliteWarming,
+  mergeSatelliteIntoEnv,
+  satelliteWarmingRate,
+  type SatelliteSample,
+} from "./satelliteCooling";
 
 /** Minimální tvar buňky pro predikci zesílení (bez kruhu s radarCells). */
 export type IntensTrackCell = {
@@ -19,6 +26,8 @@ export type IntensTrackCell = {
   speedKmh: number;
   /** Změna dBZ od zrodu / historie — záporné = slábne. */
   growthDbz?: number;
+  /** Satelit u jádra — ochlazování / oteplování vrcholu. */
+  satAtPeak?: SatelliteSample | null;
 };
 
 export type IntensSegment = {
@@ -199,6 +208,9 @@ export function forecastCellIntensification(
 
   const here = nearestEnv(feature.peak[1], feature.peak[0], points);
   const envScoreHere = here?.assessment.score ?? 0;
+  const satWarm =
+    feature.satAtPeak?.trend === "warming" &&
+    satelliteWarmingRate(feature.satAtPeak.cloudTopCoolingCPer15min) >= 1.5;
 
   for (let eta = 0; eta <= horizon; eta += step) {
     const [lon, lat] = samplePointAlongTrack(feature, eta);
@@ -216,7 +228,7 @@ export function forecastCellIntensification(
     }
     const s = intensificationScoreAt(
       feature.maxDbz,
-      near.environment,
+      mergeSatelliteIntoEnv(near.environment, eta === 0 ? feature.satAtPeak : null),
       near.assessment.score,
       envScoreHere,
     );
@@ -277,7 +289,7 @@ export function forecastCellIntensification(
   const trendTooWeak =
     feature.growthDbz != null &&
     feature.growthDbz < cfg.suppressIfGrowthDbzBelow;
-  const suppressPurple = trendUnknown || trendTooWeak;
+  const suppressPurple = trendUnknown || trendTooWeak || satWarm;
 
   if (alertSegs.length > 0 && !suppressPurple) {
     const peak = alertSegs.reduce((a, b) => (b.score > a.score ? b : a));
@@ -300,6 +312,9 @@ export function forecastCellIntensification(
       }
       if (env.shear0to6Ms >= 8) {
         reasons.push(`střih ${env.shear0to6Ms.toFixed(0)} m/s organizuje buňku`);
+      }
+      if (feature.satAtPeak?.trend === "growing") {
+        reasons.push(explainSatelliteGrowth(feature.satAtPeak));
       }
       if (here && env.capeJkg >= here.environment.capeJkg + 40) {
         reasons.push(
@@ -324,6 +339,10 @@ export function forecastCellIntensification(
       suppressHeadline =
         "Trend echa neznámý — fialovou zónu nezobrazujeme (zesílení není jistota).";
       suppressReasons = ["chybí růst dBZ z historie"];
+    } else if (satWarm && feature.satAtPeak) {
+      suppressHeadline =
+        "Satelit ukazuje oteplování vrcholu — fialovou zónu nezobrazujeme.";
+      suppressReasons = [explainSatelliteWarming(feature.satAtPeak)];
     } else if (feature.growthDbz != null && feature.growthDbz < 0) {
       suppressHeadline =
         "Echo slábne — fialovou zónu nezobrazujeme (zesílení je nepravděpodobné).";

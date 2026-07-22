@@ -2,6 +2,12 @@ import { severityLabel } from "../lib/severity";
 import { getLocale } from "../i18n";
 import type { RadarProgressFeature } from "./radarCells";
 import { dewpointCOr } from "./types";
+import {
+  explainSatelliteGrowth,
+  explainSatelliteWarming,
+  satelliteGrowthRate,
+  type SatelliteSample,
+} from "./satelliteCooling";
 
 /**
  * Proč buňka „roste“ / je slabá–střední–silná — text pro mapu i detail.
@@ -17,11 +23,20 @@ export function explainGrowthWhy(
     | "history"
     | "birthEnv"
     | "isNewborn"
+    | "satAtPeak"
   >,
+  satAtPeak?: SatelliteSample | null,
 ): { headline: string; reasons: string[]; shortLabel: string | null } {
   const reasons: string[] = [];
   const growth = feature.growthDbz;
   const age = Math.max(1, feature.ageMinutes);
+  const peakSat = satAtPeak ?? feature.satAtPeak ?? null;
+
+  if (peakSat?.trend === "growing") {
+    reasons.push(explainSatelliteGrowth(peakSat));
+  } else if (peakSat?.trend === "warming") {
+    reasons.push(explainSatelliteWarming(peakSat));
+  }
 
   if (growth >= 3) {
     reasons.push(
@@ -56,7 +71,11 @@ export function explainGrowthWhy(
       );
     }
     const cooling = Math.max(0, -env.cloudTopCoolingCPer15min);
-    if (cooling >= 1.5) {
+    const satRate =
+      peakSat?.trend === "growing"
+        ? satelliteGrowthRate(peakSat.cloudTopCoolingCPer15min)
+        : 0;
+    if (satRate < 1.5 && cooling >= 1.5) {
       reasons.push(
         env.coolingSource === "satellite"
           ? `vrchol mraku se ochlazuje (satelit −${cooling.toFixed(1)} °C / 15 min) — konvekce ještě roste`

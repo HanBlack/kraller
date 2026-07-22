@@ -24,6 +24,11 @@ import {
 } from "./intensification";
 import { birthEnvironmentAt, nearestFormationPoint, type BirthEnvironment } from "./birthEnv";
 import type { ScoredFormationPoint } from "./formationData";
+import {
+  sampleSatelliteCooling,
+  type SatelliteCoolingGrid,
+  type SatelliteSample,
+} from "./satelliteCooling";
 import { explainGrowthWhy } from "./growthWhy";
 import {
   scoreActiveStorm,
@@ -158,6 +163,8 @@ export type RadarProgressFeature = {
   dualpolHailLikely?: boolean;
   /** Vítr prostředí u jádra + pohyb buňky (ne Doppler). */
   windAtCell?: StormWindAtCell;
+  /** Satelitní cloud-top trend u jádra (MTG). */
+  satAtPeak?: SatelliteSample | null;
 };
 
 /** Peak buňky v čase forecastMinutes (pro klik i vizuál). */
@@ -612,6 +619,7 @@ export function buildRadarProgressFeatures(
   formationPoints: ScoredFormationPoint[] = [],
   windUpper: WindGrid | null = null,
   locale: Locale = getLocale(),
+  satelliteGrid: SatelliteCoolingGrid | null = null,
 ): RadarProgressFeature[] {
   const ranked = [...cells].sort((a, b) => b.maxDbz - a.maxDbz);
   const strong = ranked.filter((c) => c.maxDbz >= MIN_MAP_DBZ);
@@ -656,9 +664,18 @@ export function buildRadarProgressFeatures(
       approachAngleDeg = angleDiffDeg(motion.headingDeg, toUser);
     }
 
-    const peakEnv =
+    const peakEnvRaw =
       nearestFormationPoint(peakLat, peakLon, formationPoints)?.environment ??
       null;
+    const satAtPeak = sampleSatelliteCooling(satelliteGrid, peakLat, peakLon);
+    const peakEnv =
+      peakEnvRaw && satAtPeak
+        ? {
+            ...peakEnvRaw,
+            cloudTopCoolingCPer15min: satAtPeak.cloudTopCoolingCPer15min,
+            coolingSource: "satellite" as const,
+          }
+        : peakEnvRaw;
 
     const assessment = scoreActiveStorm(
       {
@@ -693,21 +710,30 @@ export function buildRadarProgressFeatures(
     });
     const { trueBirth, isNewborn, phase } = birthClass;
 
-    const birthEnv = birthEnvironmentAt(birth[1], birth[0], formationPoints);
+    const birthEnv = birthEnvironmentAt(
+      birth[1],
+      birth[0],
+      formationPoints,
+      satelliteGrid,
+    );
 
     const alert = user ? shouldAlertActive(assessment) : false;
     const growthWhy =
       phase === "birth" || phase === "growing"
-        ? explainGrowthWhy({
-            phase,
-            growthDbz,
-            ageMinutes: age,
-            birthDbz,
-            maxDbz: cell.maxDbz,
-            history: cell.history ?? [],
-            birthEnv,
-            isNewborn,
-          })
+        ? explainGrowthWhy(
+            {
+              phase,
+              growthDbz,
+              ageMinutes: age,
+              birthDbz,
+              maxDbz: cell.maxDbz,
+              history: cell.history ?? [],
+              birthEnv,
+              isNewborn,
+              satAtPeak,
+            },
+            satAtPeak,
+          )
         : null;
 
     let label: string;
@@ -781,6 +807,7 @@ export function buildRadarProgressFeatures(
       dualpolZdrColumn: cell.dualpolZdrColumn,
       dualpolHailLikely: cell.dualpolHailLikely,
       windAtCell: windAt,
+      satAtPeak,
     };
   });
 }
