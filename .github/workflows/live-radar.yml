@@ -82,7 +82,7 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
-        run: python scripts/upload_data_r2.py
+        run: python scripts/upload_data_r2.py --exclude data/satellite/
 
       # --- POMALÁ CESTA: satelit (neblokuje radar freshness) ---
       - name: Satellite cooling (best-effort, after R2)
@@ -93,8 +93,11 @@ jobs:
           EUMETSAT_CONSUMER_SECRET: ${{ secrets.CONSUMER_SECRET_EUMETSAT }}
         run: |
           python scripts/refresh_env_if_stale.py --sat-only
+          # I když sat fetch skipne (cadence), merge + upload z checkoutu opraví R2 po race
+          python scripts/merge_sat_cooling.py
           python scripts/write_meta.py
-          python scripts/upload_data_r2.py
+          # Jen sat + formation merge + meta — ať souběžný radar run nepřepíše starým cooling.json
+          python scripts/upload_data_r2.py --only data/satellite/ --only data/formation/ --only data/meta.json
 
       - name: Learning emit (kalibrace — T+15/30 ověření)
         if: steps.gate.outputs.skip != 'true'
