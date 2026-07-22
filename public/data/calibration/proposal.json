@@ -1,18 +1,18 @@
 {
-  "generatedAt": "2026-07-22T09:41:41Z",
+  "generatedAt": "2026-07-22T12:06:56Z",
   "sampleCounts": {
     "track": 120,
-    "formation": 6269,
-    "birth_features": 752,
-    "intensity": 6183,
+    "formation": 6536,
+    "birth_features": 764,
+    "intensity": 6185,
     "intensify": 1048,
-    "demise": 2571,
-    "track_sample_events": 5298,
+    "demise": 2582,
+    "track_sample_events": 5324,
     "withSurfaceDbz": 1918,
     "withFct": 707,
-    "withFreezingLevel": 5248,
+    "withFreezingLevel": 5274,
     "withHailProxy": 0,
-    "total": 16943
+    "total": 17235
   },
   "readyForApply": true,
   "proposals": [
@@ -44,7 +44,7 @@
         }
       },
       "confidence": "medium",
-      "n": 752,
+      "n": 764,
       "medianBirthDbzTrue": 37.0,
       "medianBirthDbzFalse": 41.5,
       "reason": "oddělení trueBirth vs příjezd podle birthDbz"
@@ -54,7 +54,7 @@
       "current": 28,
       "proposed": 28,
       "confidence": "low",
-      "n": 6269,
+      "n": 6536,
       "nUsable": 189,
       "nHit": 189,
       "nMiss": 0,
@@ -107,11 +107,11 @@
       "current": 0.55,
       "proposed": 0.55,
       "confidence": "high",
-      "n": 971,
-      "medianBiasDbz": 0.0,
+      "n": 973,
+      "medianBiasDbz": -0.1,
       "medianAbsErrDbz": 3.5,
       "file": "src/storm/config.ts (evolution) + ACTIVE_CONSTANTS emit_learning",
-      "reason": "median bias 0.0 dBZ / MAE 3.5 — držet trendGain",
+      "reason": "median bias -0.1 dBZ / MAE 3.5 — držet trendGain",
       "alsoReview": {
         "param": "evolution.blendTrend",
         "current": 0.45,
@@ -128,10 +128,10 @@
     }
   ],
   "intensity": {
-    "n": 6183,
+    "n": 6185,
     "medianAbsErrDbz": 4.0,
     "medianAbsErrEvolveDbz": 3.5,
-    "nWithEvolve": 971,
+    "nWithEvolve": 973,
     "hint": "errEvolveDbz ladí stormConfig.evolution; slope errDbz je baseline"
   },
   "intensifyPurple": {
@@ -140,14 +140,14 @@
     "hint": "upřímná fialová — nízký hitRate → vyšší alertScoreMin / suppress"
   },
   "demise": {
-    "n": 2571,
+    "n": 2582,
     "reasons": {
-      "merge_or_jump": 2484,
-      "fade": 87
+      "merge_or_jump": 2494,
+      "fade": 88
     },
     "medianLifeMin": 0.0,
-    "medianFadeLifeMin": 15.0,
-    "nFade": 87,
+    "medianFadeLifeMin": 12.5,
+    "nFade": 88,
     "nWithHailProxy": 0,
     "nAfterPurple": 71,
     "hint": "medianLifeMin je zkreslené merge_or_jump — ber medianFadeLifeMin"
