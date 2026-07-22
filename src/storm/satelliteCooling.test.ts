@@ -20,24 +20,27 @@ const grid: SatelliteCoolingGrid = {
     {
       lat: 49.0,
       lon: 14.0,
+      hasCloudTop: true,
       cloudTopTempC: -12,
       cloudTopCoolingCPer15min: -3.2,
       cloudTopHeightM: 9000,
       cloudTopHeightDeltaMPer15min: 1800,
+      cloudTypeCode: 8,
+      cloudLevel: "high",
       sampleSource: "cell",
     },
     {
       lat: 50.0,
       lon: 16.0,
-      cloudTopTempC: -8,
-      cloudTopCoolingCPer15min: 2.1,
+      hasCloudTop: true,
+      cloudTopTempC: -18,
+      cloudTopCoolingCPer15min: 0,
       sampleSource: "grid",
     },
     {
       lat: 49.83,
       lon: 18.29,
-      cloudTopTempC: 13.5,
-      cloudTopCoolingCPer15min: 0,
+      hasCloudTop: false,
       sampleSource: "cell",
     },
   ],
@@ -51,10 +54,14 @@ describe("satelliteCooling", () => {
     expect(s?.exactMatch).toBe(true);
   });
 
-  it("exact cell sample u Ostravy", () => {
+  it("exact cell sample u Ostravy — bez mraku", () => {
     const s = sampleSatelliteCooling(grid, 49.83, 18.29);
-    expect(s?.exactMatch).toBe(true);
-    expect(s?.distanceKm).toBeLessThan(1);
+    expect(s).toBeNull();
+  });
+
+  it("explainSatelliteStatus — bez mraku u jádra", () => {
+    const line = explainSatelliteStatus(grid, 49.83, 18.29);
+    expect(line.detail).toMatch(/bez detekovaného vrcholu/i);
   });
 
   it("classify cold top", () => {
@@ -67,11 +74,11 @@ describe("satelliteCooling", () => {
   });
 
   it("explainSatelliteStatus — stabilní", () => {
-    const line = explainSatelliteStatus(grid, 49.83, 18.29);
+    const line = explainSatelliteStatus(grid, 50.0, 16.0);
     expect(line.detail).toMatch(/stabilní/i);
   });
 
-  it("explainSatelliteStatus — bez mraku", () => {
+  it("explainSatelliteStatus — bez mraku mimo vzorek", () => {
     const line = explainSatelliteStatus(grid, 46.6, 7.1);
     expect(line.detail).toMatch(/bez detekovaného vrcholu/i);
   });

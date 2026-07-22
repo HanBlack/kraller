@@ -79,16 +79,17 @@ def merge() -> int:
     for p in form.get("points") or []:
         env = p.setdefault("environment", {})
         hit = nearest(cool_pts, float(p["lat"]), float(p["lon"]))
-        if not hit:
+        if not hit or hit.get("hasCloudTop") is False:
             env["coolingSource"] = env.get("coolingSource") or "model"
             continue
         val = hit.get("cloudTopCoolingCPer15min")
         if val is None or not math.isfinite(float(val)):
             continue
+        if hit.get("cloudTopTempC") is None:
+            continue
         env["cloudTopCoolingCPer15min"] = round(float(val), 2)
         env["coolingSource"] = "satellite"
-        if hit.get("cloudTopTempC") is not None:
-            env["cloudTopTempC"] = hit["cloudTopTempC"]
+        env["cloudTopTempC"] = hit["cloudTopTempC"]
         if hit.get("cloudTopHeightM") is not None:
             env["cloudTopHeightM"] = hit["cloudTopHeightM"]
         if hit.get("cloudTopHeightDeltaMPer15min") is not None:

@@ -6,10 +6,14 @@ import type { EnvironmentSignals } from "./types";
 export type SatelliteCoolingPoint = {
   lat: number;
   lon: number;
+  /** False = vzorek u jádra, ale cloud mask říká bez mraku. */
+  hasCloudTop?: boolean;
   cloudTopTempC?: number;
-  cloudTopCoolingCPer15min: number;
+  cloudTopCoolingCPer15min?: number;
   cloudTopHeightM?: number;
   cloudTopHeightDeltaMPer15min?: number;
+  cloudTypeCode?: number;
+  cloudLevel?: "high" | "mid" | "low" | "fractional" | "other";
   sampleSource?: "grid" | "cell" | "formation";
 };
 
@@ -45,6 +49,8 @@ export type SatelliteSample = {
   cloudTopCoolingCPer15min: number;
   cloudTopHeightM?: number;
   cloudTopHeightDeltaMPer15min?: number;
+  cloudTypeCode?: number;
+  cloudLevel?: SatelliteCoolingPoint["cloudLevel"];
   trend: SatelliteTrend;
   coldTop: boolean;
   towerRising: boolean;
@@ -87,21 +93,28 @@ export function towerFallRate(deltaMPer15min: number | undefined): number {
   return Math.max(0, -(deltaMPer15min ?? 0));
 }
 
+function pointHasCloudTop(point: SatelliteCoolingPoint): boolean {
+  return point.hasCloudTop !== false && point.cloudTopTempC != null;
+}
+
 function findNearestPoint(
   grid: SatelliteCoolingGrid,
   lat: number,
   lon: number,
+  accept: (point: SatelliteCoolingPoint) => boolean = pointHasCloudTop,
 ): { point: SatelliteCoolingPoint; distanceKm: number } | null {
   if (!grid.points.length) return null;
-  let best = grid.points[0];
+  let best: SatelliteCoolingPoint | null = null;
   let bestD = Infinity;
   for (const p of grid.points) {
+    if (!accept(p)) continue;
     const d = distanceKm(lat, lon, p.lat, p.lon);
     if (d < bestD) {
       bestD = d;
       best = p;
     }
   }
+  if (!best) return null;
   return { point: best, distanceKm: bestD };
 }
 
@@ -139,13 +152,15 @@ export function sampleSatelliteCooling(
       (p.sampleSource === "cell" || p.sampleSource === "formation") &&
       distanceKm(lat, lon, p.lat, p.lon) <= exactKm,
   );
+  if (exact && !pointHasCloudTop(exact)) return null;
+
   const hit = exact
     ? { point: exact, distanceKm: distanceKm(lat, lon, exact.lat, exact.lon) }
-    : findNearestPoint(grid!, lat, lon);
-  if (!hit || hit.distanceKm > maxKm) return null;
+    : findNearestPoint(grid!, lat, lon, pointHasCloudTop);
+  if (!hit || hit.distanceKm > maxKm || !pointHasCloudTop(hit.point)) return null;
 
   const { point, distanceKm: dKm } = hit;
-  const cooling = point.cloudTopCoolingCPer15min;
+  const cooling = point.cloudTopCoolingCPer15min ?? 0;
   const heightDelta = point.cloudTopHeightDeltaMPer15min;
   const coldTop =
     point.cloudTopTempC != null &&
@@ -158,11 +173,15 @@ export function sampleSatelliteCooling(
   return {
     available: true,
     distanceKm: dKm,
-    exactMatch: dKm <= exactKm && point.sampleSource === "cell",
+    exactMatch:
+      dKm <= exactKm &&
+      (point.sampleSource === "cell" || point.sampleSource === "formation"),
     cloudTopTempC: point.cloudTopTempC,
     cloudTopCoolingCPer15min: cooling,
     cloudTopHeightM: point.cloudTopHeightM,
     cloudTopHeightDeltaMPer15min: heightDelta,
+    cloudTypeCode: point.cloudTypeCode,
+    cloudLevel: point.cloudLevel,
     trend: classifySatelliteTrend({
       coolingPer15min: cooling,
       cloudTopTempC: point.cloudTopTempC,
@@ -191,6 +210,19 @@ export function explainSatelliteStatus(
     return {
       title: "Satelit",
       detail: grid.message ?? "data dočasně nedostupná",
+    };
+  }
+  const exactKm = stormConfig.satellite.exactMatchKm;
+  const exactMarker = grid.points.find(
+    (p) =>
+      (p.sampleSource === "cell" || p.sampleSource === "formation") &&
+      distanceKm(lat, lon, p.lat, p.lon) <= exactKm &&
+      p.hasCloudTop === false,
+  );
+  if (exactMarker) {
+    return {
+      title: "Satelit (MTG)",
+      detail: "v místě bez detekovaného vrcholu mraku — FCI nevidí cloud-top",
     };
   }
   const sample = sampleSatelliteCooling(grid, lat, lon);

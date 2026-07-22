@@ -5,8 +5,8 @@ Bez EUMETSAT_CONSUMER_KEY / EUMETSAT_CONSUMER_SECRET:
   zapíše cooling.json se statusem no_credentials (formation zůstane na model proxy).
 
 S klíči:
-  stáhne 2 snímky Cloud Top Temperature (~15 min od sebe), spočte ΔT na mřížce
-  shodné s formation (CZ+AT pás), zapíše public/data/satellite/cooling.json.
+  stáhne 2 snímky Cloud Top Temperature (~15 min od sebe) + cloud mask + cloud type,
+  vzorkuje CTT/CTH jen u pixelů s mrakem (cma), zapíše cooling.json.
 
 Klíče: https://api.eumetsat.int/api-key/ (free EO Portal účet).
 """
@@ -33,6 +33,8 @@ COLLECTIONS = (
     "EO:EUM:DAT:0681",  # MTG Cloud Top Temperature and Height
     "EO:EUM:DAT:MSG:HRSEVIRI",  # IR10.8 via Data Tailor fallback
 )
+MASK_COLLECTION = "EO:EUM:DAT:0678"  # MTG Cloud Mask (netCDF, cma)
+TYPE_COLLECTION = "EO:EUM:DAT:0680"  # MTG Cloud Type (netCDF, ct)
 MSG_TAILOR_CHAIN = {"product": "HRSEVIRI", "format": "netcdf4", "projection": "geographic"}
 DT_MINUTES = 15
 
@@ -251,93 +253,15 @@ def _pick_readable_nc(dest: Path) -> Path | None:
     return None
 
 
-def _sample_fci_geos(ds, var: str, lat: float, lon: float) -> float | None:
-    """Vzorek z MTG FCI L2 geostacionární mřížky (x/y + mtg_geos_projection)."""
-    import numpy as np
-    from pyproj import CRS, Transformer
-
-    if "mtg_geos_projection" not in ds or "x" not in ds or "y" not in ds:
-        return None
-
-    proj = ds["mtg_geos_projection"]
-    lon_0 = float(proj.attrs["longitude_of_projection_origin"])
-    h = float(proj.attrs["perspective_point_height"])
-    a = float(proj.attrs.get("semi_major_axis", 6378137.0))
-    rf = float(proj.attrs.get("inverse_flattening", 298.257223563))
-    geos = CRS.from_proj4(
-        f"+proj=geos +lon_0={lon_0} +h={h} +a={a} +rf={rf} +sweep=y +units=m"
-    )
-    tf = Transformer.from_crs(CRS.from_epsg(4326), geos, always_xy=True)
-    x_m, y_m = tf.transform(lon, lat)
-
-    x = np.asarray(ds["x"].values, dtype=float)
-    y = np.asarray(ds["y"].values, dtype=float)
-    # Satpy konvence: geos metry ≈ -degrees(x)*h, degrees(y)*h
-    x_m_grid = -np.degrees(x) * h
-    y_m_grid = np.degrees(y) * h
-
-    xi = int(np.argmin(np.abs(x_m_grid - x_m)))
-    yi = int(np.argmin(np.abs(y_m_grid - y_m)))
-
-    data = ds[var]
-    vals = np.asarray(data.values)
-    while vals.ndim > 2:
-        vals = vals[0]
-    v = float(vals[yi, xi])
-    if not math.isfinite(v):
+def _sample_field(ds, var: str, lat: float, lon: float) -> float | None:
+    v = _sample_raw_pixel(ds, var, lat, lon)
+    if v is None or not math.isfinite(v):
         return None
     if 150 <= v <= 350:
         return v - 273.15
     if -90 < v < 40:
         return v
     return None
-
-
-def _sample_field(ds, var: str, lat: float, lon: float) -> float | None:
-    if "mtg_geos_projection" in getattr(ds, "variables", ds):
-        v = _sample_fci_geos(ds, var, lat, lon)
-        if v is not None:
-            return v
-
-    import numpy as np
-
-    data = ds[var]
-    # Typické dimenze: (time, lat, lon) nebo (lat, lon)
-    vals = np.asarray(data.values)
-    while vals.ndim > 2:
-        vals = vals[0]
-
-    lat_name = None
-    lon_name = None
-    for cand in ("lat", "latitude", "y"):
-        if cand in ds.coords or cand in getattr(ds, "variables", {}):
-            lat_name = cand
-            break
-    for cand in ("lon", "longitude", "x"):
-        if cand in ds.coords or cand in getattr(ds, "variables", {}):
-            lon_name = cand
-            break
-    if not lat_name or not lon_name:
-        return None
-
-    lats = np.asarray(ds[lat_name].values).astype(float).ravel()
-    lons = np.asarray(ds[lon_name].values).astype(float).ravel()
-    # Nejbližší pixel
-    if lats.size != vals.shape[0] and lats.size == vals.shape[1]:
-        # (lon, lat) layout
-        ji = int(np.argmin(np.abs(lons - lon)))
-        ii = int(np.argmin(np.abs(lats - lat)))
-        v = float(vals[ji, ii]) if vals.shape[0] == lons.size else float(vals[ii, ji])
-    else:
-        ii = int(np.argmin(np.abs(lats - lat)))
-        jj = int(np.argmin(np.abs(lons - lon)))
-        v = float(vals[ii, jj])
-    if not math.isfinite(v) or v < 150 or v > 350:
-        # Kelvin sanity; případně už °C
-        if math.isfinite(v) and -90 < v < 40:
-            return v
-        return None
-    return v - 273.15  # K → °C
 
 
 def _open_dataset(path: Path):
@@ -397,7 +321,226 @@ def _normalize_height_m(value: float | None) -> float | None:
     return v * 1000.0
 
 
-def _collect_sample_locations() -> list[tuple[float, float, str]]:
+def _find_mask_var(ds) -> str | None:
+    prefer = ("cma", "cloud_mask", "clm", "CloudMask", "mask")
+    names = list(getattr(ds, "data_vars", ds.variables if hasattr(ds, "variables") else []))
+    lower = {str(n).lower(): str(n) for n in names}
+    for p in prefer:
+        if p.lower() in lower:
+            return lower[p.lower()]
+    for n in names:
+        nl = str(n).lower()
+        if "mask" in nl and "status" not in nl and "snow" not in nl:
+            return str(n)
+    return None
+
+
+def _find_type_var(ds) -> str | None:
+    prefer = ("ct", "cloud_type", "CloudType", "ctype")
+    names = list(getattr(ds, "data_vars", ds.variables if hasattr(ds, "variables") else []))
+    lower = {str(n).lower(): str(n) for n in names}
+    for p in prefer:
+        if p.lower() in lower:
+            return lower[p.lower()]
+    for n in names:
+        nl = str(n).lower()
+        if nl == "ct" or ("cloud" in nl and "type" in nl):
+            return str(n)
+    return None
+
+
+def _decode_attr_str(value) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode(errors="ignore")
+    return str(value)
+
+
+def _is_cloudy_mask(value: float | None, attrs: dict | None = None) -> bool | None:
+    """NWC GEO-CMA: 0=cloud-free, 1=cloudy (MTG). Legacy: 2=contaminated."""
+    if value is None or not math.isfinite(float(value)):
+        return None
+    v = int(round(float(value)))
+    attrs = attrs or {}
+    fill = attrs.get("_FillValue")
+    if fill is not None and v == int(fill):
+        return None
+    meanings = _decode_attr_str(attrs.get("flag_meanings", "")).lower().split()
+    if meanings and 0 <= v < len(meanings):
+        m = meanings[v]
+        if "free" in m or m in ("clear", "cloud-free", "cloud_free"):
+            return False
+        if "cloud" in m or "contamin" in m or m == "cloudy":
+            return True
+    if v == 0:
+        return False
+    if v == 1:
+        return True
+    if v >= 2:
+        return True
+    return None
+
+
+def _cloud_level_from_type(code: int | None) -> str | None:
+    """Zjednodušená vrstva mraku z NWC GEO-CT."""
+    if code is None:
+        return None
+    if code <= 1:
+        return None
+    if code in (2, 3, 4, 5):
+        return "fractional"
+    if code in (6, 10, 11):
+        return "low"
+    if code in (7,):
+        return "mid"
+    if code in (8, 9, 12, 13, 14, 15):
+        return "high"
+    return "other"
+
+
+def _sample_raw_pixel(ds, var: str, lat: float, lon: float) -> float | None:
+    if "mtg_geos_projection" in getattr(ds, "variables", ds):
+        import numpy as np
+        from pyproj import CRS, Transformer
+
+        if "mtg_geos_projection" not in ds or "x" not in ds or "y" not in ds:
+            return None
+        proj = ds["mtg_geos_projection"]
+        lon_0 = float(proj.attrs["longitude_of_projection_origin"])
+        h = float(proj.attrs["perspective_point_height"])
+        a = float(proj.attrs.get("semi_major_axis", 6378137.0))
+        rf = float(proj.attrs.get("inverse_flattening", 298.257223563))
+        geos = CRS.from_proj4(
+            f"+proj=geos +lon_0={lon_0} +h={h} +a={a} +rf={rf} +sweep=y +units=m"
+        )
+        tf = Transformer.from_crs(CRS.from_epsg(4326), geos, always_xy=True)
+        x_m, y_m = tf.transform(lon, lat)
+        x = np.asarray(ds["x"].values, dtype=float)
+        y = np.asarray(ds["y"].values, dtype=float)
+        x_m_grid = -np.degrees(x) * h
+        y_m_grid = np.degrees(y) * h
+        xi = int(np.argmin(np.abs(x_m_grid - x_m)))
+        yi = int(np.argmin(np.abs(y_m_grid - y_m)))
+        data = ds[var]
+        vals = np.asarray(data.values)
+        while vals.ndim > 2:
+            vals = vals[0]
+        v = float(vals[yi, xi])
+        if not math.isfinite(v):
+            return None
+        return v
+
+    import numpy as np
+
+    data = ds[var]
+    vals = np.asarray(data.values)
+    while vals.ndim > 2:
+        vals = vals[0]
+    lat_name = None
+    lon_name = None
+    for cand in ("lat", "latitude", "y"):
+        if cand in ds.coords or cand in getattr(ds, "variables", {}):
+            lat_name = cand
+            break
+    for cand in ("lon", "longitude", "x"):
+        if cand in ds.coords or cand in getattr(ds, "variables", {}):
+            lon_name = cand
+            break
+    if not lat_name or not lon_name:
+        return None
+    lats = np.asarray(ds[lat_name].values).astype(float).ravel()
+    lons = np.asarray(ds[lon_name].values).astype(float).ravel()
+    if lats.size != vals.shape[0] and lats.size == vals.shape[1]:
+        ji = int(np.argmin(np.abs(lons - lon)))
+        ii = int(np.argmin(np.abs(lats - lat)))
+        v = float(vals[ji, ii]) if vals.shape[0] == lons.size else float(vals[ii, ji])
+    else:
+        ii = int(np.argmin(np.abs(lats - lat)))
+        jj = int(np.argmin(np.abs(lons - lon)))
+        v = float(vals[ii, jj])
+    if not math.isfinite(v):
+        return None
+    return v
+
+
+def _sample_cloud_flag(
+    ds, var: str | None, lat: float, lon: float, *, cloudy_fn=_is_cloudy_mask
+) -> bool | None:
+    if not var:
+        return None
+    raw = _sample_raw_pixel(ds, var, lat, lon)
+    if raw is None:
+        return None
+    attrs = dict(getattr(ds[var], "attrs", {}))
+    fill = attrs.get("_FillValue")
+    if fill is not None and int(round(float(raw))) == int(fill):
+        return None
+    return cloudy_fn(raw, attrs)
+
+
+def _sample_cloud_type_code(ds, var: str | None, lat: float, lon: float) -> int | None:
+    if not var:
+        return None
+    raw = _sample_raw_pixel(ds, var, lat, lon)
+    if raw is None or not math.isfinite(float(raw)):
+        return None
+    code = int(round(float(raw)))
+    if code <= 0 or code >= 250:
+        return None
+    return code
+
+
+def _pick_readable_nc_for_var(
+    dest: Path, find_var, label: str = "var"
+) -> Path | None:
+    for path in _rank_nc_candidates(dest):
+        if not _is_hdf5(path):
+            continue
+        try:
+            ds = _open_dataset(path)
+            var = find_var(ds)
+            ds.close()
+            if var:
+                print(f"  using {path.name} ({label}={var})", flush=True)
+                return path
+        except Exception as e:
+            print(f"  skip {path.name}: {e}", flush=True)
+    return None
+
+
+def _fetch_companion_nc(
+    datastore,
+    coll_id: str,
+    dest: Path,
+    find_var,
+    *,
+    now: datetime,
+    label: str,
+) -> Path | None:
+    try:
+        collection = datastore.get_collection(coll_id)
+        products = list(
+            collection.search(
+                dtstart=now - timedelta(hours=2),
+                dtend=now,
+            )
+        )
+        if not products:
+            print(f"  {label}: žádný produkt v {coll_id}", flush=True)
+            return None
+        prod = products[-1]
+        print(f"  download {label} {prod}", flush=True)
+        dest.mkdir(parents=True, exist_ok=True)
+        _download_product(prod, dest)
+        picked = _pick_readable_nc_for_var(dest, find_var, label=label)
+        if not picked:
+            print(f"  {label}: nelze přečíst netCDF z {coll_id}", flush=True)
+        return picked
+    except Exception as e:
+        print(f"  {label} {coll_id}: {e}", flush=True)
+        return None
+
     """Mřížka + jádra buněk + formation body (bez duplicit ~8 km)."""
     lats, lons = lat_lons()
     out: list[tuple[float, float, str]] = [(lat, lon, "grid") for lat in lats for lon in lons]
@@ -458,15 +601,27 @@ def _build_sat_point(
     h1: float | None,
     dt_min: float,
     source: str,
+    *,
+    cloudy_now: bool,
+    cloud_type_code: int | None = None,
 ) -> dict | None:
-    if t1 is None:
+    if not cloudy_now or t1 is None:
+        if source in ("cell", "formation"):
+            return {
+                "lat": round(lat, 4),
+                "lon": round(lon, 4),
+                "hasCloudTop": False,
+                "sampleSource": source,
+            }
         return None
+
     scale = 15.0 / max(5.0, dt_min)
     d_per_15 = (t1 - t0) * scale if t0 is not None else 0.0
     d_per_15 = max(-8.0, min(4.0, d_per_15))
     pt: dict = {
         "lat": round(lat, 4),
         "lon": round(lon, 4),
+        "hasCloudTop": True,
         "cloudTopTempC": round(t1, 2),
         "cloudTopCoolingCPer15min": round(d_per_15, 2),
         "sampleSource": source,
@@ -478,14 +633,28 @@ def _build_sat_point(
     if h0m is not None and h1m is not None:
         dh = (h1m - h0m) * scale
         pt["cloudTopHeightDeltaMPer15min"] = round(max(-5000.0, min(5000.0, dh)), 0)
+    if cloud_type_code is not None:
+        pt["cloudTypeCode"] = cloud_type_code
+        level = _cloud_level_from_type(cloud_type_code)
+        if level:
+            pt["cloudLevel"] = level
     return pt
 
 
 def _cooling_from_two_files(
-    older: Path, newer: Path, dt_min: float
+    older: Path,
+    newer: Path,
+    dt_min: float,
+    *,
+    mask_newer: Path | None = None,
+    mask_older: Path | None = None,
+    type_newer: Path | None = None,
 ) -> list[dict]:
     ds0 = _open_dataset(older)
     ds1 = _open_dataset(newer)
+    ds_mask0 = _open_dataset(mask_older) if mask_older else None
+    ds_mask1 = _open_dataset(mask_newer) if mask_newer else None
+    ds_type1 = _open_dataset(type_newer) if type_newer else None
     try:
         var0 = _find_temp_var(ds0)
         var1 = _find_temp_var(ds1)
@@ -495,26 +664,58 @@ def _cooling_from_two_files(
             )
         hvar0 = _find_height_var(ds0)
         hvar1 = _find_height_var(ds1)
+        mvar0 = _find_mask_var(ds_mask0) if ds_mask0 is not None else None
+        mvar1 = _find_mask_var(ds_mask1) if ds_mask1 is not None else None
+        tvar1 = _find_type_var(ds_type1) if ds_type1 is not None else None
+        if ds_mask1 is not None and not mvar1:
+            print("  warn: cloud mask soubor bez proměnné cma — CTT bez filtru", flush=True)
+
         locations = _collect_sample_locations()
         points: list[dict] = []
         for lat, lon, source in locations:
-            t0 = _sample_field(ds0, var0, lat, lon)
-            t1 = _sample_field(ds1, var1, lat, lon)
-            h0 = _sample_field(ds0, hvar0, lat, lon) if hvar0 else None
-            h1 = _sample_field(ds1, hvar1, lat, lon) if hvar1 else None
-            pt = _build_sat_point(lat, lon, t0, t1, h0, h1, dt_min, source)
+            cloudy_now = _sample_cloud_flag(ds_mask1, mvar1, lat, lon)
+            if cloudy_now is None and ds_mask1 is None:
+                cloudy_now = True  # fallback bez masky (MSG)
+            elif cloudy_now is None:
+                cloudy_now = False
+
+            cloudy_before = _sample_cloud_flag(ds_mask0, mvar0, lat, lon) if ds_mask0 else None
+            t0 = (
+                _sample_field(ds0, var0, lat, lon)
+                if cloudy_before is not False
+                else None
+            )
+            t1 = _sample_field(ds1, var1, lat, lon) if cloudy_now else None
+            h0 = _sample_field(ds0, hvar0, lat, lon) if hvar0 and cloudy_before is not False else None
+            h1 = _sample_field(ds1, hvar1, lat, lon) if hvar1 and cloudy_now else None
+            ctype = (
+                _sample_cloud_type_code(ds_type1, tvar1, lat, lon)
+                if cloudy_now and ds_type1 is not None
+                else None
+            )
+            pt = _build_sat_point(
+                lat,
+                lon,
+                t0,
+                t1,
+                h0,
+                h1,
+                dt_min,
+                source,
+                cloudy_now=bool(cloudy_now),
+                cloud_type_code=ctype,
+            )
             if pt:
                 points.append(pt)
         return points
     finally:
-        try:
-            ds0.close()
-        except Exception:
-            pass
-        try:
-            ds1.close()
-        except Exception:
-            pass
+        for ds in (ds0, ds1, ds_mask0, ds_mask1, ds_type1):
+            if ds is None:
+                continue
+            try:
+                ds.close()
+            except Exception:
+                pass
 
 
 def fetch_with_eumdac(key: str, secret: str) -> int:
@@ -607,21 +808,61 @@ def fetch_with_eumdac(key: str, secret: str) -> int:
                 last_error = "Stažené produkty neobsahují čitelný netCDF s CTT"
                 continue
 
+            mask_newer = None
+            mask_older = None
+            type_newer = None
+            if coll_id == "EO:EUM:DAT:0681":
+                mask_newer = _fetch_companion_nc(
+                    datastore,
+                    MASK_COLLECTION,
+                    tmp_path / "mask_new",
+                    _find_mask_var,
+                    now=now,
+                    label="cloud_mask",
+                )
+                mask_older = _fetch_companion_nc(
+                    datastore,
+                    MASK_COLLECTION,
+                    tmp_path / "mask_old",
+                    _find_mask_var,
+                    now=now - timedelta(minutes=DT_MINUTES),
+                    label="cloud_mask_old",
+                )
+                type_newer = _fetch_companion_nc(
+                    datastore,
+                    TYPE_COLLECTION,
+                    tmp_path / "cloud_type",
+                    _find_type_var,
+                    now=now,
+                    label="cloud_type",
+                )
+
             try:
-                points = _cooling_from_two_files(paths[0], paths[1], float(DT_MINUTES))
+                points = _cooling_from_two_files(
+                    paths[0],
+                    paths[1],
+                    float(DT_MINUTES),
+                    mask_newer=mask_newer,
+                    mask_older=mask_older,
+                    type_newer=type_newer,
+                )
             except Exception as e:
                 traceback.print_exc()
                 last_error = f"Parse CTT selhal: {e}"
                 continue
 
-            if not points:
-                last_error = "Žádné validní CTT vzorky na mřížce"
+            cloudy_pts = [p for p in points if p.get("hasCloudTop") is not False]
+            if not cloudy_pts:
+                last_error = "Žádné validní CTT vzorky pod mrakem (cloud mask)"
                 continue
 
             write_cooling(
                 status="ok",
                 source=f"EUMETSAT/{used_collection}",
-                message=f"ΔT/ΔCTH / {DT_MINUTES} min (CTT+CTH, grid+cells)",
+                message=(
+                    f"ΔT/ΔCTH / {DT_MINUTES} min (mask+type, "
+                    f"{len(cloudy_pts)} cloudy / {len(points)} sampled)"
+                ),
                 points=points,
                 valid_at=now,
             )
