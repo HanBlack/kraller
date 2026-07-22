@@ -195,6 +195,7 @@ def point_environment(point: dict, now: datetime) -> dict:
         "shear0to6Ms": round(shear, 1),
         "srh01": round(srh, 1),
         "cloudTopCoolingCPer15min": round(cooling, 2),
+        "coolingSource": "model",
         "liftedIndexC": round(li, 1) if not math.isnan(li) else None,
         "freezingLevelM": round(fzl, 0) if not math.isnan(fzl) else None,
         "convectiveInhibitionJkg": round(cin, 1) if not math.isnan(cin) else None,
@@ -371,6 +372,14 @@ def _fetch_and_write(now: datetime) -> int:
             _write_wind_from_raw(coords, raw_points, now)
         except Exception as e:
             print(f"  wind from formation selhalo ({e}) — wind nechávám", flush=True)
+
+    # Sat cooling merge (pokud cooling.json existuje / právě doběhl)
+    try:
+        from merge_sat_cooling import merge as merge_sat
+
+        merge_sat()
+    except Exception as e:
+        print(f"  sat cooling merge skip ({e})", flush=True)
 
     return 0
 

@@ -49,6 +49,9 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Fetch radar (OPERA + ČHMÚ + dual-pol + env)
+        env:
+          EUMETSAT_CONSUMER_KEY: ${{ secrets.CONSUMER_KEY_EUMETSAT }}
+          EUMETSAT_CONSUMER_SECRET: ${{ secrets.CONSUMER_SECRET_EUMETSAT }}
         run: |
           python scripts/opera_fetch_convert.py --frames 6
           python scripts/chmi_radar.py
@@ -73,7 +76,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/data/meta.json public/data/opera public/data/chmi public/data/wind public/data/formation public/data/learning
+          git add public/data/meta.json public/data/opera public/data/chmi public/data/wind public/data/formation public/data/satellite public/data/learning
           if git diff --staged --quiet; then
             echo "No git backup changes."
           else
