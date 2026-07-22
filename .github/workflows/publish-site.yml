@@ -54,6 +54,9 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Fetch storm data
+        env:
+          EUMETSAT_CONSUMER_KEY: ${{ secrets.CONSUMER_KEY_EUMETSAT }}
+          EUMETSAT_CONSUMER_SECRET: ${{ secrets.CONSUMER_SECRET_EUMETSAT }}
         run: npm run data:update
 
       - name: Build site
