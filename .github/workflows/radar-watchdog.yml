@@ -76,6 +76,28 @@ jobs:
         with:
           script: |
             const age = '${{ steps.age.outputs.age_min }}';
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'live-radar.yml',
+              status: 'in_progress',
+              per_page: 1,
+            });
+            if (data.total_count > 0) {
+              core.info(`Meta stale (${age} min) but Live radar already running — skip dispatch`);
+              return;
+            }
+            const queued = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'live-radar.yml',
+              status: 'queued',
+              per_page: 1,
+            });
+            if (queued.data.total_count > 0) {
+              core.info(`Meta stale (${age} min) but Live radar already queued — skip dispatch`);
+              return;
+            }
             core.info(`Meta stale (${age} min) — dispatching Live radar`);
             await github.rest.actions.createWorkflowDispatch({
               owner: context.repo.owner,

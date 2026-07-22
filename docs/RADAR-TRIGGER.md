@@ -69,7 +69,7 @@ curl -H "Authorization: Bearer <TRIGGER_SECRET>" https://kraller-radar-trigger.<
 | **Cloudflare Worker** | spolehlivý trigger každých 5 min |
 | **Live radar** (GHA) | stáhne data, nahraje R2 |
 | **Radar watchdog** (GHA) | záloha — meta > 7 min → dispatch |
-| **GitHub schedule** (2× cron) | další záloha, když Worker vypadne |
+| **GitHub schedule** (*/10) | záloha, když Worker vypadne |
 | **Stránka** | poll každých 30 s + R2 CORS |
 
 ---
@@ -87,6 +87,7 @@ I při perfektním triggeru bývá Y **3–8 min** — to je limit zdroje, ne ch
 
 | Problém | Řešení |
 |---------|--------|
+| Actions „Canceling since a higher priority waiting request…“ | Více triggerů najednou + `cancel-in-progress` — běh se zruší před R2; opraveno v `live-radar.yml` |
 | Worker neběží | Cloudflare → Workers → Triggers; `wrangler tail` |
 | Dispatch 401/403 | Token musí mít **Actions: Read and write** |
 | meta pořád staré | Actions log Live radar — OPERA/CHMI fetch fail |
