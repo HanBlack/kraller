@@ -119,29 +119,23 @@ export function explainIntensifyWhy(
   const nowDew = nowEnv ? dewpointCOr(nowEnv) : null;
 
   if (headroom >= 3) {
-    reasons.push(
-      `prostředí unese silnější echo (~${Math.round(expectedDbz)} dBZ, teď ${Math.round(nowDbz)})`,
-    );
+    reasons.push("prostředí na trase unese silnější déšť než teď");
   }
   if (atEnv.capeJkg >= 200) {
-    reasons.push(`vyšší energie výstupu (CAPE ~${Math.round(atEnv.capeJkg)} J/kg)`);
+    reasons.push("víc energie ve vzduchu než stačí na růst");
   }
   if (atDew >= 13) {
     reasons.push(`vlhký vzduch (rosný bod ${atDew.toFixed(0)} °C)`);
   }
   if (atEnv.shear0to6Ms >= 10) {
-    reasons.push(
-      `střih větru ${atEnv.shear0to6Ms.toFixed(0)} m/s — pomáhá organizovat buňku`,
-    );
+    reasons.push("vítr se s výškou mění — pomáhá buňku organizovat");
   }
   const li = atEnv.liftedIndexC ?? 2;
   if (li <= 0) {
-    reasons.push(`nestabilní vrstva (LI ${li.toFixed(1)} °C)`);
+    reasons.push("vzduch je nestabilní — snadno stoupá");
   }
   if (nowEnv && atEnv.capeJkg >= nowEnv.capeJkg + 80) {
-    reasons.push(
-      `CAPE vyšší než v místě teď o ~${Math.round(atEnv.capeJkg - nowEnv.capeJkg)}`,
-    );
+    reasons.push("víc energie než v místě teď");
   }
   if (nowDew != null && atDew >= nowDew + 1.5) {
     reasons.push(
@@ -184,7 +178,7 @@ export function explainNoIntensify(
 
   if (feature.maxDbz >= 52) {
     reasons.push(
-      `buňka už je silná (~${Math.round(feature.maxDbz)} dBZ) — další výrazný růst prostředí neukazuje`,
+      "buňka už je silná — další výrazný růst prostředí neukazuje",
     );
   }
 
@@ -192,18 +186,16 @@ export function explainNoIntensify(
     const dCape = ahead.environment.capeJkg - here.environment.capeJkg;
     const dDew = dewpointCOr(ahead.environment) - dewpointCOr(here.environment);
     if (dCape <= -40) {
-      reasons.push(
-        `na trase CAPE klesá (teď ~${Math.round(here.environment.capeJkg)} → za ~${aheadEta} min ~${Math.round(ahead.environment.capeJkg)})`,
-      );
+      reasons.push("na trase energie ve vzduchu klesá");
     } else if (Math.abs(dCape) < 40 && Math.abs(dDew) < 1) {
-      reasons.push("podél stopy je prostředí podobné jako tady — bez skoku v energii / vlhkosti");
+      reasons.push("podél stopy je prostředí podobné jako tady — bez skoku");
     } else if (dDew <= -1) {
       reasons.push(
         `na trase sušší vzduch (rosný bod ${dewpointCOr(ahead.environment).toFixed(0)} °C)`,
       );
     } else if (dCape >= 40 || dDew >= 1) {
       reasons.push(
-        "mírné zlepšení na trase je, ale nestačí na výraznější zónu zesílení",
+        "mírné zlepšení na trase je, ale nestačí na výraznější zesílení",
       );
     }
   } else if (!points.length) {
@@ -215,13 +207,11 @@ export function explainNoIntensify(
     timelinePeak <= feature.maxDbz + 1 &&
     feature.maxDbz < 52
   ) {
-    reasons.push(
-      `odhadovaný strop na trase ~${Math.round(timelinePeak)} dBZ (teď ${Math.round(feature.maxDbz)})`,
-    );
+    reasons.push("odhadovaný strop na trase je blízko síly teď");
   }
 
   if (reasons.length === 0) {
-    reasons.push("podél stopy není výrazný nárůst CAPE / vlhkosti oproti místu teď");
+    reasons.push("podél stopy není výrazný nárůst energie / vlhkosti oproti místu teď");
   }
 
   let headline: string;
@@ -291,13 +281,9 @@ export function explainDemiseWhy(
     }
 
     if (recentDecay != null && recentDecay < -0.2) {
-      reasons.push(
-        `echo už slábne (~${Math.abs(recentDecay * 15).toFixed(0)} dBZ / 15 min)`,
-      );
+      reasons.push("echo už slábne — radar ukazuje pokles");
     } else if (decayPerMin != null && decayPerMin < -0.15) {
-      reasons.push(
-        `echo slábne v historii (~${Math.abs(decayPerMin * 15).toFixed(0)} dBZ / 15 min)`,
-      );
+      reasons.push("echo v historii slábne");
     }
 
     if (feature.growthDbz <= -2) {
@@ -305,15 +291,13 @@ export function explainDemiseWhy(
     }
 
     if (shear < 6) {
-      reasons.push(
-        `slabý střih (~${shear.toFixed(0)} m/s) — buňka se rychle rozpadá`,
-      );
+      reasons.push("vítr se s výškou skoro nemění — buňka se rychle rozpadá");
     } else if (shear < 10) {
-      reasons.push(`mírný střih (~${shear.toFixed(0)} m/s) — omezená životnost`);
+      reasons.push("mírná změna větru s výškou — omezená životnost");
     }
 
     if (dbz < 40) {
-      reasons.push(`slabé echo (~${dbz.toFixed(0)} dBZ) bez velké rezervy`);
+      reasons.push("slabé echo bez velké rezervy");
     }
   } else {
     reasons.push(
@@ -324,7 +308,7 @@ export function explainDemiseWhy(
   if (atEnv && !willIntensify) {
     const pot = atEnv.capeJkg;
     if (pot < 100) {
-      reasons.push(`slabá energie na trase (CAPE ~${Math.round(pot)} J/kg)`);
+      reasons.push("slabá energie na trase");
     }
     const atDew = dewpointCOr(atEnv);
     if (atDew < 11) {
@@ -332,7 +316,7 @@ export function explainDemiseWhy(
     }
     const li = atEnv.liftedIndexC ?? 0;
     if (li >= 2) {
-      reasons.push(`stabilnější vzduch (LI ${li.toFixed(1)} °C)`);
+      reasons.push("stabilnější vzduch — hůř stoupá");
     }
   }
 
@@ -355,9 +339,7 @@ export function explainDemiseWhy(
   }
 
   if (reasons.length === 0) {
-    reasons.push(
-      `typický útlum po ~${etaMin} min při síle ~${dbz.toFixed(0)} dBZ`,
-    );
+    reasons.push(`typický útlum po ~${etaMin} min při této síle`);
   }
 
   return {
@@ -542,10 +524,10 @@ function demiseBodyCopy(
     return `Nejdřív možné zesílení na trase. Typický útlum až za ${range} — ne teď.`;
   }
   if (demise.confidence === "observed") {
-    return `Echo už slábne. Odhad pod ~30 dBZ za ${range}.`;
+    return `Echo už slábne. Odhad slabšího deště za ${range}.`;
   }
   if (demise.confidence === "trending") {
-    return `Echo mírně klesá. Odhad zániku za ${range} (nejistota vyšší).`;
+    return `Echo mírně klesá. Odhad útlumu za ${range} (nejistota vyšší).`;
   }
   if (growingForecast) {
     return `Odhad vývoje může ještě posílit echo. Typický útlum až za ${range} — ne teď.`;
@@ -652,14 +634,14 @@ export function buildStormLifecycle(
         : "1 · Ve stopě (historie)",
       body: feature.trueBirth
         ? feature.phase === "birth"
-          ? `Právě teď u ${place} (~${feature.birthDbz.toFixed(0)} dBZ).`
-          : `U ${place} před ~${feature.ageMinutes} min (~${feature.birthDbz.toFixed(0)} dBZ → teď ${feature.maxDbz.toFixed(0)} dBZ).`
-        : `První detekce v našem okně u ${place} už měla ~${feature.birthDbz.toFixed(0)} dBZ — to není nutně místo vzniku echa (bouřka sem mohla přijet).`,
+          ? `Právě teď u ${place}.`
+          : `U ${place} před ~${feature.ageMinutes} min — od té doby nabrala sílu.`
+        : `První detekce u ${place} už byla silnější — to není nutně místo vzniku (bouřka sem mohla přijet).`,
       meta: feature.trueBirth
         ? feature.phase === "growing"
-          ? `růst +${feature.growthDbz.toFixed(0)} dBZ`
+          ? "nabírá sílu"
           : undefined
-        : "historie radaru, ne Vznik",
+        : "historie radaru, ne vznik",
       reasons: growthWhy?.reasons,
       active: feature.phase === "birth" || feature.phase === "growing",
     },
@@ -682,15 +664,15 @@ export function buildStormLifecycle(
       title: "3 · Trasa a síla",
       body: `Teď ${severityWhy.headline.replace(/\.$/, "")}. Směr ${dir} · ~${Math.round(feature.speedKmh)} km/h${
         feature.motionSource === "radar-track"
-          ? " (radarová stopa)"
-          : " (odhad z větru 850+500)"
+          ? " (podle stopy)"
+          : " (odhad z větru)"
       }.`,
       meta: `odhad: za ~${demise.etaMinLo}–${demise.etaMinHi} min ~${Math.round((feature.speedKmh * demise.etaMin) / 60)} km dál`,
       reasons: [
         ...(severityWhy.reasons ?? []),
         ...(feature.fctDisagree
           ? [
-              `ČHMÚ FCT +30 min se odchyluje od stopy (~${Math.round(feature.fctAngleDiffDeg ?? 0)}°) — širší koridor`,
+              "ČHMÚ předpověď směru se odchyluje od stopy — širší koridor",
             ]
           : []),
       ],
@@ -701,7 +683,7 @@ export function buildStormLifecycle(
   if (growthWhy && (feature.phase === "growing" || feature.phase === "birth")) {
     steps[0].body = growthWhy.headline;
     if (feature.phase === "growing") {
-      steps[0].meta = `+${feature.growthDbz.toFixed(0)} dBZ · teď ${feature.maxDbz.toFixed(0)} dBZ`;
+      steps[0].meta = "nabírá sílu";
     }
   }
 
@@ -712,7 +694,7 @@ export function buildStormLifecycle(
       body: intensifyWhy?.headline ?? formatIntensificationSummary(intens),
       meta:
         intens.peakExpectedDbz != null
-          ? `za ~${intens.enterEtaMin} min · peak ~${Math.round(intens.peakExpectedDbz)} dBZ`
+          ? `za ~${intens.enterEtaMin} min · může zesílit`
           : `za ~${intens.enterEtaMin} min`,
       reasons: intensifyWhy?.reasons,
       active: true,
@@ -750,7 +732,7 @@ export function buildStormLifecycle(
     ? feature.phase === "birth"
       ? `Nový zrod u ${place}. ${growthWhy?.headline ?? "Sledujeme růst, trasu a kde může zeslábnout."}`
       : feature.phase === "growing"
-        ? `Roste u ${place} (+${feature.growthDbz.toFixed(0)} dBZ). ${growthWhy?.headline ?? ""}`
+        ? `Roste u ${place}. ${growthWhy?.headline ?? ""}`
         : `Buňka u ${place} jde na ${dir}. Od zrodu ~${feature.ageMinutes} min · ${severityWhy.headline}`
     : `Buňka u ${place} jde na ${dir} · ~${Math.round(feature.speedKmh)} km/h. První detekce v historii ≠ zrod.`;
 

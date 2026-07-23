@@ -74,6 +74,7 @@ describe("buildStormStrengthFacts", () => {
   it("skládá sat blesky a výšku", () => {
     const f = buildStormStrengthFacts({
       maxDbz: 55,
+      severity: "strong",
       echoTopKm: 12,
       ageMinutes: 40,
       satAtPeak: {
@@ -105,6 +106,7 @@ describe("buildStormStrengthFacts", () => {
     expect(f.lightningFlashes15min).toBe(18);
     expect(f.lightningActivity?.level).toBe("frequent");
     expect(f.lightningActivity?.ratePerMin).toBe(1);
+    expect(f.rainMmH).not.toBeNull();
     expect(f.dbzTrend?.deltaDbz).toBeGreaterThan(0);
     expect(f.dualpolLabel).toBe("strong_updraft");
   });

@@ -1,3 +1,5 @@
+import type { Severity } from "../lib/severity";
+import { estimateRainMmH } from "../storm/hitAtUser";
 import type { CellHistoryPoint } from "../storm/radarCells";
 import type { SatelliteSample } from "../storm/satelliteCooling";
 import {
@@ -98,10 +100,14 @@ export type StormStrengthFacts = {
   dualpolLabel: TrackedCell["dualpolLabel"] | null;
   dualpolHailLikely: boolean;
   maxDbz: number | null;
+  severity: Severity | null;
+  /** Odhad mm/h z jádra — stejná tabulka jako na mapě. */
+  rainMmH: [number, number] | null;
 };
 
 export function buildStormStrengthFacts(input: {
   maxDbz?: number | null;
+  severity?: Severity | null;
   echoTopKm?: number | null;
   ageMinutes?: number | null;
   growthDbz?: number | null;
@@ -129,6 +135,12 @@ export function buildStormStrengthFacts(input: {
     Number.isFinite(sat.cloudTopTempC)
       ? Math.round(sat.cloudTopTempC)
       : null;
+  const maxDbz =
+    input.maxDbz != null && Number.isFinite(input.maxDbz)
+      ? Math.round(input.maxDbz)
+      : null;
+  const rainMmH =
+    maxDbz != null ? (estimateRainMmH(maxDbz) as [number, number] | null) : null;
 
   return {
     cloudHeight: resolveCloudHeight({
@@ -149,10 +161,9 @@ export function buildStormStrengthFacts(input: {
         : null,
     dualpolLabel: input.dualpolLabel ?? null,
     dualpolHailLikely: Boolean(input.dualpolHailLikely),
-    maxDbz:
-      input.maxDbz != null && Number.isFinite(input.maxDbz)
-        ? Math.round(input.maxDbz)
-        : null,
+    maxDbz,
+    severity: input.severity ?? null,
+    rainMmH,
   };
 }
 

@@ -1,10 +1,17 @@
 import type { CellHistoryPoint } from "../storm/radarCells";
+import type { DemiseConfidence } from "../storm/lifecycle";
 import { useI18n } from "../i18n";
 
 type Props = {
   history: CellHistoryPoint[];
   currentDbz: number;
   ageMinutes: number;
+  /** ETA zesílení (min od teď) — projected tick. */
+  intensifyEtaMin?: number | null;
+  /** ETA útlumu (min od teď). */
+  demiseEtaMin?: number | null;
+  demiseConfidence?: DemiseConfidence | null;
+  willIntensify?: boolean;
 };
 
 function bandClass(dbz: number): string {
@@ -26,9 +33,17 @@ function sizeClass(dbz: number, index: number, total: number): string {
 }
 
 /**
- * Vizualní životopis buňky: prázdno → zrod → růst → teď
+ * Vizualní životopis buňky: prázdno → zrod → růst → teď → (zesílení?) → útlum
  */
-export function BirthTimeline({ history, currentDbz, ageMinutes }: Props) {
+export function BirthTimeline({
+  history,
+  currentDbz,
+  ageMinutes,
+  intensifyEtaMin = null,
+  demiseEtaMin = null,
+  demiseConfidence = null,
+  willIntensify = false,
+}: Props) {
   const { t } = useI18n();
   const points =
     history.length > 0
@@ -42,11 +57,33 @@ export function BirthTimeline({ history, currentDbz, ageMinutes }: Props) {
           },
         ];
 
-  const steps = points.length > 6 ? points.filter((_, i, a) => {
-    if (i === 0 || i === a.length - 1) return true;
-    const step = Math.ceil((a.length - 2) / 4);
-    return i % step === 0;
-  }).slice(0, 6) : points;
+  const steps =
+    points.length > 6
+      ? points
+          .filter((_, i, a) => {
+            if (i === 0 || i === a.length - 1) return true;
+            const step = Math.ceil((a.length - 2) / 4);
+            return i % step === 0;
+          })
+          .slice(0, 6)
+      : points;
+
+  const showIntensify =
+    willIntensify &&
+    intensifyEtaMin != null &&
+    Number.isFinite(intensifyEtaMin) &&
+    intensifyEtaMin > 0;
+  const showDemise =
+    demiseEtaMin != null &&
+    Number.isFinite(demiseEtaMin) &&
+    demiseEtaMin > 0;
+
+  const demiseLabel =
+    demiseConfidence === "observed"
+      ? t("storm.timelineDemiseObserved")
+      : demiseConfidence === "trending"
+        ? t("storm.timelineDemiseTrend")
+        : t("storm.timelineDemiseEstimate");
 
   return (
     <div className="birth-timeline" aria-label={t("storm.timelineTitle")}>
@@ -67,7 +104,6 @@ export function BirthTimeline({ history, currentDbz, ageMinutes }: Props) {
               <span
                 className={`birth-blob ${bandClass(p.maxDbz)} ${sizeClass(p.maxDbz, i, steps.length)}`}
               />
-              <span className="birth-step-dbz">{Math.round(p.maxDbz)}</span>
               <span className="birth-step-label">
                 {isBirth
                   ? t("storm.birth")
@@ -80,16 +116,34 @@ export function BirthTimeline({ history, currentDbz, ageMinutes }: Props) {
             </li>
           );
         })}
+        {showIntensify ? (
+          <li className="birth-step projected intensify">
+            <span className="birth-blob projected strong md" />
+            <span className="birth-step-label">
+              {t("storm.timelineIntensify", { min: Math.round(intensifyEtaMin!) })}
+            </span>
+          </li>
+        ) : null}
+        {showDemise ? (
+          <li className="birth-step projected demise">
+            <span className="birth-blob projected light sm" />
+            <span className="birth-step-label">
+              {t("storm.timelineDemise", {
+                min: Math.round(demiseEtaMin!),
+                kind: demiseLabel,
+              })}
+            </span>
+          </li>
+        ) : null}
       </ol>
       <p className="birth-timeline-note">
         {ageMinutes <= 10
           ? t("storm.timelineNew")
-          : t("storm.timelineGrowth", {
-              age: ageMinutes,
-              from: Math.round(points[0]?.maxDbz ?? currentDbz),
-              to: Math.round(currentDbz),
-            })}
+          : t("storm.timelineGrowth", { age: ageMinutes })}
       </p>
+      {showDemise ? (
+        <p className="birth-timeline-legend">{t("storm.demiseLegend")}</p>
+      ) : null}
     </div>
   );
 }

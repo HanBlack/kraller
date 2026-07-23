@@ -136,7 +136,7 @@ describe("satelliteCooling", () => {
 
   it("explainSatelliteStatus — stabilní", () => {
     const line = explainSatelliteStatus(grid, 50.0, 16.0);
-    expect(line.detail).toMatch(/stabilní/i);
+    expect(line.detail).toMatch(/bez výrazného růstu/i);
   });
 
   it("explainSatelliteStatus — empty → model fallback", () => {
@@ -153,6 +153,6 @@ describe("satelliteCooling", () => {
 
   it("explainSatelliteStatus — bez mraku mimo vzorek", () => {
     const line = explainSatelliteStatus(grid, 46.6, 7.1);
-    expect(line.detail).toMatch(/bez detekovaného vrcholu/i);
+    expect(line.detail).toMatch(/nevidíme vrchol/i);
   });
 });
