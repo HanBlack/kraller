@@ -1806,48 +1806,6 @@
       "dbzDelta5": null,
       "dbzDelta15": null
     },
-    "t:20260723180000:49.57:17.31": {
-      "lat": 49.622181941874686,
-      "lon": 17.712625512330863,
-      "maxDbz": 42.5,
-      "lastTs": "20260723182500",
-      "cellId": "cell-161",
-      "firstTs": "20260723180500",
-      "preds": {
-        "15": {
-          "predLat": 49.5595,
-          "predLon": 17.7777,
-          "fromTs": "20260723182500",
-          "fromLat": 49.6222,
-          "fromLon": 17.7126,
-          "heading": 146.0,
-          "speed": 33.6,
-          "motionSource": "radar-track",
-          "windAlignDeg": 8.9
-        },
-        "30": {
-          "predLat": 49.4967,
-          "predLon": 17.8426,
-          "fromTs": "20260723182500",
-          "fromLat": 49.6222,
-          "fromLon": 17.7126,
-          "heading": 146.0,
-          "speed": 33.6,
-          "motionSource": "radar-track",
-          "windAlignDeg": 8.9
-        }
-      },
-      "dbzSlopePer15": -10.5,
-      "areaPx": 16,
-      "growthDbz": -2.0,
-      "surfaceDbz": 35.5,
-      "fctAgree": true,
-      "fctAngleDiffDeg": 12.3,
-      "hailCmProxy": null,
-      "purpleCandidate": false,
-      "dbzDelta5": 0.0,
-      "dbzDelta15": -13.0
-    },
     "t:20260723182500:50.97:13.55": {
       "lat": 50.972470644480836,
       "lon": 13.551365837124738,
@@ -2184,48 +2142,6 @@
       "dbzDelta5": null,
       "dbzDelta15": null
     },
-    "t:20260723180500:49.62:17.46": {
-      "lat": 49.622181941874686,
-      "lon": 17.712625512330863,
-      "maxDbz": 39.5,
-      "lastTs": "20260723182500",
-      "cellId": "cell-155",
-      "firstTs": "20260723182500",
-      "preds": {
-        "15": {
-          "predLat": 49.5655,
-          "predLon": 17.7715,
-          "fromTs": "20260723182500",
-          "fromLat": 49.6222,
-          "fromLon": 17.7126,
-          "heading": 146.0,
-          "speed": 30.4,
-          "motionSource": "wind-fallback",
-          "windAlignDeg": 40.5
-        },
-        "30": {
-          "predLat": 49.5087,
-          "predLon": 17.8302,
-          "fromTs": "20260723182500",
-          "fromLat": 49.6222,
-          "fromLon": 17.7126,
-          "heading": 146.0,
-          "speed": 30.4,
-          "motionSource": "wind-fallback",
-          "windAlignDeg": 40.5
-        }
-      },
-      "dbzSlopePer15": -9.38,
-      "areaPx": 11,
-      "growthDbz": -12.5,
-      "surfaceDbz": 35.5,
-      "fctAgree": false,
-      "fctAngleDiffDeg": 37.1,
-      "hailCmProxy": null,
-      "purpleCandidate": false,
-      "dbzDelta5": 0.0,
-      "dbzDelta15": -14.5
-    },
     "t:20260723182500:50.75:13.99": {
       "lat": 50.748454537879205,
       "lon": 13.989393171356962,
@@ -2351,48 +2267,6 @@
       "purpleCandidate": false,
       "dbzDelta5": null,
       "dbzDelta15": null
-    },
-    "t:20260723175500:49.73:17.66": {
-      "lat": 49.622181941874686,
-      "lon": 17.712625512330863,
-      "maxDbz": 37.0,
-      "lastTs": "20260723182500",
-      "cellId": "cell-135",
-      "firstTs": "20260723182500",
-      "preds": {
-        "15": {
-          "predLat": 49.5422,
-          "predLon": 17.7956,
-          "fromTs": "20260723182500",
-          "fromLat": 49.6222,
-          "fromLon": 17.7126,
-          "heading": 146.0,
-          "speed": 42.9,
-          "motionSource": "radar-track",
-          "windAlignDeg": 8.2
-        },
-        "30": {
-          "predLat": 49.4622,
-          "predLon": 17.8783,
-          "fromTs": "20260723182500",
-          "fromLat": 49.6222,
-          "fromLon": 17.7126,
-          "heading": 146.0,
-          "speed": 42.9,
-          "motionSource": "radar-track",
-          "windAlignDeg": 8.2
-        }
-      },
-      "dbzSlopePer15": -6.0,
-      "areaPx": 8,
-      "growthDbz": -8.0,
-      "surfaceDbz": 35.5,
-      "fctAgree": true,
-      "fctAngleDiffDeg": 4.8,
-      "hailCmProxy": null,
-      "purpleCandidate": false,
-      "dbzDelta5": 0.0,
-      "dbzDelta15": -3.0
     }
   },
   "formationPending": {
@@ -6133,6 +6007,48 @@
       "coolingSource": "model",
       "freezingLevelM": 2330.0,
       "cinJkg": 42.0
+    },
+    "z:46.50:11.59": {
+      "lat": 46.5,
+      "lon": 11.5926,
+      "score": 43.8,
+      "fromTs": "20260723182500",
+      "cape": 0.0,
+      "shear": 14.6,
+      "dew": -0.1,
+      "li": null,
+      "cooling": 0.0,
+      "coolingSource": "model",
+      "freezingLevelM": 3310.0,
+      "cinJkg": 0.0
+    },
+    "z:46.50:21.35": {
+      "lat": 46.5,
+      "lon": 21.3519,
+      "score": 28.700000000000003,
+      "fromTs": "20260723182500",
+      "cape": 190.0,
+      "shear": 6.4,
+      "dew": 10.4,
+      "li": null,
+      "cooling": 4.0,
+      "coolingSource": "satellite",
+      "freezingLevelM": 2760.0,
+      "cinJkg": 73.0
+    },
+    "z:47.91:16.76": {
+      "lat": 47.9118,
+      "lon": 16.7593,
+      "score": 28.0,
+      "fromTs": "20260723182500",
+      "cape": 20.0,
+      "shear": 9.0,
+      "dew": 8.4,
+      "li": null,
+      "cooling": -3.33,
+      "coolingSource": "satellite",
+      "freezingLevelM": 2650.0,
+      "cinJkg": 103.0
     }
   },
   "intensityPending": {
@@ -17799,5 +17715,5 @@
     "EVOLVE_FOOTPRINT_PER_DBZ": 0.01
   },
   "schemaVersion": 2,
-  "updatedAt": "2026-07-23T18:34:11Z"
+  "updatedAt": "2026-07-23T18:39:46Z"
 }
