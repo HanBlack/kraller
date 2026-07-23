@@ -336,8 +336,18 @@ function echoTopKmEstimate(dbz: number): number {
   return Math.min(15, 7.5 + (dbz - 35) * 0.2);
 }
 
-function effectivePeakDbz(cell: Pick<TrackedCell, "peakDbz" | "chmiDbz" | "maxDbz">): number {
-  return cell.peakDbz ?? cell.chmiDbz ?? cell.maxDbz;
+export function effectivePeakDbz(
+  cell: Pick<TrackedCell, "peakDbz" | "chmiDbz" | "maxDbz">,
+): number {
+  // Nikdy nenechat nižší ČHMÚ sample přepsat silnější OPERA max (Windy vs naše label).
+  const vals = [cell.maxDbz];
+  if (typeof cell.peakDbz === "number" && Number.isFinite(cell.peakDbz)) {
+    vals.push(cell.peakDbz);
+  }
+  if (typeof cell.chmiDbz === "number" && Number.isFinite(cell.chmiDbz)) {
+    vals.push(cell.chmiDbz);
+  }
+  return Math.max(...vals);
 }
 
 function effectiveEchoTopKm(cell: Pick<TrackedCell, "echoTopKm" | "peakDbz" | "chmiDbz" | "maxDbz">): number {

@@ -4,12 +4,27 @@ import { describe, expect, it } from "vitest";
 import type { FeatureCollection, Point } from "geojson";
 import {
   buildRadarProgressFeatures,
+  effectivePeakDbz,
   meanForecastDelta,
   parseTrackedCells,
   peakAtForecastMinutes,
   radarPointsGeoJSONAt,
   type RadarProgressFeature,
 } from "./radarCells";
+
+describe("effectivePeakDbz", () => {
+  it("nesníží OPERA max nižším ČHMÚ samplem", () => {
+    expect(
+      effectivePeakDbz({ maxDbz: 54, peakDbz: 35, chmiDbz: 35 }),
+    ).toBe(54);
+  });
+
+  it("vezme vyšší ČHMÚ když je silnější než OPERA", () => {
+    expect(
+      effectivePeakDbz({ maxDbz: 48, peakDbz: 56, chmiDbz: 56 }),
+    ).toBe(56);
+  });
+});
 
 function feat(
   overrides: Partial<RadarProgressFeature> = {},

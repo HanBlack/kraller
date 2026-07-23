@@ -325,8 +325,11 @@ def apply_enrichment(
 
     if chmi_dbz is not None and chmi_dbz >= 20:
         props["chmiDbz"] = round(chmi_dbz, 1)
-        props["peakDbz"] = round(chmi_dbz, 1)
-        props["dbzSource"] = "CHMI"
+        opera = float(props.get("maxDbz") or 0)
+        # Nikdy nesnižovat OPERA max — ČHMÚ sample může minout jádro / být starší.
+        peak = max(chmi_dbz, opera) if opera > 0 else chmi_dbz
+        props["peakDbz"] = round(peak, 1)
+        props["dbzSource"] = "CHMI" if chmi_dbz >= opera else "OPERA-ORD"
         touched = True
 
     if echo_m is not None and echo_m >= 500:
