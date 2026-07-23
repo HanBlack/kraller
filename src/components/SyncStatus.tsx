@@ -3,9 +3,11 @@ import { useI18n } from "../i18n";
 import type { DataSourceStatus } from "../lib/loadStormData";
 import { useStormDataContext } from "../providers/StormDataProvider";
 
-/** Prahy pro UI — formation cíl ~15 min, wind ~10 min. */
+/** Prahy pro UI — formation ~6–15 min, wind ~6–10, sat ~20–25. */
 const ENV_WARN_MIN = 18;
 const ENV_STALE_MIN = 28;
+const SAT_WARN_MIN = 30;
+const SAT_STALE_MIN = 50;
 
 function ageMinutes(iso: string, nowMs: number): number {
   return Math.max(0, Math.round((nowMs - new Date(iso).getTime()) / 60_000));
@@ -48,7 +50,14 @@ function sourceAge(
 /** Kompaktní čas poslední synchronizace dat — viditelný i při sbaleném panelu. */
 export function SyncStatus() {
   const { t, dateLocale } = useI18n();
-  const { lastUpdated, operaTime, chmiTime, dataSources, loading } = useStormDataContext();
+  const {
+    lastUpdated,
+    operaTime,
+    chmiTime,
+    dataSources,
+    loading,
+    satelliteCooling,
+  } = useStormDataContext();
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -59,11 +68,17 @@ export function SyncStatus() {
   if (!lastUpdated && !loading) return null;
 
   const age = lastUpdated ? ageMinutes(lastUpdated, now) : null;
-  // Stejná priorita jako mapa: OPERA PNG je hlavní produkt
   const radarIso = operaTime ?? chmiTime;
   const radarAge = radarIso ? ageMinutes(radarIso, now) : null;
   const windAge = sourceAge(dataSources, "wind", now);
   const formAge = sourceAge(dataSources, "formation", now);
+  const satIso = satelliteCooling?.validAt ?? null;
+  const satAge = satIso ? ageMinutes(satIso, now) : null;
+  const satOk = satelliteCooling?.status === "ok";
+  const satSource =
+    satOk && (satelliteCooling?.points?.length ?? 0) > 0
+      ? "satellite"
+      : "model";
 
   const stale = age != null && age >= 10;
   const warn = !stale && age != null && age >= 6;
@@ -71,11 +86,13 @@ export function SyncStatus() {
   const radarWarn = !radarStale && radarAge != null && radarAge >= 6;
   const envStale =
     (windAge != null && windAge >= ENV_STALE_MIN) ||
-    (formAge != null && formAge >= ENV_STALE_MIN);
+    (formAge != null && formAge >= ENV_STALE_MIN) ||
+    (satAge != null && satAge >= SAT_STALE_MIN);
   const envWarn =
     !envStale &&
     ((windAge != null && windAge >= ENV_WARN_MIN) ||
-      (formAge != null && formAge >= ENV_WARN_MIN));
+      (formAge != null && formAge >= ENV_WARN_MIN) ||
+      (satAge != null && satAge >= SAT_WARN_MIN));
 
   const when =
     loading && !lastUpdated
@@ -95,6 +112,13 @@ export function SyncStatus() {
   ];
   if (windAge != null) titleParts.push(t("sync.windAgeTitle", { min: windAge }));
   if (formAge != null) titleParts.push(t("sync.formAgeTitle", { min: formAge }));
+  if (satAge != null) {
+    titleParts.push(
+      satSource === "satellite"
+        ? t("sync.satAgeTitle", { min: satAge })
+        : t("sync.satModelTitle"),
+    );
+  }
 
   return (
     <div
@@ -110,9 +134,7 @@ export function SyncStatus() {
       title={titleParts.join(" · ")}
     >
       <span className="sync-status-main">
-        {loading ? (
-          <span className="sync-status-dot" aria-hidden />
-        ) : null}
+        {loading ? <span className="sync-status-dot" aria-hidden /> : null}
         {t("sync.updated", { when })}
       </span>
       {radarIso && (
@@ -125,13 +147,18 @@ export function SyncStatus() {
             : ""}
         </span>
       )}
-      {(windAge != null || formAge != null) && (
+      {(windAge != null || formAge != null || satAge != null) && (
         <span
           className={`sync-status-env${envStale ? " is-stale" : envWarn ? " is-warn" : ""}`}
         >
           {formAge != null && t("sync.formationAge", { min: formAge })}
-          {formAge != null && windAge != null ? " · " : ""}
+          {formAge != null && (windAge != null || satAge != null) ? " · " : ""}
           {windAge != null && t("sync.windAge", { min: windAge })}
+          {(formAge != null || windAge != null) && satAge != null ? " · " : ""}
+          {satAge != null &&
+            (satSource === "satellite"
+              ? t("sync.satAge", { min: satAge })
+              : t("sync.satModel"))}
         </span>
       )}
       {(stale || envStale) && (

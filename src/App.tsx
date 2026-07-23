@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useI18n } from "./i18n";
 import { AddressPanel } from "./components/AddressPanel";
 import { CollapsibleSection } from "./components/CollapsibleSection";
@@ -67,7 +67,8 @@ export default function App() {
   const [formationPoints, setFormationPoints] = useState<ScoredFormationPoint[]>(
     [],
   );
-  const [controlsOpen, setControlsOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const detailRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!booting) return;
@@ -80,8 +81,14 @@ export default function App() {
     return () => window.clearTimeout(id);
   }, [booting, mapReady]);
 
+  // Klik na bouřku / vznik → otevři sidebar a scroll na detail
   useEffect(() => {
-    if (selected) setControlsOpen(true);
+    if (!selected) return;
+    setSidebarOpen(true);
+    const id = window.setTimeout(() => {
+      detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+    return () => window.clearTimeout(id);
   }, [selected]);
 
   const selectThreat = (item: ThreatBannerItem) => {
@@ -95,7 +102,11 @@ export default function App() {
   const ready = !booting && mapReady;
 
   return (
-    <div className={`app${ready ? "" : " app-booting"}`}>
+    <div
+      className={`app${ready ? "" : " app-booting"}${
+        sidebarOpen ? " sidebar-open" : ""
+      }${selected ? " has-detail" : ""}`}
+    >
       {!ready && (
         <div className="boot-screen" role="status" aria-live="polite">
           <p className="boot-screen-title">Kraller</p>
@@ -124,23 +135,8 @@ export default function App() {
         />
       )}
       {ready && (
-        <MapLegend
-          showFormation={showFormation}
-          showProgress={showProgress}
-          showRadar={showRadar}
-          windMode={windMode}
-          hasLocation={!!location}
-          windReal={windReal}
-          formationReal={formationReal}
-          formationCount={formationStats.count}
-        />
-      )}
-      {ready && (
-        <SyncStatus />
-      )}
-      {ready && (
         <aside
-          className={`sidebar${controlsOpen ? " is-open" : " is-collapsed"}${
+          className={`sidebar${sidebarOpen ? " is-open" : " is-collapsed"}${
             selected ? " has-detail" : ""
           }`}
         >
@@ -148,21 +144,24 @@ export default function App() {
             <button
               type="button"
               className="sidebar-chrome-toggle"
-              aria-expanded={controlsOpen}
+              aria-expanded={sidebarOpen}
               aria-controls="sidebar-body"
-              onClick={() => setControlsOpen((v) => !v)}
+              onClick={() => setSidebarOpen((v) => !v)}
             >
               <span className="brand-mark" aria-hidden />
               <span className="sidebar-chrome-title">
                 {location?.placeName ?? "Kraller"}
               </span>
               {threats.length > 0 && (
-                <span className="sidebar-chrome-badge" aria-label={t("app.warnings")}>
+                <span
+                  className="sidebar-chrome-badge"
+                  aria-label={t("app.warnings")}
+                >
                   {threats.length}
                 </span>
               )}
               <span className="sidebar-chrome-chevron" aria-hidden>
-                {controlsOpen ? "▾" : "▴"}
+                {sidebarOpen ? "◂" : "▸"}
               </span>
             </button>
             <LanguageToggle compact />
@@ -173,10 +172,11 @@ export default function App() {
               location={location}
               onLocated={setLocation}
             />
+            <SyncStatus />
             {location && (
               <CollapsibleSection
                 title={t("sections.watch")}
-                forceOpen={threats.length > 0}
+                forceOpen={threats.length > 0 && !selected}
                 badge={threats.length > 0 ? threats.length : null}
               >
                 <LocationWatch
@@ -208,20 +208,33 @@ export default function App() {
                   const clamped = Math.min(0, Math.max(HISTORY_MIN_OFFSET, v));
                   applyTimeOffsetRaster(clamped);
                   setTimeOffsetMinutes(clamped);
-                  // Historie ≠ live detail — zavři výběr buňky
                   if (clamped < 0) setSelected(null);
                 }}
               />
             </CollapsibleSection>
             {selected && (
-              <StormDetail
-                selected={selected}
-                location={location}
-                forecastMinutes={Math.max(0, timeOffsetMinutes)}
-                formationPoints={formationPoints}
-                onClose={() => setSelected(null)}
-              />
+              <div className="sidebar-detail" ref={detailRef}>
+                <StormDetail
+                  selected={selected}
+                  location={location}
+                  forecastMinutes={Math.max(0, timeOffsetMinutes)}
+                  formationPoints={formationPoints}
+                  onClose={() => setSelected(null)}
+                />
+              </div>
             )}
+            <CollapsibleSection title={t("sections.legend")}>
+              <MapLegend
+                showFormation={showFormation}
+                showProgress={showProgress}
+                showRadar={showRadar}
+                windMode={windMode}
+                hasLocation={!!location}
+                windReal={windReal}
+                formationReal={formationReal}
+                formationCount={formationStats.count}
+              />
+            </CollapsibleSection>
           </div>
         </aside>
       )}

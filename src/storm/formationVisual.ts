@@ -136,20 +136,29 @@ export function formationArrowsGeoJSON(
 export function formationCentersGeoJSON(
   features: FormationFeature[],
 ): FeatureCollection {
+  const growThr = 2; // matches stormConfig.formation.cloudTopCoolingCPer15min.growing
   return {
     type: "FeatureCollection",
-    features: features.map((f) => ({
-      type: "Feature",
-      properties: {
-        id: f.zone.id,
-        severity: f.assessment.severity,
-        rank: severityRank(f.assessment.severity),
-        score: f.assessment.score,
-      },
-      geometry: {
-        type: "Point",
-        coordinates: [f.zone.lon, f.zone.lat],
-      },
-    })),
+    features: features.map((f) => {
+      const env = f.zone.environment;
+      const cooling = env?.cloudTopCoolingCPer15min ?? 0;
+      const rate = -cooling;
+      const satGrowing =
+        env?.coolingSource === "satellite" && rate >= growThr ? 1 : 0;
+      return {
+        type: "Feature",
+        properties: {
+          id: f.zone.id,
+          severity: f.assessment.severity,
+          rank: severityRank(f.assessment.severity),
+          score: f.assessment.score,
+          satCooling: satGrowing,
+        },
+        geometry: {
+          type: "Point",
+          coordinates: [f.zone.lon, f.zone.lat],
+        },
+      };
+    }),
   };
 }

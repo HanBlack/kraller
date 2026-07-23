@@ -163,8 +163,8 @@ export function scoreActiveStorm(
   );
   if (cell.echoTopSource === "CHMI") {
     reasons.push(`výška echa ${cell.echoTopKm.toFixed(1)} km (ČHMÚ)`);
-  } else {
-    reasons.push(`odhad výšky echa ~${cell.echoTopKm.toFixed(1)} km`);
+  } else if (cell.echoTopKm >= cfg.echoTopKm.moderate) {
+    reasons.push(`vrchol echa ~${cell.echoTopKm.toFixed(1)} km`);
   }
   if (cell.surfaceDbz != null && cell.surfaceDbz > 0) {
     reasons.push(`u země ~${cell.surfaceDbz.toFixed(0)} dBZ (PseudoCAPPI)`);

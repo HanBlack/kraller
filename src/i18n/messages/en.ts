@@ -11,6 +11,7 @@ export const en = {
     bootMap: "Preparing map…",
     bootTiles: "Rendering map…",
     warnings: "Warnings",
+    detailSheet: "Storm or formation detail",
   },
   sync: {
     updating: "Loading data…",
@@ -23,10 +24,14 @@ export const en = {
     radarAge: " ({min} min)",
     formationAge: "Formation {min} min",
     windAge: "Wind {min} min",
+    satAge: "Sat {min} min",
+    satModel: "Sat · model",
     windAgeTitle: "Wind {min} min ago",
     formAgeTitle: "Formation {min} min ago",
+    satAgeTitle: "Satellite cooling {min} min ago",
+    satModelTitle: "Satellite: using model (not live CTT)",
     stale: "Waiting for fresh server data (~5 min)",
-    envStale: "Formation/wind getting stale — intensification may be off",
+    envStale: "Formation/wind/sat getting stale — intensification may be off",
     titleDetail: "Last sync {time}",
   },
   lang: {
@@ -54,6 +59,7 @@ export const en = {
   sections: {
     watch: "Watch",
     layers: "Layers & time",
+    legend: "Legend",
   },
   watch: {
     title: "Watch · {place}",
@@ -121,7 +127,8 @@ export const en = {
     formHeat: "weaker setup (heat)",
     formZone: "possible formation zone",
     formLink: "link to radar echo",
-    formAreas: "{count} areas · model only, not radar",
+    formSatCooling: "blue core · satellite cloud-top cooling (pre-echo)",
+    formAreas: "{count} areas · environment + satellite, not radar echo",
     formNoRisk: "No significant formation risk now",
     formNotLoaded: "Formation model not loaded",
   },
@@ -222,11 +229,23 @@ export const en = {
     detailWhere: "Where:",
     detailToYou: "To you:",
     detailEnv: "Environment:",
+    signalLabel: "Before echo",
+    signalSatLabel: "Satellite · minutes ahead",
+    signalModelLabel: "Model (not satellite)",
+    signalNone: "No cloud-top cooling signal.",
+    signalSatCooling:
+      "Cloud top cooling (−{rate} °C / 15 min) — initiation may be closer than radar shows.",
+    signalSatWarming:
+      "Cloud top warming (+{rate} °C / 15 min) — more fade than new birth.",
+    signalSatSteady: "Satellite sees a top, but no strong cooling.",
+    signalModelCooling:
+      "Model hints at instability (proxy) — live sat cooling not confirming yet.",
+    signalModelQuiet: "No strong cooling signal — watch the radar.",
     initWindow: "formation estimate in {when}",
     afterBirthDir: "after birth toward {dir}",
     arrivalEta: "arrival estimate in roughly {eta} min",
     note:
-      "Model forecast — where echo may form. Once on radar, Track takes over.",
+      "Formation = environment + satellite before echo. Once on radar, Track takes over.",
     panelTitle: "Formation · {place}",
   },
   storm: {
@@ -266,6 +285,9 @@ export const en = {
     windCellMotion: "Core motion · {speed} km/h",
     windShearAtCell: "0–6 km shear · {shear} m/s",
     windMapLine: "wind ~{ambient} · core ~{cell} km/h",
+    cloudTopTitle: "Cloud top",
+    cloudTopSourceSat: "satellite",
+    cloudTopSourceRadar: "radar",
   },
   region: {
     vienna: "Vienna area",

@@ -166,6 +166,9 @@ export type RadarProgressFeature = {
   windAtCell?: StormWindAtCell;
   /** Satelitní cloud-top trend u jádra (MTG). */
   satAtPeak?: SatelliteSample | null;
+  /** Výška echa (km) — ČHMÚ volume nebo proxy z dBZ. */
+  echoTopKm?: number;
+  echoTopSource?: "CHMI";
 };
 
 /** Peak buňky v čase forecastMinutes (pro klik i vizuál). */
@@ -805,6 +808,8 @@ export function buildRadarProgressFeatures(
       dualpolHailLikely: cell.dualpolHailLikely,
       windAtCell: windAt,
       satAtPeak,
+      echoTopKm,
+      echoTopSource: cell.echoTopSource,
     };
   });
 }
