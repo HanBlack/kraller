@@ -139,6 +139,18 @@ describe("satelliteCooling", () => {
     expect(line.detail).toMatch(/stabilní/i);
   });
 
+  it("explainSatelliteStatus — empty → model fallback", () => {
+    const empty: SatelliteCoolingGrid = {
+      ...grid,
+      status: "empty",
+      points: [],
+      message: "0 cloudy",
+    };
+    const line = explainSatelliteStatus(empty, 49.0, 14.0);
+    expect(line.detail).toMatch(/používáme model/i);
+    expect(line.detail).not.toMatch(/příští kolo|geometrie/i);
+  });
+
   it("explainSatelliteStatus — bez mraku mimo vzorek", () => {
     const line = explainSatelliteStatus(grid, 46.6, 7.1);
     expect(line.detail).toMatch(/bez detekovaného vrcholu/i);

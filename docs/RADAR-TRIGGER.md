@@ -5,7 +5,7 @@ Cíl **5–7 min** od snímku vyžaduje **Cloudflare Cron Worker**, který každ
 
 ```
 Cloudflare Cron (*/5) → GitHub workflow_dispatch → OPERA+ČHMÚ → R2 (rychle)
-                                              ↘ sat cooling (best-effort, ~25 min) → R2 znovu
+Live sat (*/20)       → CTTH+LI cooling → R2 (jen satellite/formation/meta; keep-last-good)
 ```
 
 Záloha: workflow **Radar watchdog** (každé 3 min) — když `meta.updatedAt` na R2 > 7 min, spustí Live radar znovu.
@@ -89,7 +89,8 @@ I při perfektním triggeru bývá Y **3–8 min** — to je limit zdroje, ne ch
 | Problém | Řešení |
 |---------|--------|
 | Git backup `push rejected (fetch first)` | R2 je už nahrané — git backup je `continue-on-error` + `pull --rebase` před push |
-| Actions „Canceling…“ / data >10 min stará | Sat blokoval R2 — teď radar→R2 první, sat až potom (~25 min cadence) |
+| Actions „Canceling…“ / data >10 min stará | Sat je oddělený (`live-sat.yml`); radar job nesmí cancelovat uprostřed uploadu |
+
 | Data „pozdě“ / fronta běhů | Debounce: skip když R2 meta < 4 min; Worker + workflow gate |
 | Worker neběží | Cloudflare → Workers → Triggers; `wrangler tail` |
 | Dispatch 401/403 | Token musí mít **Actions: Read and write** |
