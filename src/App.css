@@ -1129,6 +1129,19 @@
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);
 }
 
+.birth-step.projected .birth-blob {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+.birth-step.projected.intensify .birth-blob {
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.45);
+}
+
+.birth-step.projected.demise .birth-blob {
+  box-shadow: 0 0 0 2px rgba(160, 160, 170, 0.4);
+}
+
 .birth-step-dbz {
   font-size: 0.68rem;
   font-weight: 650;
@@ -1152,6 +1165,14 @@
   font-size: 0.75rem;
   color: var(--muted);
   line-height: 1.35;
+}
+
+.birth-timeline-legend {
+  margin: 0.35rem 0 0;
+  font-size: 0.68rem;
+  color: var(--muted);
+  line-height: 1.35;
+  opacity: 0.9;
 }
 
 .birth-why {

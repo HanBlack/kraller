@@ -11,6 +11,7 @@ import {
 import { headingLabel } from "../lib/direction";
 
 import { formationSeverityLabel, severityLabel } from "../lib/severity";
+import { formatCoreStrengthLabel } from "../lib/stormStrength";
 
 import { useI18n } from "../i18n";
 import { motionMinutesForView } from "../lib/liveRadarMotion";
@@ -193,18 +194,11 @@ function dualpolLine(
 }
 
 function StormStrengthPanel({ facts }: { facts: StormStrengthFacts }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const lines: string[] = [];
 
-  if (facts.cloudHeight) {
-    lines.push(
-      t("storm.strengthHeight", {
-        height: formatCloudHeightKm(facts.cloudHeight.km),
-      }),
-    );
-  }
-  if (facts.cloudTopTempC != null) {
-    lines.push(t("storm.strengthCtt", { temp: facts.cloudTopTempC }));
+  if (facts.severity != null && facts.maxDbz != null) {
+    lines.push(formatCoreStrengthLabel(facts.maxDbz, facts.severity, locale));
   }
   if (facts.lightningActivity) {
     const la = facts.lightningActivity;
@@ -227,18 +221,10 @@ function StormStrengthPanel({ facts }: { facts: StormStrengthFacts }) {
   if (facts.dbzTrend) {
     const d = facts.dbzTrend.deltaDbz;
     if (d >= 1.5) {
-      lines.push(
-        t("storm.strengthTrendUp", {
-          delta: d.toFixed(1),
-          min: facts.dbzTrend.windowMin,
-        }),
-      );
+      lines.push(t("storm.strengthTrendUp", { min: facts.dbzTrend.windowMin }));
     } else if (d <= -1.5) {
       lines.push(
-        t("storm.strengthTrendDown", {
-          delta: d.toFixed(1),
-          min: facts.dbzTrend.windowMin,
-        }),
+        t("storm.strengthTrendDown", { min: facts.dbzTrend.windowMin }),
       );
     } else {
       lines.push(
@@ -246,18 +232,23 @@ function StormStrengthPanel({ facts }: { facts: StormStrengthFacts }) {
       );
     }
   }
-  if (facts.maxDbz != null) {
-    lines.push(t("storm.strengthDbz", { dbz: facts.maxDbz }));
+  if (facts.cloudHeight) {
+    lines.push(
+      t("storm.strengthHeight", {
+        height: formatCloudHeightKm(facts.cloudHeight.km),
+      }),
+    );
+  }
+  if (facts.cloudTopTempC != null) {
+    lines.push(t("storm.strengthCtt", { temp: facts.cloudTopTempC }));
   }
   if (facts.ageMinutes != null && facts.ageMinutes > 0) {
     lines.push(t("storm.strengthAge", { min: facts.ageMinutes }));
   }
-  if (facts.growthDbz != null && Math.abs(facts.growthDbz) >= 1) {
-    const g =
-      facts.growthDbz > 0
-        ? `+${facts.growthDbz.toFixed(0)}`
-        : facts.growthDbz.toFixed(0);
-    lines.push(t("storm.strengthGrowth", { growth: g }));
+  if (facts.growthDbz != null && facts.growthDbz >= 3) {
+    lines.push(t("storm.strengthGrowthUp"));
+  } else if (facts.growthDbz != null && facts.growthDbz <= -2) {
+    lines.push(t("storm.strengthGrowthDown"));
   }
   const dual = dualpolLine(facts, t);
   if (dual) lines.push(dual);
@@ -361,6 +352,7 @@ function RadarLifecycleDetail({
   );
   const strengthFacts = buildStormStrengthFacts({
     maxDbz: feature.maxDbz,
+    severity: feature.severity,
     echoTopKm: feature.echoTopKm,
     ageMinutes: feature.ageMinutes,
     growthDbz: feature.growthDbz,
@@ -777,13 +769,15 @@ function RadarLifecycleDetail({
 
 
       <BirthTimeline
-
         history={feature.history}
-
         currentDbz={feature.maxDbz}
-
         ageMinutes={feature.ageMinutes}
-
+        intensifyEtaMin={life.intensifyEtaMin}
+        demiseEtaMin={life.demiseEtaMin}
+        demiseConfidence={life.demiseConfidence}
+        willIntensify={Boolean(
+          life.intensifyEtaMin != null && life.intensifyAt,
+        )}
       />
 
 

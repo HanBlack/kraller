@@ -322,18 +322,20 @@ export function forecastCellIntensification(
       const envDew = dewpointCOr(env);
       const headroom = peakExpectedDbz - feature.maxDbz;
       if (headroom >= 3) {
-        reasons.push(
-          `prostředí unese silnější echo (~${peakExpectedDbz} dBZ vs teď ${Math.round(feature.maxDbz)})`,
-        );
+        reasons.push("prostředí na trase unese silnější déšť než teď");
       }
       if (env.capeJkg >= 80) {
-        reasons.push(`CAPE ~${Math.round(env.capeJkg)} J/kg na trase`);
+        reasons.push(
+          env.capeJkg >= 300
+            ? "dost energie ve vzduchu na silnější bouřku"
+            : "ve vzduchu je energie na růst",
+        );
       }
       if (envDew >= 13) {
         reasons.push(`vlhkost · rosný bod ${envDew.toFixed(0)} °C`);
       }
       if (env.shear0to6Ms >= 8) {
-        reasons.push(`střih ${env.shear0to6Ms.toFixed(0)} m/s organizuje buňku`);
+        reasons.push("vítr se s výškou mění — pomáhá buňku organizovat");
       }
       if (feature.satAtPeak?.trend === "growing") {
         reasons.push(explainSatelliteGrowth(feature.satAtPeak));
@@ -354,9 +356,7 @@ export function forecastCellIntensification(
         reasons.push(explainSatelliteLightning(feature.satAtPeak));
       }
       if (here && env.capeJkg >= here.environment.capeJkg + 40) {
-        reasons.push(
-          `více energie než teď (+${Math.round(env.capeJkg - here.environment.capeJkg)} CAPE)`,
-        );
+        reasons.push("víc energie než v místě teď");
       }
       if (reasons.length === 0) {
         reasons.push("lepší podmínky podél trasy než v místě teď");
@@ -375,27 +375,23 @@ export function forecastCellIntensification(
     if (recentSlumping) {
       suppressHeadline =
         "Echo v posledních snímcích slábne — fialovou zónu nezobrazujeme.";
-      suppressReasons = [
-        `pokles ~${Math.abs((recentDecay ?? 0) * 15).toFixed(0)} dBZ / 15 min`,
-      ];
+      suppressReasons = ["radar ukazuje pokles"];
     } else if (trendUnknown) {
       suppressHeadline =
         "Trend echa neznámý — fialovou zónu nezobrazujeme (zesílení není jistota).";
-      suppressReasons = ["chybí růst dBZ z historie"];
+      suppressReasons = ["chybí jasný růst z historie"];
     } else if (satWarm && feature.satAtPeak) {
       suppressHeadline =
-        "Satelit ukazuje oteplování / klesající věž — fialovou zónu nezobrazujeme.";
+        "Satelit ukazuje oteplování / klesající mrak — fialovou zónu nezobrazujeme.";
       suppressReasons = [explainSatelliteWarming(feature.satAtPeak)];
     } else if (feature.growthDbz != null && feature.growthDbz < 0) {
       suppressHeadline =
         "Echo slábne — fialovou zónu nezobrazujeme (zesílení je nepravděpodobné).";
-      suppressReasons = [`růst echa ${feature.growthDbz.toFixed(1)} dBZ`];
+      suppressReasons = ["od zrodu spíš slábne"];
     } else {
       suppressHeadline =
         "Echo neroste dost — fialovou zónu nezobrazujeme (může zesílit jen při jasném růstu).";
-      suppressReasons = [
-        `růst echa ${feature.growthDbz?.toFixed(1) ?? "?"} dBZ (min. ${cfg.suppressIfGrowthDbzBelow})`,
-      ];
+      suppressReasons = ["růst zatím příliš slabý"];
     }
   }
 
@@ -543,8 +539,8 @@ export function intensificationCorridorsGeoJSON(
           expectedDbz: seg.expectedDbz,
           label:
             seg.etaMin <= 0
-              ? `může zesílit teď\n→ ~${seg.expectedDbz} dBZ`
-              : `může zesílit\nza ${seg.etaMin}–${seg.etaMax} min\n→ ~${seg.expectedDbz} dBZ`,
+              ? `může zesílit teď`
+              : `může zesílit\nza ${seg.etaMin}–${seg.etaMax} min`,
         },
         geometry: geom,
       });
@@ -570,8 +566,8 @@ export function intensificationMarkersGeoJSON(
             etaMin: seg.etaMin,
             label:
               seg.etaMin <= 0
-                ? `↑ může zesílit\n~${seg.expectedDbz} dBZ`
-                : `↑ může zesílit\nza ${seg.etaMin} min · ~${seg.expectedDbz} dBZ`,
+                ? `↑ může zesílit`
+                : `↑ může zesílit\nza ${seg.etaMin} min`,
           },
           geometry: {
             type: "Point" as const,
@@ -631,7 +627,7 @@ export function formatIntensificationSummary(
     return "Podél stopy zatím nečekáme výrazné zesílení.";
   }
   if (intens.enterEtaMin <= 0) {
-    return `Buňka je v zóně, kde může zesílit — odhad až ~${intens.peakExpectedDbz} dBZ (není jistota).`;
+    return "Buňka je v zóně, kde může zesílit — není jistota.";
   }
-  return `Za ~${intens.enterEtaMin} min vstoupí do prostředí, kde může zesílit k ~${intens.peakExpectedDbz} dBZ.`;
+  return `Za ~${intens.enterEtaMin} min vstoupí do prostředí, kde může zesílit.`;
 }

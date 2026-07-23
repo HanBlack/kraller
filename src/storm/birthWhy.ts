@@ -149,16 +149,16 @@ export function explainBirthWhy(
     drivers.push({
       sortKey: "cape",
       key: "cape",
-      label: "Energie výstupu",
-      detail: `CAPE ~${Math.round(env.capeJkg)} J/kg`,
+      label: "Energie ve vzduchu",
+      detail: "dost na silnější bouřku",
       weight: 22 + Math.min(30, env.capeJkg / 50),
     });
   } else if (env.capeJkg >= 80) {
     drivers.push({
       sortKey: "cape",
       key: "cape",
-      label: "Energie výstupu",
-      detail: `CAPE ~${Math.round(env.capeJkg)} J/kg — stačí na slabé echo`,
+      label: "Energie ve vzduchu",
+      detail: "stačí na slabší echo",
       weight: 12,
     });
   }
@@ -168,24 +168,24 @@ export function explainBirthWhy(
     drivers.push({
       sortKey: "shear",
       key: "shear",
-      label: "Střih větru",
-      detail: `${shear.toFixed(0)} m/s (0–6 km) — podporuje vznik a udržení buňky`,
+      label: "Vítr s výškou",
+      detail: "mění se dost — pomáhá vzniku a vydržení buňky",
       weight: 16 + Math.min(20, shear),
     });
   } else if (shear >= 7) {
     drivers.push({
       sortKey: "shear",
       key: "shear",
-      label: "Střih větru",
-      detail: `${shear.toFixed(0)} m/s — mírný, buňka může krátce vydržet`,
+      label: "Vítr s výškou",
+      detail: "mírná změna — buňka může krátce vydržet",
       weight: 11,
     });
   } else if (shear > 0 && shear < 6) {
     drivers.push({
       sortKey: "shear-weak",
       key: "shear",
-      label: "Střih větru",
-      detail: `${shear.toFixed(0)} m/s — slabý, typicky krátký život buňky`,
+      label: "Vítr s výškou",
+      detail: "málo se mění — typicky krátký život buňky",
       weight: 5,
     });
   }
@@ -194,40 +194,40 @@ export function explainBirthWhy(
     const fromSat = coolingFromSat || env.coolingSource === "satellite";
     const longDetail =
       sat?.trend === "growing_long"
-        ? explainSatelliteLongGrowth(sat).replace(/^vrchol se /i, "")
+        ? explainSatelliteLongGrowth(sat).replace(/^vrchol mraku /i, "")
         : null;
     drivers.push({
       sortKey: "cooling",
       key: "cooling",
-      label: fromSat ? "Ochlazování vrcholu" : "Rostoucí nestabilita (model)",
+      label: fromSat ? "Vrchol mraku chladne" : "Rostoucí nestabilita",
       detail: longDetail
-        ? `satelit u jádra: ${longDetail}`
+        ? longDetail
         : fromSat
-          ? `satelit u jádra: −${cooling.toFixed(1)} °C / 15 min`
-          : `model proxy −${cooling.toFixed(1)} °C / 15 min (ne satelit)`,
+          ? "satelit u jádra — bouřka nahoře ještě roste"
+          : "model — může zesílit (ne přímý satelit)",
       weight: 30 + Math.min(25, cooling * 4),
     });
   } else if (sat?.towerRising) {
     drivers.push({
       sortKey: "cooling-tower",
       key: "cooling",
-      label: "Stoupající věž (satelit)",
-      detail: explainSatelliteTowerRising(sat).replace(/^věž mraku /i, ""),
+      label: "Mrak roste do výšky",
+      detail: explainSatelliteTowerRising(sat),
       weight: 28,
     });
   } else if (sat?.coldTop) {
     drivers.push({
       sortKey: "cooling-cold",
       key: "cooling",
-      label: "Studený vrchol (satelit)",
-      detail: explainSatelliteColdTop(sat).replace(/^studený vrchol mraku /i, ""),
+      label: "Studený vrchol",
+      detail: explainSatelliteColdTop(sat),
       weight: 22,
     });
   } else if (sat?.deepIceTop) {
     drivers.push({
       sortKey: "cooling-ice",
       key: "cooling",
-      label: "Hluboká ledová vrstva (satelit)",
+      label: "Hluboká ledová vrstva",
       detail: explainSatelliteDeepIce(sat),
       weight: 18,
     });
@@ -235,8 +235,8 @@ export function explainBirthWhy(
     drivers.push({
       sortKey: "cooling-warm",
       key: "cooling",
-      label: "Vrchol mraku (satelit)",
-      detail: explainSatelliteWarming(sat).replace(/^vrchol mraku /i, ""),
+      label: "Vrchol mraku",
+      detail: explainSatelliteWarming(sat),
       weight: 6,
     });
   }
@@ -248,7 +248,7 @@ export function explainBirthWhy(
     drivers.push({
       sortKey: "lightning",
       key: "other",
-      label: "Blesky (MTG LI)",
+      label: "Blesky",
       detail: explainSatelliteLightning(sat),
       weight: 20 + Math.min(15, sat.lightningFlashes15min),
     });
@@ -259,7 +259,7 @@ export function explainBirthWhy(
       sortKey: "lift",
       key: "lift",
       label: "Nestabilita",
-      detail: `lifted index ${li.toFixed(1)} °C`,
+      detail: "vzduch snadno stoupá nahoru",
       weight: li <= -2 ? 22 : 14,
     });
   }
@@ -271,8 +271,8 @@ export function explainBirthWhy(
         drivers.push({
           sortKey: "local-cape",
           key: "local",
-          label: "Lokální maximum energie",
-          detail: `CAPE vyšší než okolí o ~${Math.round(env.capeJkg - nb.avgCape)} J/kg`,
+          label: "Víc energie než okolí",
+          detail: "právě tady je vzduch „nabitější“ než kolem",
           weight: 28,
         });
       }
@@ -280,8 +280,8 @@ export function explainBirthWhy(
         drivers.push({
           sortKey: "local-dew",
           key: "local",
-          label: "Vlhkější než okolí",
-          detail: `rosný bod +${(dew - nb.avgDew).toFixed(1)} °C`,
+          label: "Vlhčí než okolí",
+          detail: `rosný bod +${(dew - nb.avgDew).toFixed(1)} °C oproti okolí`,
           weight: 20,
         });
       }
@@ -289,8 +289,8 @@ export function explainBirthWhy(
         drivers.push({
           sortKey: "local-shear",
           key: "local",
-          label: "Silnější střih než okolí",
-          detail: `+${(shear - nb.avgShear).toFixed(0)} m/s oproti průměru okolí`,
+          label: "Silnější změna větru než okolí",
+          detail: "lepší podmínky pro organizovanou buňku právě tady",
           weight: 18,
         });
       }
@@ -300,12 +300,12 @@ export function explainBirthWhy(
           key: "cooling",
           label:
             coolingFromSat || env.coolingSource === "satellite"
-              ? "Silnější cooling právě tady"
-              : "Aktivní růst právě tady",
+              ? "Silnější růst právě tady"
+              : "Aktivnější růst právě tady",
           detail:
             coolingFromSat || env.coolingSource === "satellite"
-              ? "silnější ochlazování vrcholu (satelit u jádra) než v okolí"
-              : "silnější modelová nestabilita než v okolí",
+              ? "vrchol mraku tu chladne víc než v okolí"
+              : "modelová nestabilita tu je silnější než v okolí",
           weight: 26,
         });
       }
@@ -334,18 +334,19 @@ export function explainBirthWhy(
   if (factors.length === 0) {
     uncertain = true;
     headline =
-      "Model neukazuje výrazný signál. Pravděpodobné je lokální zvednutí vzduchu (terén nebo denní ohřev) pod rozlišením mřížky.";
+      "Model neukazuje výrazný signál. Pravděpodobné je lokální zvednutí vzduchu (terén nebo denní ohřev).";
   } else {
     const top = factors[0];
     const shearFactor = factors.find((f) => f.key === "shear" && f.weight >= 11);
     if (top.key === "shear") {
-      headline = `Zrod podporuje střih větru (${shear.toFixed(0)} m/s) — pomáhá buňce vzniknout a vydržet.`;
+      headline =
+        "Zrod podporuje změna větru s výškou — pomáhá buňce vzniknout a vydržet.";
     } else if (top.key === "cooling" && coolingFromSat) {
       headline = `Satelit u jádra: ${explainSatelliteGrowth(sat!)}`;
     } else if (sat && satelliteReasonLines(sat).length > 0) {
       headline = `Satelit u jádra: ${satelliteReasonLines(sat)[0]}`;
     } else if (shearFactor) {
-      headline = `Hlavní faktor: ${top.label.toLowerCase()}. Doplňuje ho střih větru ${shear.toFixed(0)} m/s.`;
+      headline = `Hlavní faktor: ${top.label.toLowerCase()}. Doplňuje ho změna větru s výškou.`;
     } else if (a.score >= 35 || env.capeJkg >= 250 || cooling >= 3) {
       headline = `Podmínky vzniku: ${top.label.toLowerCase()} — ${top.detail}.`;
     } else {

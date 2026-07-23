@@ -40,7 +40,7 @@ export function explainGrowthWhy(
 
   if (growth >= 3) {
     reasons.push(
-      `od zrodu sílí: ${feature.birthDbz.toFixed(0)} → ${feature.maxDbz.toFixed(0)} dBZ (+${growth.toFixed(0)} za ~${age} min)`,
+      `od zrodu nabrala sílu (za ~${age} min)`,
     );
   }
 
@@ -50,7 +50,7 @@ export function explainGrowthWhy(
     const last = hist[hist.length - 1];
     const d = last.maxDbz - prev.maxDbz;
     if (d >= 2) {
-      reasons.push(`v posledních snímcích radar ukazuje růst o ~${d.toFixed(0)} dBZ`);
+      reasons.push("v posledních snímcích radar ukazuje růst");
     }
   }
 
@@ -59,15 +59,19 @@ export function explainGrowthWhy(
     const dew = dewpointCOr(env);
     if (dew >= 14) {
       reasons.push(
-        `vlhký vzduch u země (rosný bod ${dew.toFixed(0)} °C) — palivo pro výstup`,
+        `vlhký vzduch u země (rosný bod ${dew.toFixed(0)} °C) — palivo pro růst`,
       );
     }
     if (env.capeJkg >= 80) {
-      reasons.push(`energie výstupu CAPE ~${Math.round(env.capeJkg)} J/kg`);
+      reasons.push(
+        env.capeJkg >= 300
+          ? "dost energie ve vzduchu na silnější bouřku"
+          : "ve vzduchu je energie na další růst",
+      );
     }
     if (env.shear0to6Ms >= 8) {
       reasons.push(
-        `střih ${env.shear0to6Ms.toFixed(0)} m/s pomáhá buňku udržet a organizovat`,
+        "vítr se s výškou mění — pomáhá bouřce vydržet a zesílit",
       );
     }
     const cooling = Math.max(0, -env.cloudTopCoolingCPer15min);
@@ -80,18 +84,18 @@ export function explainGrowthWhy(
     if (satRate < 1.5 && cooling >= 1.5) {
       reasons.push(
         env.coolingSource === "satellite"
-          ? `vrchol mraku se ochlazuje (satelit −${cooling.toFixed(1)} °C / 15 min) — konvekce ještě roste`
-          : `rostoucí nestabilita v modelu (−${cooling.toFixed(1)} °C proxy) — konvekce může sílit`,
+          ? "vrchol mraku se ochlazuje — bouřka nahoře ještě roste"
+          : "model ukazuje rostoucí nestabilitu — může ještě zesílit",
       );
     }
     const li = env.liftedIndexC;
     if (li != null && li <= 0) {
-      reasons.push(`nestabilní vrstva (LI ${li.toFixed(1)} °C)`);
+      reasons.push("vzduch je nestabilní — snadno stoupá nahoru");
     }
   }
 
   if (feature.isNewborn || feature.phase === "birth") {
-    reasons.push("mladé echo — typicky ještě nabírá sílu, pokud prostředí drží");
+    reasons.push("mladé echo — typicky ještě nabírá sílu, pokud podmínky drží");
   }
 
   if (reasons.length === 0) {
@@ -101,7 +105,7 @@ export function explainGrowthWhy(
   const primary = reasons[0];
   const headline =
     feature.phase === "growing" || growth >= 3
-      ? `Roste, protože ${primary.replace(/^od zrodu sílí: /, "sílí: ")}.`
+      ? `Roste, protože ${primary}.`
       : feature.phase === "birth"
         ? `Nový zrod — ${primary}.`
         : primary;
@@ -109,7 +113,7 @@ export function explainGrowthWhy(
   const shortLabel =
     feature.phase === "growing" || growth >= 3
       ? growth >= 3
-        ? `+${growth.toFixed(0)} dBZ`
+        ? "sílí"
         : "sílí"
       : feature.phase === "birth"
         ? "nový"
@@ -127,15 +131,15 @@ export function explainSeverityWhy(
   const reasons: string[] = [];
 
   if (severity === "strong") {
-    reasons.push(`odrazivost ~${Math.round(maxDbz)} dBZ — silný výstup a intenzivní srážky`);
+    reasons.push("silný déšť a výstup — intenzivní srážky");
     if (maxDbz >= 55) {
-      reasons.push("nad ~55 dBZ stoupá riziko krup a silných nárazů větru");
+      reasons.push("u takhle silného echa stoupá riziko krup a nárazů větru");
     }
   } else if (severity === "moderate") {
-    reasons.push(`odrazivost ~${Math.round(maxDbz)} dBZ — klasická bouřková buňka`);
+    reasons.push("klasická bouřková buňka");
     reasons.push("čekej déšť, blesky a krátké nárazy větru");
   } else {
-    reasons.push(`odrazivost ~${Math.round(maxDbz)} dBZ — slabší echo / přeháňka`);
+    reasons.push("slabší echo / přeháňka");
     reasons.push("zatím spíš déšť než silná bouřka");
   }
 
