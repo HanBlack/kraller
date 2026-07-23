@@ -63,6 +63,10 @@ import {
   type CloudHeightReading,
 } from "../storm/stormCloudHeight";
 import {
+  buildStormStrengthFacts,
+  type StormStrengthFacts,
+} from "../storm/stormStrengthFacts";
+import {
   formatStormWindDetail,
   stormWindAtCell,
 } from "../storm/stormWindAtCell";
@@ -172,6 +176,98 @@ function CloudHeightBlock({ height }: { height: CloudHeightReading | null }) {
   );
 }
 
+function dualpolLine(
+  facts: StormStrengthFacts,
+  t: (key: string) => string,
+): string | null {
+  if (facts.dualpolHailLikely || facts.dualpolLabel === "possible_hail") {
+    return t("storm.strengthDualpolHail");
+  }
+  if (facts.dualpolLabel === "strong_updraft") {
+    return t("storm.strengthDualpolUpdraft");
+  }
+  if (facts.dualpolLabel === "rain") return t("storm.strengthDualpolRain");
+  if (facts.dualpolLabel === "weakening_or_shallow") {
+    return t("storm.strengthDualpolWeak");
+  }
+  return null;
+}
+
+function StormStrengthPanel({ facts }: { facts: StormStrengthFacts }) {
+  const { t } = useI18n();
+  const lines: string[] = [];
+
+  if (facts.cloudHeight) {
+    lines.push(
+      t("storm.strengthHeight", {
+        height: formatCloudHeightKm(facts.cloudHeight.km),
+      }),
+    );
+  }
+  if (facts.cloudTopTempC != null) {
+    lines.push(t("storm.strengthCtt", { temp: facts.cloudTopTempC }));
+  }
+  if (facts.lightningFlashes15min != null) {
+    lines.push(
+      facts.lightningFlashes15min > 0
+        ? t("storm.strengthLightning", {
+            count: facts.lightningFlashes15min,
+          })
+        : t("storm.strengthLightningNone"),
+    );
+  }
+  if (facts.dbzTrend) {
+    const d = facts.dbzTrend.deltaDbz;
+    if (d >= 1.5) {
+      lines.push(
+        t("storm.strengthTrendUp", {
+          delta: d.toFixed(1),
+          min: facts.dbzTrend.windowMin,
+        }),
+      );
+    } else if (d <= -1.5) {
+      lines.push(
+        t("storm.strengthTrendDown", {
+          delta: d.toFixed(1),
+          min: facts.dbzTrend.windowMin,
+        }),
+      );
+    } else {
+      lines.push(
+        t("storm.strengthTrendFlat", { min: facts.dbzTrend.windowMin }),
+      );
+    }
+  }
+  if (facts.maxDbz != null) {
+    lines.push(t("storm.strengthDbz", { dbz: facts.maxDbz }));
+  }
+  if (facts.ageMinutes != null && facts.ageMinutes > 0) {
+    lines.push(t("storm.strengthAge", { min: facts.ageMinutes }));
+  }
+  if (facts.growthDbz != null && Math.abs(facts.growthDbz) >= 1) {
+    const g =
+      facts.growthDbz > 0
+        ? `+${facts.growthDbz.toFixed(0)}`
+        : facts.growthDbz.toFixed(0);
+    lines.push(t("storm.strengthGrowth", { growth: g }));
+  }
+  const dual = dualpolLine(facts, t);
+  if (dual) lines.push(dual);
+
+  if (lines.length === 0) return null;
+
+  return (
+    <div className="storm-strength-panel">
+      <p className="storm-strength-title">{t("storm.strengthTitle")}</p>
+      <ul className="storm-strength-list">
+        {lines.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function RadarLifecycleDetail({
 
   feature,
@@ -255,11 +351,17 @@ function RadarLifecycleDetail({
     feature.peak[1],
     feature.peak[0],
   );
-  const cloudHeight = resolveCloudHeight({
-    cloudTopHeightM:
-      feature.satAtPeak?.cloudTopHeightM ??
-      feature.birthEnv?.environment?.cloudTopHeightM,
+  const strengthFacts = buildStormStrengthFacts({
+    maxDbz: feature.maxDbz,
     echoTopKm: feature.echoTopKm,
+    ageMinutes: feature.ageMinutes,
+    growthDbz: feature.growthDbz,
+    history: feature.history,
+    satAtPeak: feature.satAtPeak,
+    satLive: satelliteCooling?.status === "ok",
+    dualpolLabel: feature.dualpolLabel,
+    dualpolHailLikely: feature.dualpolHailLikely,
+    envCloudTopHeightM: feature.birthEnv?.environment?.cloudTopHeightM,
   });
 
 
@@ -330,7 +432,7 @@ function RadarLifecycleDetail({
 
         </p>
 
-        <CloudHeightBlock height={cloudHeight} />
+        <StormStrengthPanel facts={strengthFacts} />
 
         {windLines.length > 0 && (
           <div className="storm-wind-at-cell">
@@ -400,7 +502,7 @@ function RadarLifecycleDetail({
         dualpolLabel={feature.dualpolLabel}
       />
 
-      <CloudHeightBlock height={cloudHeight} />
+      <StormStrengthPanel facts={strengthFacts} />
 
       {windLines.length > 0 && (
         <div className="storm-wind-at-cell">
