@@ -187,7 +187,12 @@ function dualpolLine(
   if (facts.dualpolLabel === "strong_updraft") {
     return t("storm.strengthDualpolUpdraft");
   }
-  if (facts.dualpolLabel === "weakening_or_shallow") {
+  // U silné/střední buňky neříkat „slabé/mělké“ — rozpor s peak dBZ / barvou radaru.
+  if (
+    facts.dualpolLabel === "weakening_or_shallow" &&
+    facts.severity !== "strong" &&
+    facts.severity !== "moderate"
+  ) {
     return t("storm.strengthDualpolWeak");
   }
   return null;
@@ -353,7 +358,7 @@ function RadarLifecycleDetail({
     feature.peak[0],
   );
   const strengthFacts = buildStormStrengthFacts({
-    maxDbz: feature.surfaceDbz ?? feature.maxDbz,
+    maxDbz: feature.maxDbz,
     severity: feature.severity,
     echoTopKm: feature.echoTopKm,
     ageMinutes: feature.ageMinutes,

@@ -721,11 +721,9 @@ export function buildRadarProgressFeatures(
     );
 
     const alert = user ? shouldAlertActive(assessment) : false;
-    const cellDbz =
-      cell.surfaceDbz != null && cell.surfaceDbz > 0
-        ? cell.surfaceDbz
-        : peakDbz;
-    const cellSeverity = severityFromDbz(cellDbz);
+    // Síla na mapě/detailu = peak (co vidíš na OPERA PNG), ne surface PseudoCAPPI.
+    // Surface necháváme jen pro déšť u adresy (scoreActive / K tobě).
+    const cellSeverity = severityFromDbz(peakDbz);
     const growthWhy =
       phase === "birth" || phase === "growing"
         ? explainGrowthWhy(
@@ -746,15 +744,15 @@ export function buildRadarProgressFeatures(
 
     let label: string;
     if (phase === "birth") {
-      label = `${t("storm.born", undefined, locale)} · ${formatCoreStrengthLabel(cellDbz, cellSeverity, locale)}${
+      label = `${t("storm.born", undefined, locale)} · ${formatCoreStrengthLabel(peakDbz, cellSeverity, locale)}${
         growthWhy?.shortLabel ? `\n${growthWhy.shortLabel}` : ""
       }`;
     } else if (phase === "growing") {
-      label = `${t("storm.growing", undefined, locale)} · ${formatCoreStrengthLabel(cellDbz, cellSeverity, locale)}${
+      label = `${t("storm.growing", undefined, locale)} · ${formatCoreStrengthLabel(peakDbz, cellSeverity, locale)}${
         growthWhy?.shortLabel ? `\n${growthWhy.shortLabel}` : ""
       }`;
     } else {
-      label = formatCoreStrengthLabel(cellDbz, cellSeverity, locale);
+      label = formatCoreStrengthLabel(peakDbz, cellSeverity, locale);
       if (assessment.etaMinutes != null && alert) {
         label += `\n~${assessment.etaMinutes} min`;
       }
