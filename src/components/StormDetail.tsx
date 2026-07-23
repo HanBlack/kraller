@@ -26,7 +26,7 @@ import {
 
 } from "../storm/buildAlert";
 
-import { showSupercellEnvBadge } from "../storm/scoreActive";
+import { estimateHailCm, showSupercellEnvBadge } from "../storm/scoreActive";
 
 import type { ActiveStormAssessment } from "../storm/types";
 
@@ -119,31 +119,51 @@ function HazardBadges({
   assessment,
   dualpolHailLikely,
   dualpolLabel,
+  maxDbz,
+  echoTopKm,
+  freezingLevelM,
+  shearMs,
 }: {
   assessment: ActiveStormAssessment | null | undefined;
   dualpolHailLikely?: boolean;
   dualpolLabel?: string;
+  maxDbz?: number | null;
+  echoTopKm?: number | null;
+  freezingLevelM?: number | null;
+  shearMs?: number | null;
 }) {
   const { t } = useI18n();
 
+  const dbz = maxDbz ?? assessment?.maxDbz ?? null;
+  const hailCm =
+    assessment?.hailCmMax ??
+    (dbz != null && echoTopKm != null
+      ? estimateHailCm(echoTopKm, dbz, freezingLevelM)
+      : null);
   const hailFromScore =
-    assessment != null &&
-    assessment.hailCmMax != null &&
-    assessment.hailCmMax >= 1 &&
-    assessment.maxDbz >= 55;
+    hailCm != null && hailCm >= 1 && dbz != null && dbz >= 55;
   const hail = hailFromScore || Boolean(dualpolHailLikely);
   const updraft = dualpolLabel === "strong_updraft";
   const supercell = assessment ? showSupercellEnvBadge(assessment) : false;
-  if (!hail && !supercell && !updraft) return null;
+  const gustRisk =
+    !hail &&
+    dbz != null &&
+    dbz >= 55 &&
+    ((shearMs != null && shearMs >= 12) || dbz >= 58);
+
+  if (!hail && !supercell && !updraft && !gustRisk) return null;
 
   return (
     <div className="hazard-badges" role="group" aria-label={t("alert.expect")}>
       {hail ? (
         <span className="hazard-badge hail">
-          {hailFromScore && assessment?.hailCmMax != null
-            ? t("alert.hailRiskCm", { cm: assessment.hailCmMax })
+          {hailFromScore && hailCm != null
+            ? t("alert.hailRiskCm", { cm: hailCm })
             : t("alert.hailRisk")}
         </span>
+      ) : null}
+      {gustRisk ? (
+        <span className="hazard-badge supercell">{t("alert.gustRisk")}</span>
       ) : null}
       {updraft && !hail ? (
         <span className="hazard-badge supercell">
@@ -507,6 +527,14 @@ function RadarLifecycleDetail({
         assessment={feature.assessment}
         dualpolHailLikely={feature.dualpolHailLikely}
         dualpolLabel={feature.dualpolLabel}
+        maxDbz={feature.maxDbz}
+        echoTopKm={feature.echoTopKm}
+        freezingLevelM={feature.birthEnv?.environment?.freezingLevelM}
+        shearMs={
+          feature.birthEnv?.shearMs ??
+          feature.birthEnv?.environment?.shear0to6Ms ??
+          null
+        }
       />
 
       <StormStrengthPanel facts={strengthFacts} />

@@ -818,7 +818,7 @@ export function buildRadarProgressFeatures(
       history: cell.history ?? [],
       placeLabel: czechRegionLabel(peakLat, peakLon, locale),
       birthEnv,
-      assessment: user ? assessment : undefined,
+      assessment,
       growthWhy: growthWhy ?? undefined,
       dualpolLabel: cell.dualpolLabel,
       dualpolZdrColumn: cell.dualpolZdrColumn,
