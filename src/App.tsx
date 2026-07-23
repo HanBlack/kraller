@@ -120,8 +120,8 @@ export default function App() {
             className="boot-screen-logo"
             src={logoSrc}
             alt="Kraller"
-            width={128}
-            height={95}
+            width={144}
+            height={107}
           />
           <p className="boot-screen-sub">
             {booting ? bootMessage(t, bootPhase) : t("app.bootTiles")}
@@ -158,8 +158,8 @@ export default function App() {
             className="sidebar-fab-logo"
             src={logoSrc}
             alt=""
-            width={40}
-            height={30}
+            width={52}
+            height={39}
           />
           {threats.length > 0 && (
             <span className="sidebar-fab-badge" aria-label={t("app.warnings")}>
@@ -181,14 +181,11 @@ export default function App() {
               aria-label={t("app.closeSidebar")}
               onClick={() => setSidebarOpen(false)}
             >
-              <img
-                className="sidebar-chrome-logo"
-                src={logoSrc}
-                alt=""
-                width={28}
-                height={21}
-              />
-              <span className="sidebar-chrome-title">
+              <span
+                className={`sidebar-chrome-title${
+                  location?.placeName ? "" : " is-brand"
+                }`}
+              >
                 {location?.placeName ?? "Kraller"}
               </span>
               {threats.length > 0 && (
