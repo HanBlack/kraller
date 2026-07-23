@@ -41,7 +41,7 @@ _SITES = (
     },
 )
 
-MAX_RANGE_KM = 180.0
+MAX_RANGE_KM = 250.0  # Brdy + Skalky → celé území ČR (+ okraj)
 DEFAULT_FZL_KM = 3.5
 
 
@@ -379,7 +379,7 @@ def enrich_cells(
         best_dist = 1e9
         for z_vol, zdr_vol in volumes:
             dist = haversine_km(z_vol.lat, z_vol.lon, lat, lon)
-            if dist >= best_dist or dist > MAX_RANGE_KM:
+            if dist > MAX_RANGE_KM or dist >= best_dist:
                 continue
             res = analyze_peak(z_vol, zdr_vol, lat, lon, freezing_level_km=fzl_km)
             if res is None:

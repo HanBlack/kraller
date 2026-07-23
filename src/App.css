@@ -771,6 +771,37 @@
   text-transform: none;
 }
 
+.storm-strength-panel {
+  margin: 0.45rem 0 0.65rem;
+  padding: 0.55rem 0.7rem 0.65rem;
+  border-radius: 10px;
+  background: rgba(100, 160, 220, 0.1);
+  border: 1px solid rgba(130, 180, 230, 0.28);
+}
+
+.storm-strength-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(180, 210, 245, 0.85);
+}
+
+.storm-strength-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.28rem;
+}
+
+.storm-strength-list li {
+  font-size: 0.92rem;
+  line-height: 1.35;
+  color: var(--text);
+}
+
 .storm-wind-at-cell {
   margin: 0.55rem 0 0.75rem;
   padding: 0.55rem 0.75rem;
