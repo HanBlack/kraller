@@ -1,7 +1,7 @@
 {
-  "updatedAt": "2026-07-23T02:08:49Z",
-  "operaTime": "2026-07-23T02:00:00Z",
-  "chmiTime": "2026-07-23T02:05:00Z",
+  "updatedAt": "2026-07-23T02:16:46Z",
+  "operaTime": "2026-07-23T02:05:00Z",
+  "chmiTime": "2026-07-23T02:10:00Z",
   "opera": true,
   "chmi": true,
   "wind": true,
@@ -9,12 +9,12 @@
   "sources": {
     "opera": {
       "ok": true,
-      "updatedAt": "2026-07-23T02:07:34Z",
+      "updatedAt": "2026-07-23T02:12:34Z",
       "error": null
     },
     "chmi": {
       "ok": true,
-      "updatedAt": "2026-07-23T02:05:00Z",
+      "updatedAt": "2026-07-23T02:10:00Z",
       "error": null
     },
     "wind": {
