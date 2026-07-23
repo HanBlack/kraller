@@ -1,6 +1,6 @@
 /**
- * Cloudflare Cron → GitHub workflow_dispatch (Live radar).
- * GitHub schedule cron alone is unreliable; this keeps meta.updatedAt ≤ ~7 min.
+ * Cloudflare Cron → GitHub workflow_dispatch (Live radar + Live sat).
+ * GitHub schedule cron alone is unreliable; this keeps meta + CTT cooling fresh.
  */
 
 const GH_HEADERS = (token) => ({
@@ -10,16 +10,14 @@ const GH_HEADERS = (token) => ({
   "User-Agent": "kraller-radar-trigger",
 });
 
-async function metaAgeMin(env) {
-  const base = (env.R2_PUBLIC_URL || "").replace(/\/$/, "");
-  if (!base) return null;
+async function jsonAgeMin(url) {
   try {
-    const res = await fetch(`${base}/data/meta.json`, {
+    const res = await fetch(url, {
       headers: { "User-Agent": "kraller-radar-trigger" },
     });
     if (!res.ok) return null;
-    const meta = await res.json();
-    const updated = meta?.updatedAt;
+    const data = await res.json();
+    const updated = data?.updatedAt || data?.validAt;
     if (!updated) return null;
     const ts = Date.parse(String(updated));
     if (!Number.isFinite(ts)) return null;
@@ -29,9 +27,25 @@ async function metaAgeMin(env) {
   }
 }
 
-async function liveRadarActive(env, token) {
+async function r2Base(env) {
+  const fromEnv = (env.R2_PUBLIC_URL || "").replace(/\/$/, "");
+  if (fromEnv) return fromEnv;
+  // Veřejné CDN — fallback když Worker secret není nastavený
+  return "https://pub-4b180166ad2d4648a27ba3853b3eebd1.r2.dev";
+}
+
+async function metaAgeMin(env) {
+  const base = await r2Base(env);
+  return jsonAgeMin(`${base}/data/meta.json`);
+}
+
+async function coolingAgeMin(env) {
+  const base = await r2Base(env);
+  return jsonAgeMin(`${base}/data/satellite/cooling.json`);
+}
+
+async function workflowBusy(env, token, workflow) {
   const repo = env.GITHUB_REPO || "HanBlack/kraller";
-  const workflow = env.WORKFLOW_FILE || "live-radar.yml";
   for (const status of ["in_progress", "queued"]) {
     const url =
       `https://api.github.com/repos/${repo}/actions/workflows/${workflow}/runs` +
@@ -44,28 +58,50 @@ async function liveRadarActive(env, token) {
   return false;
 }
 
-async function shouldDispatch(env) {
+async function shouldDispatchRadar(env) {
   const freshMin = Number(env.FRESH_MIN || "4");
   const age = await metaAgeMin(env);
   if (age != null && age < freshMin) {
-    console.log(`skip dispatch: R2 meta fresh (${age.toFixed(1)} min)`);
+    console.log(`skip radar: R2 meta fresh (${age.toFixed(1)} min)`);
     return false;
   }
   const token = env.GITHUB_TOKEN;
   if (!token) throw new Error("GITHUB_TOKEN secret missing");
-  if (await liveRadarActive(env, token)) {
-    console.log("skip dispatch: Live radar already running or queued");
+  const workflow = env.WORKFLOW_FILE || "live-radar.yml";
+  if (await workflowBusy(env, token, workflow)) {
+    console.log("skip radar: Live radar already running or queued");
     return false;
   }
   return true;
 }
 
-async function triggerLiveRadar(env) {
+async function shouldDispatchSat(env) {
+  const freshMin = Number(env.SAT_FRESH_MIN || "22");
+  const age = await coolingAgeMin(env);
+  if (age != null && age < freshMin) {
+    console.log(`skip sat: cooling fresh (${age.toFixed(1)} min)`);
+    return false;
+  }
+  if (age == null) {
+    console.log("sat: cooling age unknown — dispatch");
+  } else {
+    console.log(`sat: cooling stale (${age.toFixed(1)} min > ${freshMin})`);
+  }
+  const token = env.GITHUB_TOKEN;
+  if (!token) throw new Error("GITHUB_TOKEN secret missing");
+  const workflow = env.SAT_WORKFLOW_FILE || "live-sat.yml";
+  if (await workflowBusy(env, token, workflow)) {
+    console.log("skip sat: Live sat already running or queued");
+    return false;
+  }
+  return true;
+}
+
+async function triggerWorkflow(env, workflow) {
   const token = env.GITHUB_TOKEN;
   if (!token) throw new Error("GITHUB_TOKEN secret missing");
 
   const repo = env.GITHUB_REPO || "HanBlack/kraller";
-  const workflow = env.WORKFLOW_FILE || "live-radar.yml";
   const ref = env.GITHUB_REF || "main";
 
   const res = await fetch(
@@ -82,37 +118,72 @@ async function triggerLiveRadar(env) {
 
   const body = await res.text();
   if (!res.ok) {
-    console.error(`dispatch failed ${res.status}: ${body}`);
+    console.error(`dispatch ${workflow} failed ${res.status}: ${body}`);
     throw new Error(`GitHub ${res.status}: ${body}`);
   }
 
   console.log(`dispatched ${workflow} ref=${ref} repo=${repo}`);
 }
 
+async function triggerLiveRadar(env) {
+  await triggerWorkflow(env, env.WORKFLOW_FILE || "live-radar.yml");
+}
+
+async function triggerLiveSat(env) {
+  await triggerWorkflow(env, env.SAT_WORKFLOW_FILE || "live-sat.yml");
+}
+
+async function runCron(env) {
+  const errors = [];
+  try {
+    if (await shouldDispatchRadar(env)) {
+      await triggerLiveRadar(env);
+    }
+  } catch (err) {
+    console.error("radar trigger error", err);
+    errors.push(err);
+  }
+  try {
+    if (await shouldDispatchSat(env)) {
+      await triggerLiveSat(env);
+    }
+  } catch (err) {
+    console.error("sat trigger error", err);
+    errors.push(err);
+  }
+  if (errors.length) throw errors[0];
+}
+
 export default {
   async scheduled(_event, env, ctx) {
-    ctx.waitUntil(
-      (async () => {
-        if (await shouldDispatch(env)) {
-          await triggerLiveRadar(env);
-        }
-      })(),
-    );
+    ctx.waitUntil(runCron(env));
   },
 
-  /** GET /trigger s Authorization: Bearer <TRIGGER_SECRET> — ruční test */
+  /** GET /trigger — Live radar; GET /trigger-sat — Live sat */
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.pathname === "/trigger") {
-      const secret = env.TRIGGER_SECRET;
-      const auth = request.headers.get("Authorization") || "";
+    const secret = env.TRIGGER_SECRET;
+    const auth = request.headers.get("Authorization") || "";
+
+    if (url.pathname === "/trigger" || url.pathname === "/trigger-sat") {
       if (!secret || auth !== `Bearer ${secret}`) {
         return new Response("Unauthorized", { status: 401 });
       }
       try {
         const force = url.searchParams.get("force") === "1";
-        if (!force && !(await shouldDispatch(env))) {
-          return new Response("SKIP — fresh or already running", { status: 200 });
+        if (url.pathname === "/trigger-sat") {
+          if (!force && !(await shouldDispatchSat(env))) {
+            return new Response("SKIP — sat fresh or already running", {
+              status: 200,
+            });
+          }
+          await triggerLiveSat(env);
+          return new Response("OK — Live sat dispatched", { status: 200 });
+        }
+        if (!force && !(await shouldDispatchRadar(env))) {
+          return new Response("SKIP — fresh or already running", {
+            status: 200,
+          });
         }
         await triggerLiveRadar(env);
         return new Response("OK — Live radar dispatched", { status: 200 });
@@ -120,6 +191,9 @@ export default {
         return new Response(String(err), { status: 502 });
       }
     }
-    return new Response("kraller radar trigger (cron */5)", { status: 200 });
+    return new Response(
+      "kraller radar+sat trigger (cron */5; /trigger /trigger-sat)",
+      { status: 200 },
+    );
   },
 };

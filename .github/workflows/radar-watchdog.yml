@@ -1,4 +1,5 @@
-# Záloha: pokud meta na R2 starší než 7 min, spustí Live radar.
+# Záloha: pokud meta na R2 starší než 7 min → Live radar;
+# pokud sat cooling starší než 25 min → Live sat.
 # Primární spolehlivý trigger: workers/radar-trigger (Cloudflare Cron).
 
 name: Radar watchdog
@@ -21,11 +22,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - name: Check meta age on R2
+      - name: Check meta + sat cooling age on R2
         id: age
         env:
           R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
           MAX_AGE_MIN: "7"
+          SAT_MAX_AGE_MIN: "25"
         run: |
           python3 <<'PY'
           import json
@@ -37,37 +39,76 @@ jobs:
 
           base = (os.environ.get("R2_PUBLIC_URL") or "").strip().rstrip("/")
           max_age = float(os.environ.get("MAX_AGE_MIN", "7"))
+          sat_max = float(os.environ.get("SAT_MAX_AGE_MIN", "25"))
+          out = os.environ["GITHUB_OUTPUT"]
+
+          def write(**kwargs):
+              with open(out, "a", encoding="utf-8") as f:
+                  for k, v in kwargs.items():
+                      f.write(f"{k}={v}\n")
+
+          def age_of(path, ts_keys=("updatedAt", "validAt")):
+              url = f"{base}/{path}"
+              req = urllib.request.Request(
+                  url, headers={"User-Agent": "kraller-radar-watchdog"}
+              )
+              with urllib.request.urlopen(req, timeout=20) as resp:
+                  data = json.load(resp)
+              updated = None
+              for k in ts_keys:
+                  if data.get(k):
+                      updated = data.get(k)
+                      break
+              if not updated:
+                  return None, None
+              ts = datetime.fromisoformat(str(updated).replace("Z", "+00:00"))
+              age = (datetime.now(timezone.utc) - ts).total_seconds() / 60
+              return updated, age
+
           if not base:
               print("R2_PUBLIC_URL missing — skip watchdog")
-              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
-                  f.write("stale=false\n")
+              write(stale="false", sat_stale="false")
               sys.exit(0)
 
-          url = f"{base}/data/meta.json"
+          # --- radar meta ---
           try:
-              with urllib.request.urlopen(url, timeout=20) as resp:
-                  meta = json.load(resp)
+              updated, age_min = age_of("data/meta.json")
           except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
               print(f"meta fetch failed: {exc}")
-              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
-                  f.write("stale=true\nreason=fetch_failed\n")
-              sys.exit(0)
+              write(stale="true", reason="fetch_failed", sat_stale="false")
+              # still try sat below
+              age_min = None
+              updated = None
 
-          updated = meta.get("updatedAt")
-          if not updated:
+          if updated is None and age_min is None:
+              # fetch failed already wrote stale=true
+              pass
+          elif not updated:
               print("meta.updatedAt missing")
-              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
-                  f.write("stale=true\nreason=no_timestamp\n")
+              write(stale="true", reason="no_timestamp")
+          else:
+              print(f"meta.updatedAt={updated} age_min={age_min:.1f} threshold={max_age}")
+              write(stale="true" if age_min > max_age else "false", age_min=f"{age_min:.1f}")
+
+          # --- sat cooling ---
+          try:
+              sat_at, sat_age = age_of("data/satellite/cooling.json")
+          except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+              print(f"cooling fetch failed: {exc}")
+              write(sat_stale="true", sat_reason="fetch_failed")
               sys.exit(0)
 
-          ts = datetime.fromisoformat(str(updated).replace("Z", "+00:00"))
-          age_min = (datetime.now(timezone.utc) - ts).total_seconds() / 60
-          print(f"meta.updatedAt={updated} age_min={age_min:.1f} threshold={max_age}")
-
-          stale = age_min > max_age
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
-              f.write(f"stale={'true' if stale else 'false'}\n")
-              f.write(f"age_min={age_min:.1f}\n")
+          if not sat_at:
+              print("cooling.validAt missing")
+              write(sat_stale="true", sat_reason="no_timestamp")
+          else:
+              print(
+                  f"cooling.validAt={sat_at} age_min={sat_age:.1f} threshold={sat_max}"
+              )
+              write(
+                  sat_stale="true" if sat_age > sat_max else "false",
+                  sat_age_min=f"{sat_age:.1f}",
+              )
           PY
 
       - name: Dispatch Live radar when stale
@@ -106,6 +147,43 @@ jobs:
               ref: context.ref.replace('refs/heads/', '') || 'main',
             });
 
+      - name: Dispatch Live sat when cooling stale
+        if: steps.age.outputs.sat_stale == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const age = '${{ steps.age.outputs.sat_age_min }}';
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'live-sat.yml',
+              status: 'in_progress',
+              per_page: 1,
+            });
+            if (data.total_count > 0) {
+              core.info(`Cooling stale (${age} min) but Live sat already running — skip`);
+              return;
+            }
+            const queued = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'live-sat.yml',
+              status: 'queued',
+              per_page: 1,
+            });
+            if (queued.data.total_count > 0) {
+              core.info(`Cooling stale (${age} min) but Live sat already queued — skip`);
+              return;
+            }
+            core.info(`Cooling stale (${age} min) — dispatching Live sat`);
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'live-sat.yml',
+              ref: context.ref.replace('refs/heads/', '') || 'main',
+            });
+
       - name: OK
-        if: steps.age.outputs.stale != 'true'
-        run: echo "Meta fresh (${{ steps.age.outputs.age_min }} min) — no dispatch"
+        if: steps.age.outputs.stale != 'true' && steps.age.outputs.sat_stale != 'true'
+        run: |
+          echo "Meta fresh (${{ steps.age.outputs.age_min }} min), cooling fresh (${{ steps.age.outputs.sat_age_min }} min) — no dispatch"
