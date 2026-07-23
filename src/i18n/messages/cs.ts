@@ -9,6 +9,7 @@ export const cs = {
     bootMap: "Připravuji mapu…",
     bootTiles: "Vykresluji mapu…",
     warnings: "Varování",
+    detailSheet: "Detail bouřky nebo vzniku",
   },
   sync: {
     updating: "Načítám data…",
@@ -21,10 +22,14 @@ export const cs = {
     radarAge: " ({min} min)",
     formationAge: "Vznik {min} min",
     windAge: "Vítr {min} min",
+    satAge: "Sat {min} min",
+    satModel: "Sat · model",
     windAgeTitle: "Vítr před {min} min",
     formAgeTitle: "Vznik před {min} min",
+    satAgeTitle: "Satelitní cooling před {min} min",
+    satModelTitle: "Satelit: používáme model (ne live CTT)",
     stale: "Čekáme na nová data ze serveru (~5 min)",
-    envStale: "Vznik/vítr zastarává — zesílení může být nepřesné",
+    envStale: "Vznik/vítr/sat zastarává — zesílení může být nepřesné",
     titleDetail: "Poslední synchronizace {time}",
   },
   lang: {
@@ -52,6 +57,7 @@ export const cs = {
   sections: {
     watch: "Sledování",
     layers: "Vrstvy a čas",
+    legend: "Legenda",
   },
   watch: {
     title: "Sledování · {place}",
@@ -119,7 +125,8 @@ export const cs = {
     formHeat: "slabší setup (heat)",
     formZone: "zóna možného vzniku",
     formLink: "vazba na echo na radaru",
-    formAreas: "{count} oblastí · není radar, jen model",
+    formSatCooling: "modré jádro · satelit ochlazuje vrchol (před echom)",
+    formAreas: "{count} oblastí · prostředí + satelit, ne radar echo",
     formNoRisk: "Teď bez výrazného rizika vzniku",
     formNotLoaded: "Model vzniku není načtený",
   },
@@ -221,11 +228,23 @@ export const cs = {
     detailWhere: "Kam:",
     detailToYou: "K tobě:",
     detailEnv: "Prostředí:",
+    signalLabel: "Před echom",
+    signalSatLabel: "Satelit · minutes ahead",
+    signalModelLabel: "Model (ne satelit)",
+    signalNone: "Bez signálu ochlazování vrcholu.",
+    signalSatCooling:
+      "Vrchol mraku se ochlazuje (−{rate} °C / 15 min) — vznik může být blíž, než ukáže radar.",
+    signalSatWarming:
+      "Vrchol se otepluje (+{rate} °C / 15 min) — spíš útlum než nový zrod.",
+    signalSatSteady: "Satelit vidí vrchol, ale bez silného ochlazování.",
+    signalModelCooling:
+      "Model naznačuje nestabilitu (proxy) — live sat cooling zatím nepotvrzuje.",
+    signalModelQuiet: "Bez silného cooling signálu — drž se radaru.",
     initWindow: "odhad vzniku za {when}",
     afterBirthDir: "po zrodu na {dir}",
     arrivalEta: "odhad příletu zhruba za {eta} min",
     note:
-      "Predikce z modelu — kde se může zrodit echo. Až se objeví na radaru, dokumentaci přebírá Stopa.",
+      "Vznik = prostředí + satelit před echom. Až se objeví na radaru, přebírá Stopa.",
     panelTitle: "Vznik · {place}",
   },
   storm: {
@@ -266,6 +285,9 @@ export const cs = {
     windCellMotion: "Pohyb jádra · {speed} km/h",
     windShearAtCell: "Střih 0–6 km · {shear} m/s",
     windMapLine: "vítr ~{ambient} · jádro ~{cell} km/h",
+    cloudTopTitle: "Vrchol mraku",
+    cloudTopSourceSat: "satelit",
+    cloudTopSourceRadar: "radar",
   },
   region: {
     vienna: "okolí Vídně",

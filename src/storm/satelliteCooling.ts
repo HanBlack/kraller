@@ -282,10 +282,10 @@ export function explainSatelliteStatus(
   lat: number,
   lon: number,
 ): SatelliteStatusLine {
-  if (!grid || grid.status === "no_credentials") {
+    if (!grid || grid.status === "no_credentials") {
     return {
       title: "Satelit",
-      detail: "bez klíčů EUMETSAT — používáme model",
+      detail: "live CTT zatím neběží — používáme model",
     };
   }
   if (grid.status !== "ok") {

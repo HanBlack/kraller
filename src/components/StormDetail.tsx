@@ -23,8 +23,6 @@ import {
 
   formatFormationMessage,
 
-  formatFormationSummary,
-
 } from "../storm/buildAlert";
 
 import { showSupercellEnvBadge } from "../storm/scoreActive";
@@ -33,7 +31,7 @@ import type { ActiveStormAssessment } from "../storm/types";
 
 import type { ScoredFormationPoint } from "../storm/formationData";
 
-import { formationEnvironmentSummary } from "../storm/formationCopy";
+import { formationCoolingSignal, formationEnvironmentSummary } from "../storm/formationCopy";
 
 import {
 
@@ -59,6 +57,11 @@ import type { UserLocation } from "../types";
 
 import { nearestFormationPoint } from "../storm/birthEnv";
 import { explainSatelliteStatus } from "../storm/satelliteCooling";
+import {
+  formatCloudHeightKm,
+  resolveCloudHeight,
+  type CloudHeightReading,
+} from "../storm/stormCloudHeight";
 import {
   formatStormWindDetail,
   stormWindAtCell,
@@ -151,7 +154,23 @@ function HazardBadges({
   );
 }
 
-
+function CloudHeightBlock({ height }: { height: CloudHeightReading | null }) {
+  const { t } = useI18n();
+  if (!height) return null;
+  const source =
+    height.source === "satellite"
+      ? t("storm.cloudTopSourceSat")
+      : t("storm.cloudTopSourceRadar");
+  return (
+    <div className="storm-cloud-height">
+      <p className="storm-cloud-height-label">{t("storm.cloudTopTitle")}</p>
+      <p className="storm-cloud-height-value">
+        {formatCloudHeightKm(height.km)}
+        <span className="storm-cloud-height-source">{source}</span>
+      </p>
+    </div>
+  );
+}
 
 function RadarLifecycleDetail({
 
@@ -236,6 +255,12 @@ function RadarLifecycleDetail({
     feature.peak[1],
     feature.peak[0],
   );
+  const cloudHeight = resolveCloudHeight({
+    cloudTopHeightM:
+      feature.satAtPeak?.cloudTopHeightM ??
+      feature.birthEnv?.environment?.cloudTopHeightM,
+    echoTopKm: feature.echoTopKm,
+  });
 
 
 
@@ -305,6 +330,8 @@ function RadarLifecycleDetail({
 
         </p>
 
+        <CloudHeightBlock height={cloudHeight} />
+
         {windLines.length > 0 && (
           <div className="storm-wind-at-cell">
             <p className="storm-wind-title">{t("storm.windNearTitle")}</p>
@@ -316,7 +343,11 @@ function RadarLifecycleDetail({
           </div>
         )}
 
-        <div className="storm-wind-at-cell storm-sat-at-cell">
+        <div
+          className={`storm-wind-at-cell storm-sat-at-cell${
+            satelliteCooling?.status === "ok" ? " is-sat-live" : ""
+          }`}
+        >
           <p className="storm-wind-title">{satStatus.title}</p>
           <p className="lifecycle-step-body">{satStatus.detail}</p>
         </div>
@@ -369,6 +400,8 @@ function RadarLifecycleDetail({
         dualpolLabel={feature.dualpolLabel}
       />
 
+      <CloudHeightBlock height={cloudHeight} />
+
       {windLines.length > 0 && (
         <div className="storm-wind-at-cell">
           <p className="storm-wind-title">{t("storm.windNearTitle")}</p>
@@ -380,7 +413,11 @@ function RadarLifecycleDetail({
         </div>
       )}
 
-      <div className="storm-wind-at-cell storm-sat-at-cell">
+      <div
+        className={`storm-wind-at-cell storm-sat-at-cell${
+          satelliteCooling?.status === "ok" ? " is-sat-live" : ""
+        }`}
+      >
         <p className="storm-wind-title">{satStatus.title}</p>
         <p className="lifecycle-step-body">{satStatus.detail}</p>
       </div>
@@ -684,131 +721,88 @@ export function StormDetail({
 
 
   if (selected.kind === "formation") {
-
     const { feature } = selected;
-
     const { forecast } = feature;
-
     const zonePlace = feature.zone.placeName ?? feature.zone.name;
+    const cooling = formationCoolingSignal(feature.zone.environment, locale);
+    const cloudHeight = resolveCloudHeight({
+      cloudTopHeightM: feature.zone.environment?.cloudTopHeightM,
+    });
 
     return (
-
       <section className="panel storm-detail">
-
         <div className="storm-detail-head">
-
           <h2>
-
             {t("formation.panelTitle", { place: zonePlace })}{" "}
-
             <SeverityBadge severity={feature.assessment.severity} formation />
-
           </h2>
-
           <button
-
             type="button"
-
             className="close-btn"
-
             onClick={onClose}
-
             aria-label={t("close")}
-
           >
-
             ×
-
           </button>
-
         </div>
 
-        <p className="storm-meta">{formatFormationSummary(forecast, locale)}</p>
-
         <p className="alert-message">
-
           {formatFormationMessage(
-
             feature.assessment,
-
             feature.zone,
-
             forecast,
-
             location?.placeName,
-
             locale,
-
           )}
-
         </p>
 
+        <CloudHeightBlock height={cloudHeight} />
+
+        <div
+          className={`formation-signal${
+            cooling.kind === "satellite" ? " is-sat" : ""
+          }${cooling.growing ? " is-growing" : ""}`}
+        >
+          <span className="formation-signal-label">{cooling.label}</span>
+          <p className="formation-signal-text">{cooling.text}</p>
+        </div>
+
         <ul className="formation-forecast-list">
-
           <li>
-
             <strong>{t("formation.detailWhen")}</strong>{" "}
-
             {t("formation.initWindow", {
-
               when: formatInitiationWindow(forecast),
-
             })}
-
           </li>
-
           <li>
-
             <strong>{t("formation.detailStrength")}</strong>{" "}
-
-            {stormTypeLabel(forecast.stormType, locale)} (~{forecast.expectedMaxDbz}{" "}
-
-            dBZ)
-
+            {stormTypeLabel(forecast.stormType, locale)} (~
+            {forecast.expectedMaxDbz} dBZ)
           </li>
-
           <li>
-
             <strong>{t("formation.detailWhere")}</strong>{" "}
-
             {t("formation.afterBirthDir", {
-
               dir: headingLabel(forecast.headingDeg, locale),
-
             })}{" "}
-
             · ~{forecast.speedKmh} km/h
-
           </li>
-
-          {forecast.threatensUser && forecast.arrivalEtaMin != null && location && (
-
-            <li className="formation-threat-line">
-
-              <strong>{t("formation.detailToYou")}</strong>{" "}
-
-              {t("formation.arrivalEta", { eta: forecast.arrivalEtaMin })}
-
-            </li>
-
-          )}
-
+          {forecast.threatensUser &&
+            forecast.arrivalEtaMin != null &&
+            location && (
+              <li className="formation-threat-line">
+                <strong>{t("formation.detailToYou")}</strong>{" "}
+                {t("formation.arrivalEta", { eta: forecast.arrivalEtaMin })}
+              </li>
+            )}
         </ul>
 
         <p className="storm-meta">
-
           {t("formation.detailEnv")}{" "}
-
           {formationEnvironmentSummary(feature.zone.environment, locale)}
-
         </p>
-
         <p className="alert-note">{t("formation.note")}</p>
-
       </section>
-
     );
-
   }
 
 

@@ -19,7 +19,89 @@ export function formationPlaceName(zone: FormationZone): string {
   return parts[parts.length - 1] ?? zone.name;
 }
 
-/** Krátký popis prostředí pro laiky. */
+export type FormationCoolingSignal = {
+  /** satelit | model | none */
+  kind: "satellite" | "model" | "none";
+  /** Silné ochlazování (pre-echo minutes-ahead). */
+  growing: boolean;
+  label: string;
+  text: string;
+};
+
+/**
+ * Lidský signál z cloud-top cooling — hlavní „minutes-ahead“ před echom.
+ */
+export function formationCoolingSignal(
+  env: EnvironmentSignals | null | undefined,
+  locale?: Locale,
+): FormationCoolingSignal {
+  if (!env) {
+    return {
+      kind: "none",
+      growing: false,
+      label: t("formation.signalLabel", undefined, locale),
+      text: t("formation.signalNone", undefined, locale),
+    };
+  }
+
+  const cooling = env.cloudTopCoolingCPer15min ?? 0;
+  const growThr = stormConfig.formation.cloudTopCoolingCPer15min.growing;
+  // cooling je záporné při ochlazování; growing threshold je kladná magnituda
+  const rate = -cooling;
+  const growing = rate >= growThr;
+  const source = env.coolingSource;
+
+  if (source === "satellite") {
+    if (growing) {
+      return {
+        kind: "satellite",
+        growing: true,
+        label: t("formation.signalSatLabel", undefined, locale),
+        text: t(
+          "formation.signalSatCooling",
+          { rate: rate.toFixed(1) },
+          locale,
+        ),
+      };
+    }
+    if (rate <= -growThr) {
+      return {
+        kind: "satellite",
+        growing: false,
+        label: t("formation.signalSatLabel", undefined, locale),
+        text: t(
+          "formation.signalSatWarming",
+          { rate: Math.abs(rate).toFixed(1) },
+          locale,
+        ),
+      };
+    }
+    return {
+      kind: "satellite",
+      growing: false,
+      label: t("formation.signalSatLabel", undefined, locale),
+      text: t("formation.signalSatSteady", undefined, locale),
+    };
+  }
+
+  if (growing) {
+    return {
+      kind: "model",
+      growing: true,
+      label: t("formation.signalModelLabel", undefined, locale),
+      text: t("formation.signalModelCooling", undefined, locale),
+    };
+  }
+
+  return {
+    kind: source === "model" ? "model" : "none",
+    growing: false,
+    label: t("formation.signalLabel", undefined, locale),
+    text: t("formation.signalModelQuiet", undefined, locale),
+  };
+}
+
+/** Krátký popis prostředí pro laiky (bez cooling — to je samostatný signal). */
 export function formationEnvironmentSummary(
   env: EnvironmentSignals,
   locale?: Locale,
