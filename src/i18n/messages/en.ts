@@ -12,6 +12,8 @@ export const en = {
     bootTiles: "Rendering map…",
     warnings: "Warnings",
     detailSheet: "Storm or formation detail",
+    openSidebar: "Open Kraller panel",
+    closeSidebar: "Close panel",
   },
   sync: {
     updating: "Loading data…",

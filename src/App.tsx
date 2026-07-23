@@ -67,8 +67,9 @@ export default function App() {
   const [formationPoints, setFormationPoints] = useState<ScoredFormationPoint[]>(
     [],
   );
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const detailRef = useRef<HTMLDivElement>(null);
+  const logoSrc = `${import.meta.env.BASE_URL}kraller-mark-256.png`;
 
   useEffect(() => {
     if (!booting) return;
@@ -91,8 +92,14 @@ export default function App() {
     return () => window.clearTimeout(id);
   }, [selected]);
 
+  const selectStorm = (storm: SelectedStorm | null) => {
+    setSelected(storm);
+    // Klik vedle na mapě / zavření detailu → schovej sidebar
+    if (!storm) setSidebarOpen(false);
+  };
+
   const selectThreat = (item: ThreatBannerItem) => {
-    setSelected(
+    selectStorm(
       item.kind === "formation"
         ? { kind: "formation", feature: item.feature }
         : { kind: "radar", feature: item.feature },
@@ -109,7 +116,13 @@ export default function App() {
     >
       {!ready && (
         <div className="boot-screen" role="status" aria-live="polite">
-          <p className="boot-screen-title">Kraller</p>
+          <img
+            className="boot-screen-logo"
+            src={logoSrc}
+            alt="Kraller"
+            width={128}
+            height={95}
+          />
           <p className="boot-screen-sub">
             {booting ? bootMessage(t, bootPhase) : t("app.bootTiles")}
           </p>
@@ -124,7 +137,7 @@ export default function App() {
           windMode={windMode}
           timeOffsetMinutes={timeOffsetMinutes}
           selected={selected}
-          onSelect={setSelected}
+          onSelect={selectStorm}
           onWindSource={setWindReal}
           onFormationSource={setFormationReal}
           onThreatAlerts={setThreats}
@@ -134,21 +147,47 @@ export default function App() {
           onMapReady={() => setMapReady(true)}
         />
       )}
-      {ready && (
+      {ready && !sidebarOpen && (
+        <button
+          type="button"
+          className="sidebar-fab"
+          aria-label={t("app.openSidebar")}
+          onClick={() => setSidebarOpen(true)}
+        >
+          <img
+            className="sidebar-fab-logo"
+            src={logoSrc}
+            alt=""
+            width={40}
+            height={30}
+          />
+          {threats.length > 0 && (
+            <span className="sidebar-fab-badge" aria-label={t("app.warnings")}>
+              {threats.length}
+            </span>
+          )}
+        </button>
+      )}
+      {ready && sidebarOpen && (
         <aside
-          className={`sidebar${sidebarOpen ? " is-open" : " is-collapsed"}${
-            selected ? " has-detail" : ""
-          }`}
+          className={`sidebar is-open${selected ? " has-detail" : ""}`}
         >
           <div className="sidebar-chrome">
             <button
               type="button"
               className="sidebar-chrome-toggle"
-              aria-expanded={sidebarOpen}
+              aria-expanded={true}
               aria-controls="sidebar-body"
-              onClick={() => setSidebarOpen((v) => !v)}
+              aria-label={t("app.closeSidebar")}
+              onClick={() => setSidebarOpen(false)}
             >
-              <span className="brand-mark" aria-hidden />
+              <img
+                className="sidebar-chrome-logo"
+                src={logoSrc}
+                alt=""
+                width={28}
+                height={21}
+              />
               <span className="sidebar-chrome-title">
                 {location?.placeName ?? "Kraller"}
               </span>
@@ -161,7 +200,7 @@ export default function App() {
                 </span>
               )}
               <span className="sidebar-chrome-chevron" aria-hidden>
-                {sidebarOpen ? "◂" : "▸"}
+                ◂
               </span>
             </button>
             <LanguageToggle compact />
@@ -219,7 +258,7 @@ export default function App() {
                   location={location}
                   forecastMinutes={Math.max(0, timeOffsetMinutes)}
                   formationPoints={formationPoints}
-                  onClose={() => setSelected(null)}
+                  onClose={() => selectStorm(null)}
                 />
               </div>
             )}

@@ -10,6 +10,8 @@ export const cs = {
     bootTiles: "Vykresluji mapu…",
     warnings: "Varování",
     detailSheet: "Detail bouřky nebo vzniku",
+    openSidebar: "Otevřít panel Kraller",
+    closeSidebar: "Zavřít panel",
   },
   sync: {
     updating: "Načítám data…",
