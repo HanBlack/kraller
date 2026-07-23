@@ -16,6 +16,7 @@ import {
 } from "./stormWindAtCell";
 import { severityRank } from "../lib/severity";
 import { formatCoreStrengthLabel } from "../lib/stormStrength";
+import { severityFromDbz } from "./hitAtUser";
 import { coreRadiusForDbz, evolveDbzAt } from "../lib/stormEvolution";
 import {
   isIntensifyingAt,
@@ -127,6 +128,8 @@ export type TrackedCell = {
 export type RadarProgressFeature = {
   id: string;
   maxDbz: number;
+  /** PseudoCAPPI u země — pro sílu/mm/h když je k dispozici. */
+  surfaceDbz?: number;
   peak: [number, number];
   polygon: Polygon;
   headingDeg: number;
@@ -718,6 +721,11 @@ export function buildRadarProgressFeatures(
     );
 
     const alert = user ? shouldAlertActive(assessment) : false;
+    const cellDbz =
+      cell.surfaceDbz != null && cell.surfaceDbz > 0
+        ? cell.surfaceDbz
+        : peakDbz;
+    const cellSeverity = severityFromDbz(cellDbz);
     const growthWhy =
       phase === "birth" || phase === "growing"
         ? explainGrowthWhy(
@@ -738,15 +746,15 @@ export function buildRadarProgressFeatures(
 
     let label: string;
     if (phase === "birth") {
-      label = `${t("storm.born", undefined, locale)} · ${formatCoreStrengthLabel(peakDbz, assessment.severity, locale)}${
+      label = `${t("storm.born", undefined, locale)} · ${formatCoreStrengthLabel(cellDbz, cellSeverity, locale)}${
         growthWhy?.shortLabel ? `\n${growthWhy.shortLabel}` : ""
       }`;
     } else if (phase === "growing") {
-      label = `${t("storm.growing", undefined, locale)} · ${formatCoreStrengthLabel(peakDbz, assessment.severity, locale)}${
+      label = `${t("storm.growing", undefined, locale)} · ${formatCoreStrengthLabel(cellDbz, cellSeverity, locale)}${
         growthWhy?.shortLabel ? `\n${growthWhy.shortLabel}` : ""
       }`;
     } else {
-      label = formatCoreStrengthLabel(peakDbz, assessment.severity, locale);
+      label = formatCoreStrengthLabel(cellDbz, cellSeverity, locale);
       if (assessment.etaMinutes != null && alert) {
         label += `\n~${assessment.etaMinutes} min`;
       }
@@ -769,7 +777,7 @@ export function buildRadarProgressFeatures(
       peakEnv,
     );
     if (
-      (alert || assessment.severity === "strong") &&
+      (alert || cellSeverity === "strong") &&
       phase !== "birth"
     ) {
       label += `\n${formatStormWindMapLine(windAt, locale)}`;
@@ -778,12 +786,13 @@ export function buildRadarProgressFeatures(
     return {
       id: cell.id,
       maxDbz: peakDbz,
+      surfaceDbz: cell.surfaceDbz,
       peak,
       polygon: cell.polygon,
       headingDeg,
       speedKmh,
-      severity: assessment.severity,
-      rank: severityRank(assessment.severity),
+      severity: cellSeverity,
+      rank: severityRank(cellSeverity),
       threatens: alert ? 1 : 0,
       label,
       trackEnd,

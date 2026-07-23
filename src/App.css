@@ -1229,6 +1229,7 @@
   letter-spacing: 0.03em;
   text-transform: uppercase;
   color: #9ec5f0;
+  margin-bottom: 0.15rem;
 }
 
 .birth-factor-shear .birth-factor-label {
@@ -1236,6 +1237,7 @@
 }
 
 .birth-factor-detail {
+  display: block;
   font-size: 0.8rem;
   line-height: 1.35;
   color: #d5e2f0;

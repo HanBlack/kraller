@@ -82,15 +82,25 @@ export default function App() {
     return () => window.clearTimeout(id);
   }, [booting, mapReady]);
 
-  // Klik na bouřku / vznik → otevři sidebar a scroll na detail
+  // Klik na jinou bouřku → otevři sidebar a scroll na detail.
+  // Stejná buňka po refreshi dat → neskákej nahoru.
+  const selectedKey = selected ? `${selected.kind}:${selected.feature.id}` : null;
+  const prevSelectedKey = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!selected) return;
+    if (!selectedKey) {
+      prevSelectedKey.current = null;
+      return;
+    }
     setSidebarOpen(true);
+    const isNewSelection = prevSelectedKey.current !== selectedKey;
+    prevSelectedKey.current = selectedKey;
+    if (!isNewSelection) return;
     const id = window.setTimeout(() => {
-      detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      detailRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }, 80);
     return () => window.clearTimeout(id);
-  }, [selected]);
+  }, [selectedKey]);
 
   const selectStorm = (storm: SelectedStorm | null) => {
     setSelected(storm);

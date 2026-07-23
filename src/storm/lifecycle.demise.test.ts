@@ -154,6 +154,6 @@ describe("lifecycle — jedna narace zesílení XOR zánik", () => {
     expect(demiseStep?.body ?? "").not.toMatch(/Echo už slábne/i);
     expect(life.showDemiseOnMap).toBe(false);
     expect(demiseStep?.reasons?.some((r) => /už slábne|rychle se rozpadá/i.test(r))).toBeFalsy();
-    expect(demiseStep?.meta ?? "").toMatch(/po případném zesílení|zesílení/i);
+    expect(demiseStep?.badge ?? "").toMatch(/po zesílení/i);
   });
 });

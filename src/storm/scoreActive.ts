@@ -219,7 +219,13 @@ export function scoreActiveStorm(
     kind: "active",
     cellId: cell.id,
     score: Math.round(overall),
-    severity: strengthDbz != null ? severityFromDbz(strengthDbz) : "weak",
+    severity: strengthDbz != null
+      ? severityFromDbz(strengthDbz)
+      : severityFromDbz(
+          cell.surfaceDbz != null && cell.surfaceDbz > 0
+            ? cell.surfaceDbz
+            : cell.maxDbz,
+        ),
     etaMinutes: eta,
     fromPlace: cell.fromPlace,
     maxDbz: cell.maxDbz,
