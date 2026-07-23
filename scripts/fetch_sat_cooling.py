@@ -7,7 +7,7 @@ Bez EUMETSAT_CONSUMER_KEY / EUMETSAT_CONSUMER_SECRET:
 S klíči (workflow live-sat.yml, odděleně od radaru):
   stáhne 3 snímky CTTH (~15 + ~30–45 min trend) + cloud mask + cloud type
   + MTG Lightning flashes u vzorků, zapíše cooling.json.
-  empty/error nepřepíše poslední status=ok (keep-last-good).
+  empty/error/no_credentials nepřepíše poslední status=ok (keep-last-good).
 
 Klíče: https://api.eumetsat.int/api-key/ (free EO Portal účet).
 """
@@ -95,8 +95,8 @@ def write_cooling(
         "points": points or [],
     }
 
-    # empty/error: nepřepisuj poslední dobrý cooling — UI i merge drží last-good
-    if status in ("empty", "error"):
+    # empty/error/no_credentials: nepřepisuj poslední dobrý cooling — UI i merge drží last-good
+    if status in ("empty", "error", "no_credentials"):
         existing = _read_existing_cooling()
         if _has_usable_cooling(existing):
             diag = {

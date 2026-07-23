@@ -63,11 +63,21 @@ jobs:
 
       - name: Fetch radar (OPERA + ČHMÚ + dual-pol + env bez sat)
         if: steps.gate.outputs.skip != 'true'
+        env:
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
         run: |
           python scripts/opera_fetch_convert.py --frames 7
           python scripts/chmi_radar.py
           python scripts/chmi_dualpol.py
           python scripts/refresh_env_if_stale.py --skip-sat
+          # Čerstvý cooling z R2 (live-sat), ať formation merge nepíše starý checkout
+          if [ -n "${R2_PUBLIC_URL:-}" ]; then
+            curl -fsS "${R2_PUBLIC_URL%/}/data/satellite/cooling.json" \
+              -o public/data/satellite/cooling.json \
+              && echo "pulled cooling.json from R2" \
+              || echo "WARN: could not pull cooling from R2 — merge uses checkout"
+          fi
+          python scripts/merge_sat_cooling.py
           python scripts/write_meta.py
 
       - name: Upload radar to Cloudflare R2
