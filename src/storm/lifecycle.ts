@@ -277,37 +277,51 @@ export function explainDemiseWhy(
   const dbz = feature.maxDbz;
   const reasons: string[] = [];
   const decayPerMin = decayDbzPerMin(feature);
+  const recentDecay = recentDecayDbzPerMin(feature);
   const peakSat = satAtPeak ?? feature.satAtPeak ?? null;
+  const willIntensify =
+    intens?.willIntensify === true && intens.enterEtaMin != null;
 
-  if (peakSat?.towerFalling && towerFallRate(peakSat.cloudTopHeightDeltaMPer15min) >= stormConfig.satellite.towerFallingMPer15min) {
-    reasons.push(explainSatelliteTowerFalling(peakSat));
-  } else if (peakSat?.trend === "warming" && satelliteWarmingRate(peakSat.cloudTopCoolingCPer15min) >= 1.5) {
-    reasons.push(explainSatelliteWarming(peakSat));
-  }
+  // Jedna narace: při aktivním zesílení neříkat „už slábne“ / „rychle se rozpadá“
+  if (!willIntensify) {
+    if (peakSat?.towerFalling && towerFallRate(peakSat.cloudTopHeightDeltaMPer15min) >= stormConfig.satellite.towerFallingMPer15min) {
+      reasons.push(explainSatelliteTowerFalling(peakSat));
+    } else if (peakSat?.trend === "warming" && satelliteWarmingRate(peakSat.cloudTopCoolingCPer15min) >= 1.5) {
+      reasons.push(explainSatelliteWarming(peakSat));
+    }
 
-  if (decayPerMin != null && decayPerMin < -0.15) {
+    if (recentDecay != null && recentDecay < -0.2) {
+      reasons.push(
+        `echo už slábne (~${Math.abs(recentDecay * 15).toFixed(0)} dBZ / 15 min)`,
+      );
+    } else if (decayPerMin != null && decayPerMin < -0.15) {
+      reasons.push(
+        `echo slábne v historii (~${Math.abs(decayPerMin * 15).toFixed(0)} dBZ / 15 min)`,
+      );
+    }
+
+    if (feature.growthDbz <= -2) {
+      reasons.push("echo v posledních snímcích klesá");
+    }
+
+    if (shear < 6) {
+      reasons.push(
+        `slabý střih (~${shear.toFixed(0)} m/s) — buňka se rychle rozpadá`,
+      );
+    } else if (shear < 10) {
+      reasons.push(`mírný střih (~${shear.toFixed(0)} m/s) — omezená životnost`);
+    }
+
+    if (dbz < 40) {
+      reasons.push(`slabé echo (~${dbz.toFixed(0)} dBZ) bez velké rezervy`);
+    }
+  } else {
     reasons.push(
-      `echo už slábne (~${Math.abs(decayPerMin * 15).toFixed(0)} dBZ / 15 min)`,
+      `po případném zesílení (za ~${intens!.enterEtaMin} min) dojde palivo / podmínky slábnou dál po trase`,
     );
   }
 
-  if (feature.growthDbz <= -2) {
-    reasons.push("echo v posledních snímcích klesá");
-  }
-
-  if (shear < 6) {
-    reasons.push(
-      `slabý střih (~${shear.toFixed(0)} m/s) — buňka se rychle rozpadá`,
-    );
-  } else if (shear < 10) {
-    reasons.push(`mírný střih (~${shear.toFixed(0)} m/s) — omezená životnost`);
-  }
-
-  if (dbz < 40) {
-    reasons.push(`slabé echo (~${dbz.toFixed(0)} dBZ) bez velké rezervy`);
-  }
-
-  if (atEnv) {
+  if (atEnv && !willIntensify) {
     const pot = atEnv.capeJkg;
     if (pot < 100) {
       reasons.push(`slabá energie na trase (CAPE ~${Math.round(pot)} J/kg)`);
@@ -323,22 +337,21 @@ export function explainDemiseWhy(
   }
 
   if (
-    peakSat?.trend === "growing" ||
-    peakSat?.trend === "growing_long" ||
-    peakSat?.towerRising ||
-    peakSat?.coldTop ||
-    peakSat?.deepIceTop ||
-    (peakSat != null &&
-      peakSat.lightningFlashes15min >= stormConfig.satellite.lightningActiveMin)
+    !willIntensify &&
+    (peakSat?.trend === "growing" ||
+      peakSat?.trend === "growing_long" ||
+      peakSat?.towerRising ||
+      peakSat?.coldTop ||
+      peakSat?.deepIceTop ||
+      (peakSat != null &&
+        peakSat.lightningFlashes15min >= stormConfig.satellite.lightningActiveMin))
   ) {
-    const growLine = peakSat ? satelliteReasonLines(peakSat).find((l) => !l.includes("slábne")) : null;
+    const growLine = peakSat
+      ? satelliteReasonLines(peakSat).find((l) => !l.includes("slábne"))
+      : null;
     if (growLine && !reasons.some((r) => r.includes("útlum není jistý"))) {
       reasons.push(`${growLine} — útlum není jistý`);
     }
-  }
-
-  if (intens?.willIntensify && intens.enterEtaMin != null && etaMin > intens.enterEtaMin + 15) {
-    reasons.push("po případném zesílení dojde palivo / podmínky slábnou dál po trase");
   }
 
   if (reasons.length === 0) {
@@ -442,6 +455,10 @@ export function estimateDemise(
   if (intens?.willIntensify && intens.enterEtaMin != null) {
     const boost = Math.max(0, (intens.peakExpectedDbz ?? dbz) - dbz) * 0.8;
     lifeMin = Math.max(lifeMin, intens.enterEtaMin + 15 + boost);
+    // Zesílení vyhrálo naraci — ne „observed slábne“ zároveň
+    if (confidence === "observed" || confidence === "trending") {
+      confidence = "climatology";
+    }
   }
 
   if (peakSat?.trend === "warming" || peakSat?.towerFalling) {
@@ -492,7 +509,10 @@ export function estimateDemise(
   );
 
   let reasons = why.reasons;
-  if (confidence === "climatology") {
+  if (intens?.willIntensify) {
+    // Primární narace = po zesílení; ne přepisovat „nejde o fakt“ dopředu
+    reasons = why.reasons.slice(0, 4);
+  } else if (confidence === "climatology") {
     reasons = [
       "nejde o fakt — typický útlum při této síle (ne změřený rozpad)",
       ...reasons.filter((r) => !r.startsWith("typický útlum")),
@@ -514,8 +534,13 @@ export function estimateDemise(
 function demiseBodyCopy(
   demise: DemiseEstimate,
   growingForecast: boolean,
+  willIntensify: boolean,
 ): string {
   const range = `~${demise.etaMinLo}–${demise.etaMinHi} min`;
+  // Jedna pravda: při zesílení neríkat „už slábne“
+  if (willIntensify) {
+    return `Nejdřív možné zesílení na trase. Typický útlum až za ${range} — ne teď.`;
+  }
   if (demise.confidence === "observed") {
     return `Echo už slábne. Odhad pod ~30 dBZ za ${range}.`;
   }
@@ -702,19 +727,24 @@ export function buildStormLifecycle(
     });
   }
 
+  const willIntensify =
+    intens?.willIntensify === true && intens.enterEtaMin != null;
+
   steps.push({
     id: "demise",
-    title: "5 · Odhad zániku",
-    body: demiseBodyCopy(demise, growingForecast),
+    title: willIntensify ? "5 · Útlum až potom" : "5 · Odhad zániku",
+    body: demiseBodyCopy(demise, growingForecast, willIntensify),
     meta: demise.reason,
     reasons: demise.reasons,
-    badge: demiseBadge(demise.confidence),
+    badge: willIntensify ? "po zesílení" : demiseBadge(demise.confidence),
   });
 
-  const showDemiseOnMap =
-    demise.confidence === "observed" ||
-    demise.confidence === "trending" ||
-    !growingForecast;
+  // Mapa: jedna narace — při zesílení nekreslit zánik (konflikt ↑ vs útlum)
+  const showDemiseOnMap = willIntensify
+    ? false
+    : demise.confidence === "observed" ||
+      demise.confidence === "trending" ||
+      !growingForecast;
 
   const summary = feature.trueBirth
     ? feature.phase === "birth"

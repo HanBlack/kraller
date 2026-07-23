@@ -33,7 +33,20 @@ export type IntensTrackCell = {
   growthDbz?: number;
   /** Satelit u jádra — ochlazování / oteplování vrcholu. */
   satAtPeak?: SatelliteSample | null;
+  /** Krátká historie peaků — recent decay vs lifetime growth. */
+  history?: { maxDbz: number; minutesFromBirth: number }[];
 };
+
+/** dBZ/min z posledních dvou snímků (záporné = slábnutí). */
+function recentDbzPerMin(feature: IntensTrackCell): number | null {
+  const hist = feature.history;
+  if (!hist || hist.length < 2) return null;
+  const prev = hist[hist.length - 2];
+  const last = hist[hist.length - 1];
+  const dt = last.minutesFromBirth - prev.minutesFromBirth;
+  if (dt < 4) return null;
+  return (last.maxDbz - prev.maxDbz) / dt;
+}
 
 export type IntensSegment = {
   etaMin: number;
@@ -214,8 +227,11 @@ export function forecastCellIntensification(
   const here = nearestEnv(feature.peak[1], feature.peak[0], points);
   const envScoreHere = here?.assessment.score ?? 0;
   const satWarm =
-    feature.satAtPeak?.trend === "warming" &&
-    satelliteWarmingRate(feature.satAtPeak.cloudTopCoolingCPer15min) >= 1.5;
+    (feature.satAtPeak?.trend === "warming" &&
+      satelliteWarmingRate(feature.satAtPeak.cloudTopCoolingCPer15min) >= 1.5) ||
+    feature.satAtPeak?.towerFalling === true;
+  const recentDecay = recentDbzPerMin(feature);
+  const recentSlumping = recentDecay != null && recentDecay < -0.2;
 
   for (let eta = 0; eta <= horizon; eta += step) {
     const [lon, lat] = samplePointAlongTrack(feature, eta);
@@ -289,12 +305,13 @@ export function forecastCellIntensification(
 
   let whyHeadline: string | undefined;
   let whyReasons: string[] | undefined;
-  /** Neznámý / flat / slabý growth → žádná fialová (nejen klesající echo). */
+  /** Neznámý / flat / slabý growth / recent útlum / sat warming → žádná fialová. */
   const trendUnknown = feature.growthDbz == null;
   const trendTooWeak =
     feature.growthDbz != null &&
     feature.growthDbz < cfg.suppressIfGrowthDbzBelow;
-  const suppressPurple = trendUnknown || trendTooWeak || satWarm;
+  const suppressPurple =
+    trendUnknown || trendTooWeak || satWarm || recentSlumping;
 
   if (alertSegs.length > 0 && !suppressPurple) {
     const peak = alertSegs.reduce((a, b) => (b.score > a.score ? b : a));
@@ -355,13 +372,19 @@ export function forecastCellIntensification(
   let suppressHeadline: string | undefined;
   let suppressReasons: string[] | undefined;
   if (suppressPurple && alertSegs.length > 0) {
-    if (trendUnknown) {
+    if (recentSlumping) {
+      suppressHeadline =
+        "Echo v posledních snímcích slábne — fialovou zónu nezobrazujeme.";
+      suppressReasons = [
+        `pokles ~${Math.abs((recentDecay ?? 0) * 15).toFixed(0)} dBZ / 15 min`,
+      ];
+    } else if (trendUnknown) {
       suppressHeadline =
         "Trend echa neznámý — fialovou zónu nezobrazujeme (zesílení není jistota).";
       suppressReasons = ["chybí růst dBZ z historie"];
     } else if (satWarm && feature.satAtPeak) {
       suppressHeadline =
-        "Satelit ukazuje oteplování vrcholu — fialovou zónu nezobrazujeme.";
+        "Satelit ukazuje oteplování / klesající věž — fialovou zónu nezobrazujeme.";
       suppressReasons = [explainSatelliteWarming(feature.satAtPeak)];
     } else if (feature.growthDbz != null && feature.growthDbz < 0) {
       suppressHeadline =

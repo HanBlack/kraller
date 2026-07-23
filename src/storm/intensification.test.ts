@@ -141,4 +141,21 @@ describe("intensification — poctivá fialová", () => {
     );
     expect(intens.willIntensify).toBe(false);
   });
+
+  it("lifetime růst ale recent decay → žádné willIntensify", () => {
+    const intens = forecastCellIntensification(
+      {
+        ...cell,
+        growthDbz: 8,
+        history: [
+          { maxDbz: 40, minutesFromBirth: 0 },
+          { maxDbz: 50, minutesFromBirth: 20 },
+          { maxDbz: 42, minutesFromBirth: 30 },
+        ],
+      },
+      fuelAlongTrack(49.2, 17.0),
+    );
+    expect(intens.willIntensify).toBe(false);
+    expect(intens.whyHeadline ?? "").toMatch(/slábne/i);
+  });
 });

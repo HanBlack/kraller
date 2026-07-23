@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { estimateDemise } from "./lifecycle";
+import { buildStormLifecycle, estimateDemise } from "./lifecycle";
 import type { RadarProgressFeature } from "./radarCells";
+import type { CellIntensification } from "./intensification";
 
 function baseFeature(
   partial: Partial<RadarProgressFeature> &
@@ -105,5 +106,54 @@ describe("estimateDemise — confidence", () => {
     );
     expect(d.confidence).toBe("climatology");
     expect(d.etaMin).toBeGreaterThanOrEqual(22);
+  });
+});
+
+describe("lifecycle — jedna narace zesílení XOR zánik", () => {
+  const intensOn: CellIntensification = {
+    cellId: "t1",
+    score: 60,
+    enterEtaMin: 20,
+    peakExpectedDbz: 52,
+    segments: [
+      {
+        etaMin: 20,
+        etaMax: 35,
+        score: 60,
+        expectedDbz: 52,
+        headroomDbz: 8,
+        center: [18.2, 49.4],
+        path: [
+          [18, 49.3],
+          [18.2, 49.4],
+        ],
+      },
+    ],
+    willIntensify: true,
+    whyHeadline: "Může zesílit — lepší prostředí na trase (CAPE).",
+    whyReasons: ["CAPE ~500 J/kg na trase"],
+    timeline: [],
+  };
+
+  it("willIntensify → demise neříká už slábne a mapa bez zániku", () => {
+    const feature = baseFeature({
+      maxDbz: 44,
+      growthDbz: 6,
+      phase: "growing",
+      history: [
+        { time: "a", peak: [17.9, 49.25], maxDbz: 38, minutesFromBirth: 0 },
+        { time: "b", peak: [18, 49.3], maxDbz: 44, minutesFromBirth: 15 },
+      ],
+    });
+    const life = buildStormLifecycle(feature, intensOn, []);
+    const intensStep = life.steps.find((s) => s.id === "intensify");
+    const demiseStep = life.steps.find((s) => s.id === "demise");
+    expect(intensStep?.active).toBe(true);
+    expect(intensStep?.body ?? "").toMatch(/zesílit/i);
+    expect(demiseStep?.body ?? "").toMatch(/Nejdřív možné zesílení|až za/i);
+    expect(demiseStep?.body ?? "").not.toMatch(/Echo už slábne/i);
+    expect(life.showDemiseOnMap).toBe(false);
+    expect(demiseStep?.reasons?.some((r) => /už slábne|rychle se rozpadá/i.test(r))).toBeFalsy();
+    expect(demiseStep?.meta ?? "").toMatch(/po případném zesílení|zesílení/i);
   });
 });

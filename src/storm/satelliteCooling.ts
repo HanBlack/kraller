@@ -407,9 +407,19 @@ export function explainSatelliteWarming(sample: SatelliteSample): string {
   return `vrchol mraku se otepluje (satelit +${rate.toFixed(1)} °C / 15 min) — konvekce nahoře slábne`;
 }
 
-/** Všechny sat signály pro lifecycle (priorita). */
+/** Všechny sat signály pro lifecycle (priorita — růst XOR útlum). */
 export function satelliteReasonLines(sample: SatelliteSample): string[] {
   const lines: string[] = [];
+  const decaying =
+    sample.trend === "warming" ||
+    (sample.towerFalling &&
+      sample.trend !== "growing" &&
+      sample.trend !== "growing_long" &&
+      !sample.towerRising);
+  if (decaying) {
+    lines.push(explainSatelliteWarming(sample));
+    return lines;
+  }
   if (sample.trend === "growing") lines.push(explainSatelliteGrowth(sample));
   if (sample.trend === "growing_long") lines.push(explainSatelliteLongGrowth(sample));
   if (sample.towerRising) lines.push(explainSatelliteTowerRising(sample));
@@ -421,9 +431,6 @@ export function satelliteReasonLines(sample: SatelliteSample): string[] {
   }
   if (sample.lightningFlashes15min >= stormConfig.satellite.lightningActiveMin) {
     lines.push(explainSatelliteLightning(sample));
-  }
-  if (sample.trend === "warming" || sample.towerFalling) {
-    lines.push(explainSatelliteWarming(sample));
   }
   return lines;
 }
