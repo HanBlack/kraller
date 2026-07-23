@@ -3,11 +3,13 @@
 Radar refresh musí zůstat rychlý (~2–4 min). Satelit běží odděleně
 (workflow live-sat.yml); zde --skip-sat / --sat-only pro lokální / legacy.
 
-Prah:
-  formation > 15 min → fetch_formation --force (zapíše i wind)
-  wind > 10 min → fetch_wind --force (když formation fresh)
+Prah (mesoscale ~ stejný takt jako radar */5):
+  formation > 6 min → fetch_formation --force (zapíše i wind)
+  wind > 6 min → fetch_wind --force (když formation fresh)
   sat > 25 min → fetch_sat_cooling + merge
   sat empty/error → retry max každých 10 min (ne každý live-radar cyklus)
+
+Open-Meteo fail nikdy neblokuje live radar (rc env = 0 při --skip-sat).
 """
 
 from __future__ import annotations
@@ -24,8 +26,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from data_freshness import age_minutes, read_valid_at  # noqa: E402
 
-FORMATION_REFRESH_MIN = 15.0
-WIND_REFRESH_MIN = 10.0
+# Cíl: env na stejném taktu jako Live radar (~5 min), s malou rezervou
+FORMATION_REFRESH_MIN = 6.0
+WIND_REFRESH_MIN = 6.0
 # Sat je drahý — méně často než radar (radar ~5 min, sat ~25 min)
 SAT_REFRESH_MIN = 25.0
 # Prázdný/broken cooling.json: nespamuj každý cyklus
@@ -66,9 +69,13 @@ def _sat_needs_refresh(sat_age: float) -> bool:
 
 
 def _run(script: str, *args: str) -> int:
-    return subprocess.run(
-        [sys.executable, f"scripts/{script}", *args], cwd="."
-    ).returncode
+    try:
+        return subprocess.run(
+            [sys.executable, f"scripts/{script}", *args], cwd="."
+        ).returncode
+    except OSError as exc:
+        print(f"  WARN: {script} start failed ({exc})", flush=True)
+        return 1
 
 
 def main() -> int:
@@ -122,12 +129,18 @@ def main() -> int:
         print("  -> formation --force (writes wind too)", flush=True)
         r = _run("fetch_formation.py", "--force")
         if r != 0:
-            rc = r
+            print(
+                f"  WARN: formation refresh failed (rc={r}) — keep previous grid",
+                flush=True,
+            )
+            if not args.skip_sat:
+                rc = r
         if not args.skip_sat and _sat_needs_refresh(sat_age):
             print("  -> sat cooling + merge", flush=True)
             _run("fetch_sat_cooling.py")
             _run("merge_sat_cooling.py")
-        return rc
+        # Live radar: Open-Meteo výpadek nesmí zrušit OPERA upload
+        return 0 if args.skip_sat else rc
 
     if not args.skip_sat and _sat_needs_refresh(sat_age):
         print("  -> sat cooling + merge", flush=True)
@@ -138,14 +151,19 @@ def main() -> int:
         print("  -> wind --force", flush=True)
         r = _run("fetch_wind.py", "--force")
         if r != 0:
-            rc = r
-        return rc
+            print(
+                f"  WARN: wind refresh failed (rc={r}) — keep previous wind",
+                flush=True,
+            )
+            if not args.skip_sat:
+                rc = r
+        return 0 if args.skip_sat else rc
 
     if form_age <= FORMATION_REFRESH_MIN and (
         args.skip_sat or not _sat_needs_refresh(sat_age)
     ):
         print("  env fresh — skip Open-Meteo / sat", flush=True)
-    return rc
+    return 0 if args.skip_sat else rc
 
 
 if __name__ == "__main__":

@@ -69,14 +69,28 @@ jobs:
           python scripts/opera_fetch_convert.py --frames 7
           python scripts/chmi_radar.py
           python scripts/chmi_dualpol.py
-          python scripts/refresh_env_if_stale.py --skip-sat
-          # Čerstvý cooling z R2 (live-sat), ať formation merge nepíše starý checkout
+          # Čerstvý env/cooling z R2 (před refresh) — správné stáří, méně zbytečných Open-Meteo hitů
           if [ -n "${R2_PUBLIC_URL:-}" ]; then
-            curl -fsS "${R2_PUBLIC_URL%/}/data/satellite/cooling.json" \
+            base="${R2_PUBLIC_URL%/}"
+            mkdir -p public/data/satellite public/data/formation public/data/wind
+            curl -fsS "$base/data/satellite/cooling.json" \
               -o public/data/satellite/cooling.json \
               && echo "pulled cooling.json from R2" \
               || echo "WARN: could not pull cooling from R2 — merge uses checkout"
+            curl -fsS "$base/data/formation/grid.json" \
+              -o public/data/formation/grid.json \
+              && echo "pulled formation/grid.json from R2" \
+              || echo "WARN: could not pull formation from R2"
+            curl -fsS "$base/data/wind/low.json" \
+              -o public/data/wind/low.json \
+              && curl -fsS "$base/data/wind/upper.json" \
+              -o public/data/wind/upper.json \
+              && echo "pulled wind from R2" \
+              || echo "WARN: could not pull wind from R2"
           fi
+          # Soft-fail: Open-Meteo výpadek nesmí zrušit upload radaru na R2
+          python scripts/refresh_env_if_stale.py --skip-sat \
+            || echo "WARN: env refresh failed — keep previous formation/wind"
           python scripts/merge_sat_cooling.py
           python scripts/write_meta.py
 
