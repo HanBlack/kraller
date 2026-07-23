@@ -4,9 +4,10 @@
 Bez EUMETSAT_CONSUMER_KEY / EUMETSAT_CONSUMER_SECRET:
   zapíše cooling.json se statusem no_credentials (formation zůstane na model proxy).
 
-S klíči (běží v Live radar až PO R2 uploadu radaru):
+S klíči (workflow live-sat.yml, odděleně od radaru):
   stáhne 3 snímky CTTH (~15 + ~30–45 min trend) + cloud mask + cloud type
   + MTG Lightning flashes u vzorků, zapíše cooling.json.
+  empty/error nepřepíše poslední status=ok (keep-last-good).
 
 Klíče: https://api.eumetsat.int/api-key/ (free EO Portal účet).
 """
@@ -28,6 +29,7 @@ from pathlib import Path
 WEST, SOUTH, EAST, NORTH = 7.0, 46.5, 22.5, 52.5
 COLS, ROWS = 28, 18
 OUT_PATH = Path("public/data/satellite/cooling.json")
+LAST_ERROR_PATH = Path("public/data/satellite/cooling.last_error.json")
 # Preferuj MTG CTT+CTH (má teplotu). MSG CTH je native binary — jen nouzový fallback.
 COLLECTIONS = (
     "EO:EUM:DAT:0681",  # MTG Cloud Top Temperature and Height
@@ -47,6 +49,25 @@ def lat_lons() -> tuple[list[float], list[float]]:
     lats = [SOUTH + (NORTH - SOUTH) * j / (ROWS - 1) for j in range(ROWS)]
     lons = [WEST + (EAST - WEST) * i / (COLS - 1) for i in range(COLS)]
     return lats, lons
+
+
+def _read_existing_cooling() -> dict | None:
+    if not OUT_PATH.is_file():
+        return None
+    try:
+        data = json.loads(OUT_PATH.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else None
+    except (OSError, json.JSONDecodeError, TypeError):
+        return None
+
+
+def _has_usable_cooling(data: dict | None) -> bool:
+    if not data:
+        return False
+    if data.get("status") != "ok":
+        return False
+    points = data.get("points") or []
+    return isinstance(points, list) and len(points) > 0
 
 
 def write_cooling(
@@ -73,6 +94,27 @@ def write_cooling(
         "validAt": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "points": points or [],
     }
+
+    # empty/error: nepřepisuj poslední dobrý cooling — UI i merge drží last-good
+    if status in ("empty", "error"):
+        existing = _read_existing_cooling()
+        if _has_usable_cooling(existing):
+            diag = {
+                **payload,
+                "keptLastGood": True,
+                "keptValidAt": existing.get("validAt"),
+                "keptPoints": len(existing.get("points") or []),
+                "failedAt": payload["validAt"],
+            }
+            LAST_ERROR_PATH.write_text(json.dumps(diag), encoding="utf-8")
+            print(
+                f"Keep last-good {OUT_PATH} (status={existing.get('status')} "
+                f"points={len(existing.get('points') or [])} validAt={existing.get('validAt')}) "
+                f"- new {status} -> {LAST_ERROR_PATH}",
+                flush=True,
+            )
+            return
+
     OUT_PATH.write_text(json.dumps(payload), encoding="utf-8")
     print(f"Wrote {OUT_PATH} status={status} points={len(payload['points'])}", flush=True)
 

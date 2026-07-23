@@ -1,5 +1,5 @@
 # Stáhne radar → R2 (rychlé CDN) + volitelný git backup.
-# Cíl: ~5–7 min od snímku. Satelit NEblokuje radar (až po R2).
+# Cíl: ~5–7 min od snímku. Satelit běží odděleně (workflow live-sat.yml).
 # Viz docs/RADAR-TRIGGER.md
 
 name: Live radar
@@ -61,12 +61,8 @@ jobs:
         if: steps.gate.outputs.skip != 'true'
         run: pip install -r requirements.txt
 
-      # --- RYCHLÁ CESTA: radar → R2 (sat až potom) ---
       - name: Fetch radar (OPERA + ČHMÚ + dual-pol + env bez sat)
         if: steps.gate.outputs.skip != 'true'
-        env:
-          EUMETSAT_CONSUMER_KEY: ${{ secrets.CONSUMER_KEY_EUMETSAT }}
-          EUMETSAT_CONSUMER_SECRET: ${{ secrets.CONSUMER_SECRET_EUMETSAT }}
         run: |
           python scripts/opera_fetch_convert.py --frames 7
           python scripts/chmi_radar.py
@@ -84,26 +80,6 @@ jobs:
           R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
         run: python scripts/upload_data_r2.py --exclude data/satellite/
 
-      # --- POMALÁ CESTA: satelit (neblokuje radar freshness) ---
-      - name: Satellite cooling (best-effort, after R2)
-        if: steps.gate.outputs.skip != 'true'
-        continue-on-error: true
-        env:
-          EUMETSAT_CONSUMER_KEY: ${{ secrets.CONSUMER_KEY_EUMETSAT }}
-          EUMETSAT_CONSUMER_SECRET: ${{ secrets.CONSUMER_SECRET_EUMETSAT }}
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
-          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
-        run: |
-          python scripts/refresh_env_if_stale.py --sat-only
-          # I když sat fetch skipne (cadence), merge + upload z checkoutu opraví R2 po race
-          python scripts/merge_sat_cooling.py
-          python scripts/write_meta.py
-          # Jen sat + formation merge + meta — ať souběžný radar run nepřepíše starým cooling.json
-          python scripts/upload_data_r2.py --only data/satellite/ --only data/formation/ --only data/meta.json
-
       - name: Learning emit (kalibrace — T+15/30 ověření)
         if: steps.gate.outputs.skip != 'true'
         run: python scripts/emit_learning.py
@@ -115,7 +91,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/data/meta.json public/data/opera public/data/chmi public/data/wind public/data/formation public/data/satellite public/data/learning
+          git add public/data/meta.json public/data/opera public/data/chmi public/data/wind public/data/formation public/data/learning
           if git diff --staged --quiet; then
             echo "No git backup changes."
           else

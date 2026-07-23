@@ -1,7 +1,7 @@
 """Obnoví formation / wind / sat cooling podle stáří.
 
-Radar refresh musí zůstat rychlý (~2–4 min). Satelit je těžký (EUMETSAT
-CTTH ~50 MB × 2 + mask) — defaultně pomalejší cadence a volitelně --skip-sat.
+Radar refresh musí zůstat rychlý (~2–4 min). Satelit běží odděleně
+(workflow live-sat.yml); zde --skip-sat / --sat-only pro lokální / legacy.
 
 Prah:
   formation > 15 min → fetch_formation --force (zapíše i wind)

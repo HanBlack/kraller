@@ -293,14 +293,16 @@ export function explainSatelliteStatus(
       title: "Satelit",
       detail:
         grid.status === "empty"
-          ? "CTTH bez cloud-top vzorků (geometrie/filtr) — příští kolo"
-          : (grid.message ?? "data dočasně nedostupná"),
+          ? "dočasně bez cloud-top — používáme model"
+          : grid.status === "error"
+            ? "data dočasně nedostupná — používáme model"
+            : (grid.message ?? "data dočasně nedostupná — používáme model"),
     };
   }
   if (!grid.points?.length) {
     return {
       title: "Satelit (MTG)",
-      detail: "žádné cloud-top vzorky v oblasti (pipeline prázdná)",
+      detail: "bez cloud-top vzorků — používáme model",
     };
   }
   const sample = sampleSatelliteCooling(grid, lat, lon);
