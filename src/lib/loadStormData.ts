@@ -1,5 +1,5 @@
 import type { FeatureCollection } from "geojson";
-import { dataUrl, fetchDataJson } from "./dataUrls";
+import { fetchDataJson } from "./dataUrls";
 import { smoothPolygonFeatures } from "./geoSmooth";
 import { loadWindGrids } from "./windField";
 import { buildRealFormationZones } from "../storm/formationData";
@@ -109,9 +109,10 @@ export async function loadStormData(
     Array.isArray(rasterMeta.coordinates) &&
     rasterMeta.coordinates.length === 4
   ) {
+    // Relativní path — absolutní URL řeší preloadRadarRaster přes dataRoots fallback
     radarRaster = {
       ...rasterMeta,
-      url: dataUrl(rasterMeta.url, cacheBust),
+      url: rasterMeta.url.replace(/^\//, ""),
     };
   }
 

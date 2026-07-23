@@ -57,16 +57,22 @@ export function estimateHailCm(
 /** ETA: vzdálenost / složka rychlosti směrem k uživateli (zaokrouhleno, přísnější filtr). */
 function estimateEtaMinutes(cell: RadarCellSignals): number | null {
   const maxEta = stormConfig.active.etaAlertMaxMin;
+  const approach = Math.cos((cell.approachAngleDeg * Math.PI) / 180);
 
-  // Už v blízkém okolí — i když ne přímo na tebe
+  // Blízko: ETA jen když ještě míří k lokaci (odcházející ≠ „přijíždí“)
   if (cell.distanceToUserKm <= 15) {
-    const speed = Math.max(cell.speedKmh, 12) * 1.15;
-    const minutes = (cell.distanceToUserKm / speed) * 60;
+    // Skoro nad tebou — jsi v dosahu, ETA 0
+    if (cell.distanceToUserKm <= 5) {
+      return 0;
+    }
+    if (approach <= 0.15) return null;
+    const closingKmh = Math.max(cell.speedKmh, 8) * Math.max(approach, 0.25) * 1.15;
+    if (closingKmh < 4) return null;
+    const minutes = (cell.distanceToUserKm / closingKmh) * 60;
     return roundEtaMin(Math.max(0, Math.min(minutes, maxEta)));
   }
 
   // Musí mířit k lokaci; kalibrace: mírný bias „pozdě“ → closing ×1.2
-  const approach = Math.cos((cell.approachAngleDeg * Math.PI) / 180);
   if (approach <= 0.24) return null;
 
   const closingKmh = cell.speedKmh * approach * 1.2;
@@ -94,18 +100,21 @@ export function scoreActiveStorm(
   const reasons: string[] = [];
 
   const hit = classifyHitAtUser(cell);
-  const strengthDbz = hit.atUserDbz ?? cell.maxDbz;
-  // Déšť: PseudoCAPPI u země (CZ), jinak dBZ u zásahu z maxZ
-  const rainDbz =
-    cell.surfaceDbz != null && cell.surfaceDbz > 0
-      ? hit.hitType === "core"
-        ? cell.surfaceDbz
-        : hit.hitType === "fringe"
-          ? Math.max(28, cell.surfaceDbz - 10)
-          : hit.hitType === "edge"
-            ? Math.max(25, cell.surfaceDbz - 18)
-            : strengthDbz
-      : strengthDbz;
+  // Miss = žádný odhad síly/deště u adresy (ne peak jádra)
+  const strengthDbz = hit.atUserDbz;
+  let rainDbz: number | null = null;
+  if (hit.hitType !== "miss" && strengthDbz != null) {
+    if (cell.surfaceDbz != null && cell.surfaceDbz > 0) {
+      rainDbz =
+        hit.hitType === "core"
+          ? cell.surfaceDbz
+          : hit.hitType === "fringe"
+            ? Math.max(28, cell.surfaceDbz - 10)
+            : Math.max(25, cell.surfaceDbz - 18);
+    } else {
+      rainDbz = strengthDbz;
+    }
+  }
 
   const zN = ramp(
     cell.maxDbz,
@@ -169,7 +178,7 @@ export function scoreActiveStorm(
     cell.maxDbz,
     env?.freezingLevelM,
   );
-  const rain = estimateRainMmH(rainDbz);
+  const rain = rainDbz != null ? estimateRainMmH(rainDbz) : null;
   const eta = estimateEtaMinutes(cell);
 
   const hailScore = hailCm != null ? clamp01(hailCm / 5) * 100 : topN * 40;
@@ -210,7 +219,7 @@ export function scoreActiveStorm(
     kind: "active",
     cellId: cell.id,
     score: Math.round(overall),
-    severity: severityFromDbz(strengthDbz),
+    severity: strengthDbz != null ? severityFromDbz(strengthDbz) : "weak",
     etaMinutes: eta,
     fromPlace: cell.fromPlace,
     maxDbz: cell.maxDbz,

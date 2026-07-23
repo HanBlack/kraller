@@ -1,3 +1,5 @@
+import { dataFileCandidateUrls } from "./dataUrls";
+
 /** Meta pro MapLibre image source — spojitý OPERA raster. */
 export type RadarRasterMeta = {
   url: string;
@@ -118,17 +120,25 @@ async function fetchDecodePng(
 /**
  * Stáhne a dekóduje latest.png během bootu / refresh —
  * mapa pak dostane blob:URL a radar je hned vidět.
+ * Relativní path → R2 / GitHub fallback přes dataRoots.
  */
 export async function preloadRadarRaster(
   meta: RadarRasterMeta | null,
+  cacheBust?: number | string,
 ): Promise<RadarRasterMeta | null> {
   if (!meta?.url) return null;
+  if (meta.url.startsWith("blob:") || meta.url.startsWith("data:")) {
+    return meta;
+  }
 
-  const objectUrl = await fetchDecodePng(meta.url);
-  if (!objectUrl) return meta;
-
-  // Revoke až po commitLiveRasterBlobSwap — jinak problikne prázdný frame.
-  return { ...meta, url: objectUrl };
+  for (const url of dataFileCandidateUrls(meta.url, cacheBust)) {
+    const objectUrl = await fetchDecodePng(url);
+    if (objectUrl) {
+      // Revoke až po commitLiveRasterBlobSwap — jinak problikne prázdný frame.
+      return { ...meta, url: objectUrl };
+    }
+  }
+  return meta;
 }
 
 /**
@@ -137,9 +147,15 @@ export async function preloadRadarRaster(
 export async function preloadRadarRasterKeep(
   meta: RadarRasterMeta | null,
   cache: RequestCache = "force-cache",
+  cacheBust?: number | string,
 ): Promise<RadarRasterMeta | null> {
   if (!meta?.url) return null;
-  const objectUrl = await fetchDecodePng(meta.url, cache);
-  if (!objectUrl) return meta;
-  return { ...meta, url: objectUrl };
+  if (meta.url.startsWith("blob:") || meta.url.startsWith("data:")) {
+    return meta;
+  }
+  for (const url of dataFileCandidateUrls(meta.url, cacheBust)) {
+    const objectUrl = await fetchDecodePng(url, cache);
+    if (objectUrl) return { ...meta, url: objectUrl };
+  }
+  return meta;
 }
