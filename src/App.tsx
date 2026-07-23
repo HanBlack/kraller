@@ -84,7 +84,13 @@ export default function App() {
 
   // Klik na jinou bouřku → otevři sidebar a scroll na detail.
   // Stejná buňka po refreshi dat → neskákej nahoru.
-  const selectedKey = selected ? `${selected.kind}:${selected.feature.id}` : null;
+  const selectedKey = selected
+    ? selected.kind === "formation"
+      ? `formation:${selected.feature.zone.id}`
+      : selected.kind === "active"
+        ? `active:${selected.feature.storm.id}`
+        : `radar:${selected.feature.id}`
+    : null;
   const prevSelectedKey = useRef<string | null>(null);
 
   useEffect(() => {
