@@ -1,5 +1,6 @@
 # Satelitní CTTH / LI cooling — odděleně od Live radar (neblokuje R2 radaru).
-# Keep-last-good: empty/error nepřepíše poslední ok cooling.json.
+# Keep-last-good: empty/error/no_credentials nepřepíše poslední ok cooling.json.
+# Na R2 sahá JEN do data/satellite/ — meta/formation vlastní Live radar (žádný race).
 # Viz docs/RADAR-TRIGGER.md
 
 name: Live sat
@@ -35,14 +36,11 @@ jobs:
       - name: Install Python deps
         run: pip install -r requirements.txt
 
-      - name: Fetch satellite cooling + merge
+      - name: Fetch satellite cooling
         env:
           EUMETSAT_CONSUMER_KEY: ${{ secrets.CONSUMER_KEY_EUMETSAT }}
           EUMETSAT_CONSUMER_SECRET: ${{ secrets.CONSUMER_SECRET_EUMETSAT }}
-        run: |
-          python scripts/fetch_sat_cooling.py
-          python scripts/merge_sat_cooling.py
-          python scripts/write_meta.py
+        run: python scripts/fetch_sat_cooling.py
 
       - name: Upload sat to Cloudflare R2
         env:
@@ -51,15 +49,14 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
-        run: |
-          python scripts/upload_data_r2.py --only data/satellite/ --only data/formation/ --only data/meta.json
+        run: python scripts/upload_data_r2.py --only data/satellite/
 
-      - name: Git backup (satellite + formation)
+      - name: Git backup (satellite only)
         continue-on-error: true
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/data/satellite public/data/formation public/data/meta.json
+          git add public/data/satellite
           if git diff --staged --quiet; then
             echo "No sat git backup changes."
           else
