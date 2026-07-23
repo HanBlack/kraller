@@ -2,6 +2,8 @@
 
 Každý běh **Live radar** (~5 min) appenduje learning. Hodinový workflow dělá zálohu + `propose_calibration`.
 
+**Epoch `2026-07-23-sat-rebaseline`:** starý JSONL (před live sat / purple 50) smazán. Nový sběr od tohoto dne.
+
 | Soubor | Obsah |
 |--------|--------|
 | `events-YYYY-MM.jsonl` | run, birth, track_sample, demise, formation_zone/hit |
