@@ -17,37 +17,35 @@ Field observations from a real storm weekend over the user's location (Vsetín /
 - Corridor when threat toward user; arrow = steering (`resolveCellMotion`); peak = worst rain now.
 - Formation less blind: `MAX_ZONES=26`, activity-linked, margin 80 km + `pathReachesCzechia`, heat layer.
 - Wind at storm: 850 + steering + cell motion in detail/map (environment, not Doppler).
-- Cooling honesty: `coolingSource` satellite|model — model LI proxy until EUMETSAT keys live.
+- Cooling honesty: `coolingSource` satellite|model — **live EUMETSAT CTT** (Worker + watchdog trigger od 2026-07-23).
 
 ## Remaining gaps (toward best-in-class)
 
 ### A. Field-verify strength
-- mm/h is dBZ proxy — confirm vs rain at watched address on next real storm; tune `dbzToMmH` if needed.
+- mm/h is dBZ proxy — confirm vs rain at watched address when possible; tune `dbzToMmH` if needed.
 
 ### B. Live satellite cooling
-- Pipeline ready (`scripts/fetch_sat_cooling.py` + merge). Needs free `EUMETSAT_CONSUMER_KEY` / `SECRET`.
-- Until keys: formation uses model LI proxy with honest copy.
+- **DONE (live)** — pipeline + reliable trigger. Keep-last-good když fetch empty.
 
 ### C. Product goal (user priority)
-- Faster data + minutes-ahead via **live sat cooling** + fresher mesoscale env.
+- Faster data + minutes-ahead via **live sat cooling** + fresher mesoscale env (~6 min).
 - Pure radar cannot invent a storm before echo exists.
 
 ## Process notes (user)
 
 - **Do not push** learning / weekend docs / WIP until the user says the batch is ready („až to bude hotové“).
-- **Calibration comes AFTER** product gaps above. Learning may still collect in the background once live.
-- Do not run „final calibrate / propose constants apply“ as the main track while A–C are open.
+- **Calibration rebaseline 2026-07-23:** sync purple 50 + suppress 2; hold motion. Nový learning epoch se sat — další propose až po 1–2 dnech.
 
 ## Implementation order (when building)
 
-1. Formation + wind/intensification env on **same cadence as radar** — DONE
+1. Formation + wind/intensification env on **same cadence as radar** — DONE (~6 min)
 2. Strength at user: core/fringe + mm/h + clear labels — DONE (field verify pending)
-3. Honest purple intensification — DONE
+3. Honest purple intensification — DONE (alertScoreMin 50)
 4. Formation less blind — DONE
 5. Core as corridor; wind for system, not chaotic peak — DONE
 6. Wind at cell (850 / steer / motion) — DONE
-7. Satellite cooling ingest + merge — DONE (await credentials for live CTT)
-8. **Then** calibrate from `public/data/learning`
+7. Satellite cooling ingest + merge — DONE (live CTT)
+8. Calibrate from `public/data/learning` — **rebaseline applied 2026-07-23**; re-propose po bouřkovém sběru
 
 ## Related code
 
