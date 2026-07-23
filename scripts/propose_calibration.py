@@ -30,8 +30,9 @@ CURRENT = {
     "FORMATION_HIT_KM": 35,
     "FORMATION_TIMEOUT_MIN": 90,
     "FCT_AGREE_MAX_DEG": 35,
-    "INTENSIFY_ALERT_SCORE_MIN": 46,
-    "INTENSIFY_SUPPRESS_GROWTH_DBZ": 0,
+    # Baseline po apply 2026-07-23 (live UI + learning sync)
+    "INTENSIFY_ALERT_SCORE_MIN": 50,
+    "INTENSIFY_SUPPRESS_GROWTH_DBZ": 2,
     "HAIL_LIKELY_DBZ": 55,
     "HAIL_MIN_ABOVE_FZL_KM": 1.5,
     "EVOLVE_TREND_GAIN": 0.55,
@@ -399,10 +400,10 @@ def propose_intensify(purples: list[dict]) -> dict:
     hit_rate = len(hits) / max(1, len(purples))
     # nízký hit rate → zpřísnit (vyšší alertScoreMin)
     if hit_rate < 0.35:
-        proposed = min(48, CURRENT["INTENSIFY_ALERT_SCORE_MIN"] + 8)
+        proposed = min(60, CURRENT["INTENSIFY_ALERT_SCORE_MIN"] + 4)
         reason = f"hit rate {hit_rate:.0%} — příliš false positive, zpřísnit"
     elif hit_rate > 0.7:
-        proposed = max(24, CURRENT["INTENSIFY_ALERT_SCORE_MIN"] - 4)
+        proposed = max(38, CURRENT["INTENSIFY_ALERT_SCORE_MIN"] - 4)
         reason = f"hit rate {hit_rate:.0%} — lze mírně uvolnit"
     else:
         proposed = CURRENT["INTENSIFY_ALERT_SCORE_MIN"]

@@ -55,8 +55,9 @@ ACTIVE_CONSTANTS = {
     "HAIL_LIKELY_ECHO_TOP_KM": 10,
     "HAIL_MIN_ABOVE_FZL_KM": 1.5,
     "FCT_AGREE_MAX_DEG": 35,
-    "INTENSIFY_ALERT_SCORE_MIN": 46,
-    "INTENSIFY_SUPPRESS_GROWTH_DBZ": 0,
+    # Zrcadlo stormConfig.intensification (kalibrace 2026-07-23 — nový produkt)
+    "INTENSIFY_ALERT_SCORE_MIN": 50,
+    "INTENSIFY_SUPPRESS_GROWTH_DBZ": 2,
     "INTENSIFY_HIT_DBZ": 3.0,  # act − from ≥ 3 = hit po purple candidate
     # stormConfig.evolution — zrcadlo UI živého / forecast vývoje
     "EVOLVE_BLEND_PRED": 0.55,
@@ -355,6 +356,7 @@ def nearest_env(lat: float, lon: float, points: list[dict], max_km: float = 40.0
         "shear": round(float(env.get("shear0to6Ms") or 0), 2),
         "srh01": env.get("srh01"),
         "cooling": env.get("cloudTopCoolingCPer15min"),
+        "coolingSource": env.get("coolingSource"),
         "li": env.get("liftedIndexC"),
         "freezingLevelM": env.get("freezingLevelM"),
         "cinJkg": env.get("convectiveInhibitionJkg"),
@@ -392,7 +394,7 @@ def purple_candidate(
     """
     Proxy „ukázali bychom fialovou“ — bez plného intensification.ts.
     Cíl: skórovat hit vs demise po kandidátovi.
-    (Po kalibraci 2026-07: přísnější — hit rate ~20 % byl moc nízký.)
+    Kalibrace 2026-07-23: suppress growth ≥2 + alertScoreMin 50 (live UI).
     """
     growth = cell.get("growthDbz")
     if growth is not None and float(growth) < ACTIVE_CONSTANTS["INTENSIFY_SUPPRESS_GROWTH_DBZ"]:
@@ -1191,6 +1193,7 @@ def emit() -> dict[str, int]:
                 "dew": env.get("dewpointC"),
                 "li": env.get("liftedIndexC"),
                 "cooling": env.get("cloudTopCoolingCPer15min"),
+                "coolingSource": env.get("coolingSource"),
                 "srh01": env.get("srh01"),
                 "freezingLevelM": env.get("freezingLevelM"),
                 "cinJkg": env.get("convectiveInhibitionJkg"),
@@ -1207,6 +1210,8 @@ def emit() -> dict[str, int]:
                 "shear": shear,
                 "dew": env.get("dewpointC"),
                 "li": env.get("liftedIndexC"),
+                "cooling": env.get("cloudTopCoolingCPer15min"),
+                "coolingSource": env.get("coolingSource"),
                 "freezingLevelM": env.get("freezingLevelM"),
                 "cinJkg": env.get("convectiveInhibitionJkg"),
             }
@@ -1228,6 +1233,8 @@ def emit() -> dict[str, int]:
                         "shear": zone.get("shear"),
                         "dew": zone.get("dew"),
                         "li": zone.get("li"),
+                        "cooling": zone.get("cooling"),
+                        "coolingSource": zone.get("coolingSource"),
                         "freezingLevelM": zone.get("freezingLevelM"),
                         "cinJkg": zone.get("cinJkg"),
                         "leadMin": round(age, 1),
@@ -1280,6 +1287,8 @@ def emit() -> dict[str, int]:
                     "shear": zone.get("shear"),
                     "dew": zone.get("dew"),
                     "li": zone.get("li"),
+                    "cooling": zone.get("cooling"),
+                    "coolingSource": zone.get("coolingSource"),
                     "freezingLevelM": zone.get("freezingLevelM"),
                     "cinJkg": zone.get("cinJkg"),
                     "leadMin": lead,
