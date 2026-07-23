@@ -1,84 +1,84 @@
 {
-  "generatedAt": "2026-07-23T12:04:50Z",
+  "generatedAt": "2026-07-23T14:36:31Z",
   "sampleCounts": {
-    "track": 1609,
-    "formation": 762,
-    "birth_features": 857,
-    "intensity": 4320,
-    "intensify": 879,
-    "demise": 1796,
-    "track_sample_events": 6028,
-    "withSurfaceDbz": 4689,
-    "withFct": 1869,
-    "withFreezingLevel": 6028,
-    "withHailProxy": 52,
-    "total": 10223
+    "track": 2700,
+    "formation": 1442,
+    "birth_features": 1324,
+    "intensity": 7515,
+    "intensify": 1457,
+    "demise": 2964,
+    "track_sample_events": 9764,
+    "withSurfaceDbz": 7494,
+    "withFct": 3009,
+    "withFreezingLevel": 9764,
+    "withHailProxy": 152,
+    "total": 17402
   },
   "readyForApply": true,
   "proposals": [
     {
       "param": "MAX_WIND_ALIGN_DEG",
       "current": 35,
-      "proposed": 55,
+      "proposed": 20,
       "confidence": "high",
       "reason": "minimum blended median errKm T+15 podle windAlignDeg",
-      "n": 291,
+      "n": 481,
       "evidence": [
         {
           "thr": 20,
-          "nRadarLike": 165,
-          "nWindLike": 126,
-          "medErrRadarLike": 11.96,
-          "medErrWindLike": 13.09,
-          "blendScore": 12.45
+          "nRadarLike": 260,
+          "nWindLike": 221,
+          "medErrRadarLike": 12.73,
+          "medErrWindLike": 14.55,
+          "blendScore": 13.57
         },
         {
           "thr": 25,
-          "nRadarLike": 183,
-          "nWindLike": 108,
-          "medErrRadarLike": 13.35,
-          "medErrWindLike": 11.68,
-          "blendScore": 12.73
+          "nRadarLike": 293,
+          "nWindLike": 188,
+          "medErrRadarLike": 14.02,
+          "medErrWindLike": 13.67,
+          "blendScore": 13.88
         },
         {
           "thr": 30,
-          "nRadarLike": 196,
-          "nWindLike": 95,
-          "medErrRadarLike": 13.1,
-          "medErrWindLike": 11.68,
-          "blendScore": 12.64
+          "nRadarLike": 316,
+          "nWindLike": 165,
+          "medErrRadarLike": 14.02,
+          "medErrWindLike": 13.59,
+          "blendScore": 13.87
         },
         {
           "thr": 35,
-          "nRadarLike": 202,
-          "nWindLike": 89,
-          "medErrRadarLike": 12.88,
-          "medErrWindLike": 11.68,
-          "blendScore": 12.51
+          "nRadarLike": 331,
+          "nWindLike": 150,
+          "medErrRadarLike": 13.97,
+          "medErrWindLike": 13.79,
+          "blendScore": 13.91
         },
         {
           "thr": 40,
-          "nRadarLike": 206,
-          "nWindLike": 85,
-          "medErrRadarLike": 12.88,
-          "medErrWindLike": 11.68,
-          "blendScore": 12.53
+          "nRadarLike": 344,
+          "nWindLike": 137,
+          "medErrRadarLike": 13.84,
+          "medErrWindLike": 13.94,
+          "blendScore": 13.87
         },
         {
           "thr": 45,
-          "nRadarLike": 211,
-          "nWindLike": 80,
-          "medErrRadarLike": 12.85,
-          "medErrWindLike": 10.69,
-          "blendScore": 12.26
+          "nRadarLike": 353,
+          "nWindLike": 128,
+          "medErrRadarLike": 13.63,
+          "medErrWindLike": 14.34,
+          "blendScore": 13.82
         },
         {
           "thr": 55,
-          "nRadarLike": 217,
-          "nWindLike": 74,
-          "medErrRadarLike": 13.27,
-          "medErrWindLike": 8.29,
-          "blendScore": 12.0
+          "nRadarLike": 365,
+          "nWindLike": 116,
+          "medErrRadarLike": 14.3,
+          "medErrWindLike": 11.86,
+          "blendScore": 13.71
         }
       ]
     },
@@ -87,8 +87,8 @@
       "current": 55,
       "proposed": 55,
       "confidence": "medium",
-      "n": 1485,
-      "p85Jitter": 116.8,
+      "n": 2438,
+      "p85Jitter": 116.5,
       "reason": "p85 segmentJitter u rozumných rychlostí"
     },
     {
@@ -102,9 +102,9 @@
         }
       },
       "confidence": "medium",
-      "n": 857,
+      "n": 1324,
       "medianBirthDbzTrue": 37.0,
-      "medianBirthDbzFalse": 43.0,
+      "medianBirthDbzFalse": 43.5,
       "reason": "oddělení trueBirth vs příjezd podle birthDbz"
     },
     {
@@ -112,9 +112,9 @@
       "current": 28,
       "proposed": 28,
       "confidence": "low",
-      "n": 762,
-      "nUsable": 138,
-      "nHit": 138,
+      "n": 1442,
+      "nUsable": 242,
+      "nHit": 242,
       "nMiss": 0,
       "reason": "málo ověřených miss (timeouty nepočítat) — práh nedržet z F1"
     },
@@ -139,12 +139,12 @@
       "current": 50,
       "proposed": 50,
       "confidence": "high",
-      "n": 879,
-      "hitRate": 0.391,
-      "nHit": 344,
-      "nMiss": 535,
+      "n": 1457,
+      "hitRate": 0.416,
+      "nHit": 606,
+      "nMiss": 851,
       "file": "src/storm/config.ts",
-      "reason": "hit rate 39% — držet",
+      "reason": "hit rate 42% — držet",
       "alsoReview": {
         "param": "intensification.suppressIfGrowthDbzBelow",
         "current": 2,
@@ -155,9 +155,9 @@
       "param": "active.hail.minAboveFreezingKm",
       "current": 1.5,
       "proposed": 1.5,
-      "confidence": "low",
-      "n": 8,
-      "nHailEvents": 52,
+      "confidence": "medium",
+      "n": 24,
+      "nHailEvents": 152,
       "shortFadeShare": 0.0,
       "file": "src/storm/config.ts",
       "reason": "zatím držet; ladit až s víc bouřkami",
@@ -171,11 +171,11 @@
       "current": 0.55,
       "proposed": 0.65,
       "confidence": "high",
-      "n": 4320,
-      "medianBiasDbz": 4.0,
+      "n": 7515,
+      "medianBiasDbz": 4.3,
       "medianAbsErrDbz": 7.0,
       "file": "src/storm/config.ts (evolution) + ACTIVE_CONSTANTS emit_learning",
-      "reason": "median bias +4.0 dBZ (podhodnocení) → vyšší trendGain",
+      "reason": "median bias +4.3 dBZ (podhodnocení) → vyšší trendGain",
       "alsoReview": {
         "param": "evolution.blendTrend",
         "current": 0.45,
@@ -184,36 +184,36 @@
           "param": "evolution.footprintPerDbz",
           "current": 0.01,
           "proposed": 0.013,
-          "n": 1796,
-          "medianScaleBias": 0.132,
+          "n": 3115,
+          "medianScaleBias": 0.123,
           "hint": "kladný = stopa roste víc než predikce"
         }
       }
     }
   ],
   "intensity": {
-    "n": 4320,
+    "n": 7515,
     "medianAbsErrDbz": 7.0,
     "medianAbsErrEvolveDbz": 7.0,
-    "nWithEvolve": 4320,
+    "nWithEvolve": 7515,
     "hint": "errEvolveDbz ladí stormConfig.evolution; slope errDbz je baseline"
   },
   "intensifyPurple": {
-    "n": 879,
-    "hitRate": 0.391,
+    "n": 1457,
+    "hitRate": 0.416,
     "hint": "upřímná fialová — nízký hitRate → vyšší alertScoreMin / suppress"
   },
   "demise": {
-    "n": 1796,
+    "n": 2964,
     "reasons": {
-      "merge_or_jump": 1712,
-      "fade": 84
+      "merge_or_jump": 2801,
+      "fade": 163
     },
     "medianLifeMin": 0.0,
     "medianFadeLifeMin": 0.0,
-    "nFade": 84,
-    "nWithHailProxy": 8,
-    "nAfterPurple": 106,
+    "nFade": 163,
+    "nWithHailProxy": 24,
+    "nAfterPurple": 166,
     "hint": "medianLifeMin je zkreslené merge_or_jump — ber medianFadeLifeMin"
   },
   "applyHint": "Po review propsat: src/storm/stormTrackRules.ts (motion/birth), src/storm/formationData.ts (MIN_ZONE_SCORE), src/storm/config.ts (hail / intensification / evolution), scripts/chmi_radar.py (FCT_AGREE_MAX_DEG), ACTIVE_CONSTANTS v scripts/emit_learning.py",
