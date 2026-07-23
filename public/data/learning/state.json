@@ -3977,6 +3977,48 @@
       "coolingSource": "model",
       "freezingLevelM": 2820.0,
       "cinJkg": 0.0
+    },
+    "z:49.68:7.00": {
+      "lat": 49.6765,
+      "lon": 7.0,
+      "score": 60.0,
+      "fromTs": "20260723215500",
+      "cape": 0.0,
+      "shear": 20.0,
+      "dew": 7.1,
+      "li": null,
+      "cooling": 0.0,
+      "coolingSource": "model",
+      "freezingLevelM": 3560.0,
+      "cinJkg": 0.0
+    },
+    "z:50.38:7.00": {
+      "lat": 50.3824,
+      "lon": 7.0,
+      "score": 43.2,
+      "fromTs": "20260723215500",
+      "cape": 0.0,
+      "shear": 14.4,
+      "dew": 7.4,
+      "li": null,
+      "cooling": 0.0,
+      "coolingSource": "model",
+      "freezingLevelM": 3590.0,
+      "cinJkg": 0.0
+    },
+    "z:52.50:13.31": {
+      "lat": 52.5,
+      "lon": 13.3148,
+      "score": 41.7,
+      "fromTs": "20260723215500",
+      "cape": 0.0,
+      "shear": 13.9,
+      "dew": 11.0,
+      "li": null,
+      "cooling": 0.0,
+      "coolingSource": "model",
+      "freezingLevelM": 2480.0,
+      "cinJkg": 122.0
     }
   },
   "intensityPending": {
@@ -7008,5 +7050,5 @@
     "EVOLVE_FOOTPRINT_PER_DBZ": 0.01
   },
   "schemaVersion": 2,
-  "updatedAt": "2026-07-23T22:06:54Z"
+  "updatedAt": "2026-07-23T22:17:41Z"
 }
