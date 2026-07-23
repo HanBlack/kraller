@@ -102,7 +102,7 @@ export function useStormData(
         : await loadStormData(bust, fallbackFormation);
       if (isBoot) setBootPhase("history");
       const [rasterReady] = await Promise.all([
-        preloadRadarRaster(data.radarRaster),
+        preloadRadarRaster(data.radarRaster, bust),
         preloadRadarHistoryRasters(data.radarHistory, bust),
       ]);
       if (isBoot) {
@@ -122,6 +122,10 @@ export function useStormData(
         setFormationZones(data.formationZones);
         setFormationScoredPoints(data.formationScoredPoints);
         setFormationReal(true);
+      } else {
+        setFormationZones(fallbackFormation);
+        setFormationScoredPoints([]);
+        setFormationReal(false);
       }
       setLastUpdated(data.metaUpdatedAt);
       setOperaTime(data.operaTime);

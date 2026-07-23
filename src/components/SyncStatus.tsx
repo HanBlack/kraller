@@ -59,7 +59,8 @@ export function SyncStatus() {
   if (!lastUpdated && !loading) return null;
 
   const age = lastUpdated ? ageMinutes(lastUpdated, now) : null;
-  const radarIso = chmiTime ?? operaTime;
+  // Stejná priorita jako mapa: OPERA PNG je hlavní produkt
+  const radarIso = operaTime ?? chmiTime;
   const radarAge = radarIso ? ageMinutes(radarIso, now) : null;
   const windAge = sourceAge(dataSources, "wind", now);
   const formAge = sourceAge(dataSources, "formation", now);
@@ -116,9 +117,9 @@ export function SyncStatus() {
       </span>
       {radarIso && (
         <span className="sync-status-radar">
-          {chmiTime
-            ? t("sync.radarChmi", { time: formatClock(chmiTime, dateLocale) })
-            : t("sync.radar", { time: formatClock(radarIso, dateLocale) })}
+          {operaTime
+            ? t("sync.radar", { time: formatClock(operaTime, dateLocale) })
+            : t("sync.radarChmi", { time: formatClock(radarIso, dateLocale) })}
           {radarAge != null && radarAge > 0
             ? t("sync.radarAge", { min: radarAge })
             : ""}

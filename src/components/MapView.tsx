@@ -2382,12 +2382,7 @@ export function MapView({
         }
       }
 
-      const nearCell = pickNearestRadar(forecastRef.current > 0 ? 28 : 22);
-      if (nearCell) {
-        selectStorm({ kind: "radar", feature: nearCell });
-        return;
-      }
-
+      // Prázdný klik = zrušení výběru (ne auto-select nejbližší buňky)
       if (locked) return;
       onSelectRef.current(null);
     });

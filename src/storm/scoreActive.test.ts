@@ -90,6 +90,34 @@ describe("scoreActiveStorm — zásah u adresy", () => {
     expect(a.etaMinutes!).toBeLessThanOrEqual(75);
   });
 
+  it("odcházející blízko (≤15 km) → ETA null, bez alertu", () => {
+    const a = scoreActiveStorm(
+      cell({
+        maxDbz: 55,
+        distanceToUserKm: 10,
+        approachAngleDeg: 110,
+        speedKmh: 35,
+      }),
+    );
+    expect(a.etaMinutes).toBeNull();
+    expect(shouldAlertActive(a)).toBe(false);
+  });
+
+  it("miss: weak severity, bez rain z peak dBZ", () => {
+    const a = scoreActiveStorm(
+      cell({
+        maxDbz: 58,
+        distanceToUserKm: 55,
+        approachAngleDeg: 35,
+        speedKmh: 40,
+      }),
+    );
+    expect(a.hitType).toBe("miss");
+    expect(a.atUserDbz).toBeNull();
+    expect(a.severity).toBe("weak");
+    expect(a.rainMmPerHour).toBeNull();
+  });
+
   it("shouldAlertActive vyžaduje ETA v horizontu", () => {
     const a = scoreActiveStorm(
       cell({

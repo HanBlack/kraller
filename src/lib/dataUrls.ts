@@ -72,3 +72,31 @@ export async function fetchDataJson<T>(
     return null;
   }
 }
+
+/**
+ * Kandidátní URL pro data path — R2 → GitHub (bez síťového fetch).
+ * Absolutní http(s) nejdřív, pak stejný path přes všechny dataRoots.
+ */
+export function dataFileCandidateUrls(
+  path: string,
+  cacheBust?: number | string,
+): string[] {
+  const clean = path.replace(/^\//, "");
+  if (/^(blob:|data:)/i.test(clean)) return [clean];
+  const out: string[] = [];
+  if (/^https?:\/\//i.test(clean)) {
+    out.push(clean);
+    const pathMatch = clean.match(/\/(data\/[^?]+)/);
+    if (pathMatch) {
+      for (const root of dataRoots()) {
+        const alt = dataUrl(pathMatch[1], cacheBust, root);
+        if (!out.includes(alt)) out.push(alt);
+      }
+    }
+    return out;
+  }
+  for (const root of dataRoots()) {
+    out.push(dataUrl(clean, cacheBust, root));
+  }
+  return out;
+}

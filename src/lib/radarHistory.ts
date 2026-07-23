@@ -1,6 +1,6 @@
 import type { FeatureCollection } from "geojson";
 import { t, type Locale } from "../i18n";
-import { dataUrl, fetchData, fetchDataJson } from "./dataUrls";
+import { fetchData, fetchDataJson } from "./dataUrls";
 import { smoothPolygonFeatures } from "./geoSmooth";
 import {
   preloadRadarRasterKeep,
@@ -120,9 +120,9 @@ export async function loadRadarHistoryRaster(
 
   const withUrl: RadarRasterMeta = {
     ...meta,
-    url: dataUrl(meta.url, cacheBust),
+    url: meta.url.replace(/^\//, ""),
   };
-  const ready = await preloadRadarRasterKeep(withUrl);
+  const ready = await preloadRadarRasterKeep(withUrl, "force-cache", cacheBust);
   if (ready) rasterCache.set(key, ready);
   return ready;
 }

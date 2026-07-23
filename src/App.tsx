@@ -208,6 +208,8 @@ export default function App() {
                   const clamped = Math.min(0, Math.max(HISTORY_MIN_OFFSET, v));
                   applyTimeOffsetRaster(clamped);
                   setTimeOffsetMinutes(clamped);
+                  // Historie ≠ live detail — zavři výběr buňky
+                  if (clamped < 0) setSelected(null);
                 }}
               />
             </CollapsibleSection>
