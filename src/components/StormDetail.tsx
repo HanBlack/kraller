@@ -206,14 +206,23 @@ function StormStrengthPanel({ facts }: { facts: StormStrengthFacts }) {
   if (facts.cloudTopTempC != null) {
     lines.push(t("storm.strengthCtt", { temp: facts.cloudTopTempC }));
   }
-  if (facts.lightningFlashes15min != null) {
-    lines.push(
-      facts.lightningFlashes15min > 0
-        ? t("storm.strengthLightning", {
-            count: facts.lightningFlashes15min,
-          })
-        : t("storm.strengthLightningNone"),
-    );
+  if (facts.lightningActivity) {
+    const la = facts.lightningActivity;
+    if (la.level === "none") {
+      lines.push(t("storm.strengthLightningNone"));
+    } else if (la.level === "occasional") {
+      lines.push(
+        t("storm.strengthLightningOccasional", { rate: la.ratePerMin }),
+      );
+    } else if (la.level === "frequent") {
+      lines.push(
+        t("storm.strengthLightningFrequent", { rate: la.ratePerMin }),
+      );
+    } else {
+      lines.push(
+        t("storm.strengthLightningVeryFrequent", { rate: la.ratePerMin }),
+      );
+    }
   }
   if (facts.dbzTrend) {
     const d = facts.dbzTrend.deltaDbz;

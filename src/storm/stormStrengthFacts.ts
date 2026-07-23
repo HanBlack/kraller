@@ -55,10 +55,43 @@ export function recentDbzTrend(
   };
 }
 
+/** Lidský stupeň blískavosti z MTG LI (15min součet → rate). */
+export type LightningActivityLevel =
+  | "none"
+  | "occasional"
+  | "frequent"
+  | "very_frequent";
+
+export type LightningActivity = {
+  level: LightningActivityLevel;
+  flashes15min: number;
+  /** Zaokrouhlené blesky/min pro UI (min. 1 když je aspoň jeden flash). */
+  ratePerMin: number;
+};
+
+/**
+ * Agresivita blesků: flash rate z 15min okna.
+ * 0 → none; &lt;1/min → občas; 1–5/min → časté; ≥5/min → velmi časté.
+ */
+export function lightningActivityFromFlashes15min(
+  flashes: number | null | undefined,
+): LightningActivity | null {
+  if (flashes == null || !Number.isFinite(flashes)) return null;
+  const n = Math.max(0, Math.round(flashes));
+  if (n === 0) {
+    return { level: "none", flashes15min: 0, ratePerMin: 0 };
+  }
+  const ratePerMin = Math.max(1, Math.round(n / 15));
+  const level: LightningActivityLevel =
+    n < 15 ? "occasional" : n < 75 ? "frequent" : "very_frequent";
+  return { level, flashes15min: n, ratePerMin };
+}
+
 export type StormStrengthFacts = {
   cloudHeight: CloudHeightReading | null;
   cloudTopTempC: number | null;
   lightningFlashes15min: number | null;
+  lightningActivity: LightningActivity | null;
   dbzTrend: DbzTrend | null;
   ageMinutes: number | null;
   growthDbz: number | null;
@@ -82,9 +115,13 @@ export function buildStormStrengthFacts(input: {
 }): StormStrengthFacts {
   const sat = input.satAtPeak ?? null;
   const satLive = Boolean(input.satLive);
-  const lightning =
-    satLive && sat != null
+  const lightningRaw =
+    satLive && sat != null && sat.lightningFlashes15min != null
       ? sat.lightningFlashes15min
+      : null;
+  const lightning =
+    lightningRaw != null && Number.isFinite(lightningRaw)
+      ? Math.max(0, Math.round(lightningRaw))
       : null;
   const ctt =
     satLive &&
@@ -100,6 +137,7 @@ export function buildStormStrengthFacts(input: {
     }),
     cloudTopTempC: ctt,
     lightningFlashes15min: lightning,
+    lightningActivity: lightningActivityFromFlashes15min(lightning),
     dbzTrend: recentDbzTrend(input.history, input.maxDbz ?? NaN),
     ageMinutes:
       input.ageMinutes != null && Number.isFinite(input.ageMinutes)
