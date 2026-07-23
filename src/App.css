@@ -22,7 +22,7 @@
 }
 
 .boot-screen-logo {
-  width: min(7.5rem, 42vw);
+  width: min(9rem, 48vw);
   height: auto;
   display: block;
   filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.12));
@@ -82,14 +82,14 @@
   z-index: 30;
   top: 1rem;
   left: 1rem;
-  width: 3.25rem;
-  height: 3.25rem;
+  width: 3.85rem;
+  height: 3.85rem;
   margin: 0;
-  padding: 0.45rem;
+  padding: 0.5rem;
   display: grid;
   place-items: center;
   border: 1px solid var(--panel-border);
-  border-radius: 14px;
+  border-radius: 16px;
   background: var(--panel);
   backdrop-filter: blur(14px);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
@@ -102,17 +102,11 @@
   border-color: rgba(180, 205, 230, 0.35);
 }
 
-.sidebar-fab-logo,
-.sidebar-chrome-logo {
+.sidebar-fab-logo {
   display: block;
   width: 100%;
   height: auto;
   object-fit: contain;
-}
-
-.sidebar-chrome-logo {
-  width: 1.55rem;
-  flex-shrink: 0;
 }
 
 .sidebar-fab-badge {
@@ -190,6 +184,13 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.sidebar-chrome-title.is-brand {
+  font-family: var(--font-brand);
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
 }
 
 .sidebar-chrome-badge {
@@ -476,9 +477,10 @@
 .brand h1 {
   margin: 0;
   margin-right: auto;
+  font-family: var(--font-brand);
   font-size: 1.35rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.04em;
 }
 
 .brand-mark {
