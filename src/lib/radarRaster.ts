@@ -1,4 +1,5 @@
 import { dataFileCandidateUrls } from "./dataUrls";
+import type { ExpressionSpecification } from "maplibre-gl";
 
 /** Meta pro MapLibre image source — spojitý OPERA raster. */
 export type RadarRasterMeta = {
@@ -42,8 +43,29 @@ export function commitLiveRasterBlobSwap(activeUrl: string | null | undefined) {
   lastLiveRasterBlobUrl = activeUrl;
 }
 
-/** Základní MapLibre raster-opacity (Teď). */
+/** Základní MapLibre raster-opacity (přehled / střední zoom). */
 export const RADAR_RASTER_BASE_OPACITY = 1;
+
+/**
+ * Opacity podle zoomu: dál plný radar, při silném přiblížení basemap prosvítá.
+ * base = evolution.rasterOpacity (~1 na Teď).
+ */
+export function radarRasterOpacityByZoom(
+  base: number,
+): ExpressionSpecification {
+  const b = Math.max(0.2, Math.min(1, base));
+  return [
+    "interpolate",
+    ["linear"],
+    ["zoom"],
+    11,
+    b,
+    12.5,
+    Number((b * 0.78).toFixed(3)),
+    14,
+    Number((b * 0.52).toFixed(3)),
+  ];
+}
 
 /**
  * Zvedne alfa (+ mírně sytost) u existujícího PNG —
@@ -76,7 +98,6 @@ export async function boostRadarPngVisibility(
     for (let i = 0; i < d.length; i += 4) {
       const a = d[i + 3];
       if (a === 0) continue;
-      // Silnější echo + jemně sytější RGB
       d[i + 3] = Math.min(255, Math.round(a * alphaGain));
       d[i] = Math.min(255, Math.round(d[i] * 1.06));
       d[i + 1] = Math.min(255, Math.round(d[i + 1] * 1.04));

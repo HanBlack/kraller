@@ -17,7 +17,7 @@ import {
 } from "../lib/radarHistory";
 import { filterRadarForCzFocus } from "../lib/radarDisplay";
 import { preloadMapImage } from "../lib/mapImagePreload";
-import { type RadarRasterMeta } from "../lib/radarRaster";
+import { RADAR_RASTER_BASE_OPACITY, radarRasterOpacityByZoom, type RadarRasterMeta } from "../lib/radarRaster";
 import {
   applyTimeOffsetRaster,
   getLastAppliedRasterUrl,
@@ -1087,7 +1087,7 @@ function ensureStormLayers(map: maplibregl.Map) {
       source: RADAR_RASTER_SOURCE,
       layout: { visibility: "none" },
       paint: {
-        "raster-opacity": 1,
+        "raster-opacity": radarRasterOpacityByZoom(RADAR_RASTER_BASE_OPACITY),
         "raster-fade-duration": 0,
       },
     });
@@ -2092,7 +2092,7 @@ export function MapView({
                 map.setPaintProperty(
                   RADAR_RASTER,
                   "raster-opacity",
-                  evolution.rasterOpacity,
+                  radarRasterOpacityByZoom(evolution.rasterOpacity),
                 );
               }
             }
@@ -2106,7 +2106,7 @@ export function MapView({
               map.setPaintProperty(
                 RADAR_RASTER,
                 "raster-opacity",
-                evolution.rasterOpacity,
+                radarRasterOpacityByZoom(evolution.rasterOpacity),
               );
             }
           }
@@ -2671,7 +2671,7 @@ export function MapView({
         map.setPaintProperty(
           RADAR_RASTER,
           "raster-opacity",
-          evolution.rasterOpacity,
+          radarRasterOpacityByZoom(evolution.rasterOpacity),
         );
       }
       setLayerVisibility(map, [RADAR_FILL], showContourFill);

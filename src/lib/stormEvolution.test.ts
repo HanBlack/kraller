@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
+import type { RadarProgressFeature } from "../storm/radarCells";
+import type { RadarRasterMeta } from "./radarRaster";
 import {
   coreRadiusForDbz,
   scaleRadarRaster,
   stormEvolutionAt,
 } from "./stormEvolution";
-import type { RadarRasterMeta } from "./radarRaster";
-import type { RadarProgressFeature } from "../storm/radarCells";
 
 function feat(maxDbz: number, growthDbz = 0): RadarProgressFeature {
   return {

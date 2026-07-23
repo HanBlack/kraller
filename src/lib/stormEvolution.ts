@@ -10,7 +10,7 @@ import type { RadarRasterMeta } from "./radarRaster";
 export type StormEvolution = {
   /** Vážený průměr (pred − current) dBZ. */
   meanDeltaDbz: number;
-  /** MapLibre raster-opacity (základ ~1). */
+  /** MapLibre raster-opacity (základ ~1; zoom fade v MapView). */
   rasterOpacity: number;
   /** Škála stopy srážek kolem středu (0.94–1.08). */
   footprintScale: number;
