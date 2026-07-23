@@ -7,8 +7,10 @@ name: Live sat
 
 on:
   workflow_dispatch:
+  repository_dispatch:
+    types: [live-sat]
   schedule:
-    # Sat je drahý (~CTTH ×3 + mask/type/LI) — pomalejší než radar
+    # Záloha — primární trigger: Cloudflare Worker + Radar watchdog
     - cron: "*/20 * * * *"
 
 permissions:

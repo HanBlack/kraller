@@ -4,8 +4,10 @@ GitHub Actions `schedule` **sám o sobě nestačí** — běhy se vynechávají 
 Cíl **5–7 min** od snímku vyžaduje **Cloudflare Cron Worker**, který každých 5 min spustí workflow **Live radar**.
 
 ```
-Cloudflare Cron (*/5) → GitHub workflow_dispatch → OPERA+ČHMÚ → merge sat → R2 (radar+formation+meta)
-Live sat (*/20)       → CTTH+LI cooling → R2 jen data/satellite/ (keep-last-good; NEmeta/NEformation)
+Cloudflare Cron (*/5) → Live radar (meta ≤ ~7 min)
+                     → Live sat když cooling.json > ~22 min
+Live sat schedule (*/20)  → záloha (nespolehlivé stejně jako dřív u radaru)
+Radar watchdog (*/3)      → meta > 7 min → Live radar; cooling > 25 min → Live sat
 ```
 
 Záloha: workflow **Radar watchdog** (každé 3 min) — když `meta.updatedAt` na R2 > 7 min, spustí Live radar znovu.
