@@ -186,7 +186,6 @@ function dualpolLine(
   if (facts.dualpolLabel === "strong_updraft") {
     return t("storm.strengthDualpolUpdraft");
   }
-  if (facts.dualpolLabel === "rain") return t("storm.strengthDualpolRain");
   if (facts.dualpolLabel === "weakening_or_shallow") {
     return t("storm.strengthDualpolWeak");
   }
