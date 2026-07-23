@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildStormStrengthFacts,
+  lightningActivityFromFlashes15min,
   recentDbzTrend,
 } from "./stormStrengthFacts";
 import type { CellHistoryPoint } from "./radarCells";
@@ -55,6 +56,20 @@ describe("recentDbzTrend", () => {
   });
 });
 
+describe("lightningActivityFromFlashes15min", () => {
+  it("mapuje prahy na lidské stupně", () => {
+    expect(lightningActivityFromFlashes15min(0)?.level).toBe("none");
+    expect(lightningActivityFromFlashes15min(8)?.level).toBe("occasional");
+    expect(lightningActivityFromFlashes15min(18)?.level).toBe("frequent");
+    expect(lightningActivityFromFlashes15min(90)?.level).toBe("very_frequent");
+  });
+
+  it("počítá ~/min z 15min součna", () => {
+    expect(lightningActivityFromFlashes15min(45)?.ratePerMin).toBe(3);
+    expect(lightningActivityFromFlashes15min(3)?.ratePerMin).toBe(1);
+  });
+});
+
 describe("buildStormStrengthFacts", () => {
   it("skládá sat blesky a výšku", () => {
     const f = buildStormStrengthFacts({
@@ -88,6 +103,8 @@ describe("buildStormStrengthFacts", () => {
     expect(f.cloudHeight?.km).toBe(14.2);
     expect(f.cloudTopTempC).toBe(-58);
     expect(f.lightningFlashes15min).toBe(18);
+    expect(f.lightningActivity?.level).toBe("frequent");
+    expect(f.lightningActivity?.ratePerMin).toBe(1);
     expect(f.dbzTrend?.deltaDbz).toBeGreaterThan(0);
     expect(f.dualpolLabel).toBe("strong_updraft");
   });
