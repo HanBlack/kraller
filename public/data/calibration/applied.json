@@ -7,19 +7,29 @@
       "param": "INTENSIFY_ALERT_SCORE_MIN",
       "from": 46,
       "to": 50,
-      "files": ["scripts/emit_learning.py", "scripts/propose_calibration.py", "src/storm/config.ts (už 50)"]
+      "files": [
+        "scripts/emit_learning.py",
+        "scripts/propose_calibration.py",
+        "src/storm/config.ts (už 50)"
+      ]
     },
     {
       "param": "INTENSIFY_SUPPRESS_GROWTH_DBZ",
       "from": 0,
       "to": 2,
-      "files": ["scripts/emit_learning.py", "scripts/propose_calibration.py", "src/storm/config.ts (už 2)"]
+      "files": [
+        "scripts/emit_learning.py",
+        "scripts/propose_calibration.py",
+        "src/storm/config.ts (už 2)"
+      ]
     },
     {
       "param": "formation samples coolingSource",
       "from": null,
       "to": "satellite|model",
-      "files": ["scripts/emit_learning.py"]
+      "files": [
+        "scripts/emit_learning.py"
+      ]
     }
   ],
   "held": [
@@ -30,5 +40,10 @@
     "evolution.trendGain=0.55",
     "hail / FCT / speed bias"
   ],
-  "nextProposeAfter": "1–2 dny se live sat + mesoscale 6 min (ideálně s bouřkou)"
+  "nextProposeAfter": "1–2 dny se live sat + mesoscale 6 min (ideálně s bouřkou)",
+  "wipedAt": "2026-07-23T06:43:23Z",
+  "wiped": [
+    "samples-2026-07.jsonl:28714",
+    "events-2026-07.jsonl:191477"
+  ]
 }
