@@ -320,7 +320,9 @@ function RadarLifecycleDetail({
 
 
 
-  const factors = feature.birthEnv?.whyFactors ?? [];
+  const factors = (feature.birthEnv?.whyFactors ?? []).filter(
+    (f) => f.key !== "cooling" && f.key !== "other",
+  );
 
   const cellKey = feature.id;
 
@@ -351,7 +353,7 @@ function RadarLifecycleDetail({
     feature.peak[0],
   );
   const strengthFacts = buildStormStrengthFacts({
-    maxDbz: feature.maxDbz,
+    maxDbz: feature.surfaceDbz ?? feature.maxDbz,
     severity: feature.severity,
     echoTopKm: feature.echoTopKm,
     ageMinutes: feature.ageMinutes,

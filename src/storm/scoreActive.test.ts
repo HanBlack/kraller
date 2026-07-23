@@ -103,7 +103,7 @@ describe("scoreActiveStorm — zásah u adresy", () => {
     expect(shouldAlertActive(a)).toBe(false);
   });
 
-  it("miss: weak severity, bez rain z peak dBZ", () => {
+  it("miss: severity podle jádra, bez rain u adresy", () => {
     const a = scoreActiveStorm(
       cell({
         maxDbz: 58,
@@ -114,7 +114,7 @@ describe("scoreActiveStorm — zásah u adresy", () => {
     );
     expect(a.hitType).toBe("miss");
     expect(a.atUserDbz).toBeNull();
-    expect(a.severity).toBe("weak");
+    expect(a.severity).toBe("strong");
     expect(a.rainMmPerHour).toBeNull();
   });
 

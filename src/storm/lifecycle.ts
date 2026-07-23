@@ -7,7 +7,6 @@ import type { CellIntensification } from "./intensification";
 import { formatIntensificationSummary } from "./intensification";
 import {
   explainGrowthWhy,
-  explainSeverityWhy,
 } from "./growthWhy";
 import {
   meanForecastDelta,
@@ -22,7 +21,6 @@ import {
   explainSatelliteTowerFalling,
   explainSatelliteWarming,
   sampleSatelliteCooling,
-  satelliteReasonLines,
   satelliteWarmingRate,
   towerFallRate,
   type SatelliteCoolingGrid,
@@ -176,7 +174,7 @@ export function explainNoIntensify(
       ? Math.max(...intens.timeline.map((t) => t.expectedDbz))
       : null;
 
-  if (feature.maxDbz >= 52) {
+  if (feature.severity === "strong") {
     reasons.push(
       "buňka už je silná — další výrazný růst prostředí neukazuje",
     );
@@ -205,7 +203,7 @@ export function explainNoIntensify(
   if (
     timelinePeak != null &&
     timelinePeak <= feature.maxDbz + 1 &&
-    feature.maxDbz < 52
+    feature.severity !== "strong"
   ) {
     reasons.push("odhadovaný strop na trase je blízko síly teď");
   }
@@ -215,10 +213,12 @@ export function explainNoIntensify(
   }
 
   let headline: string;
-  if (feature.maxDbz >= 52) {
-    headline = "Buňka je už silná — na trase nečekáme další výrazné zesílení.";
+  if (feature.severity === "strong") {
+    headline = "Buňka už je silná — na trase nečekáme další výrazné zesílení.";
   } else if (here && ahead && ahead.environment.capeJkg < here.environment.capeJkg - 40) {
     headline = "Na trase podmínky spíš slábnou než rostou.";
+  } else if (feature.severity === "weak") {
+    headline = "Slabší buňka — na trase nevidíme zónu, kde by výrazně zesílila.";
   } else {
     headline = "Na odhadované trase teď nevidíme výraznější zónu zesílení.";
   }
@@ -330,11 +330,8 @@ export function explainDemiseWhy(
       (peakSat != null &&
         peakSat.lightningFlashes15min >= stormConfig.satellite.lightningActiveMin))
   ) {
-    const growLine = peakSat
-      ? satelliteReasonLines(peakSat).find((l) => !l.includes("slábne"))
-      : null;
-    if (growLine && !reasons.some((r) => r.includes("útlum není jistý"))) {
-      reasons.push(`${growLine} — útlum není jistý`);
+    if (!reasons.some((r) => r.includes("útlum není jistý"))) {
+      reasons.push("satelit zatím ukazuje růst nahoře — útlum není jistý");
     }
   }
 
@@ -541,6 +538,26 @@ function demiseBadge(confidence: DemiseConfidence): string {
   return "odhad";
 }
 
+/** Vyhodí důvody, které jen opakují body / sebe navzájem. */
+function uniqueReasons(
+  reasons: string[] | undefined,
+  body: string,
+): string[] | undefined {
+  if (!reasons?.length) return undefined;
+  const bodyNorm = body.toLowerCase();
+  const out: string[] = [];
+  for (const r of reasons) {
+    const n = r.toLowerCase().replace(/\.$/, "");
+    if (!n) continue;
+    if (bodyNorm.includes(n) || n.includes(bodyNorm.replace(/\.$/, ""))) continue;
+    if (out.some((o) => o.toLowerCase() === n || o.toLowerCase().includes(n) || n.includes(o.toLowerCase()))) {
+      continue;
+    }
+    out.push(r);
+  }
+  return out.length ? out : undefined;
+}
+
 function intensifyPoint(
   feature: RadarProgressFeature,
   intens?: CellIntensification | null,
@@ -622,7 +639,23 @@ export function buildStormLifecycle(
     (feature.phase === "birth" || feature.phase === "growing"
       ? explainGrowthWhy(feature)
       : null);
-  const severityWhy = explainSeverityWhy(feature.maxDbz, feature.severity);
+
+  const birthBody = feature.trueBirth
+    ? feature.phase === "birth"
+      ? `Právě teď u ${place}.`
+      : `U ${place} před ~${feature.ageMinutes} min — od té doby nabrala sílu.`
+    : `První detekce u ${place} — to nemusí být místo vzniku (bouřka sem mohla přijet).`;
+
+  const factorsBody =
+    env?.whyHeadline ??
+    (feature.trueBirth
+      ? "V místě zrodu zatím chybí modelové prostředí."
+      : "U první detekce chybí modelové prostředí — neber jako místo vzniku.");
+
+  // Sat / cooling už je nahoře v panelu — ve faktorech neopakovat.
+  const factorItems = (env?.whyFactors ?? []).filter(
+    (f) => f.key !== "cooling" && f.key !== "other",
+  );
 
   const steps: LifecycleStep[] = [
     {
@@ -632,17 +665,21 @@ export function buildStormLifecycle(
           ? "1 · Zrod a růst"
           : "1 · Zrod"
         : "1 · Ve stopě (historie)",
-      body: feature.trueBirth
-        ? feature.phase === "birth"
-          ? `Právě teď u ${place}.`
-          : `U ${place} před ~${feature.ageMinutes} min — od té doby nabrala sílu.`
-        : `První detekce u ${place} už byla silnější — to není nutně místo vzniku (bouřka sem mohla přijet).`,
+      body: birthBody,
       meta: feature.trueBirth
         ? feature.phase === "growing"
           ? "nabírá sílu"
           : undefined
         : "historie radaru, ne vznik",
-      reasons: growthWhy?.reasons,
+      reasons: uniqueReasons(
+        (growthWhy?.reasons ?? []).filter(
+          (r) =>
+            !r.includes("vrchol mraku") &&
+            !r.includes("blesky") &&
+            !r.includes("satelit"),
+        ),
+        birthBody,
+      ),
       active: feature.phase === "birth" || feature.phase === "growing",
     },
     {
@@ -650,38 +687,42 @@ export function buildStormLifecycle(
       title: feature.trueBirth
         ? "2 · Proč právě tady"
         : "2 · Prostředí u první detekce",
-      body: env?.whyHeadline
-        ?? (feature.trueBirth
-          ? "V místě zrodu zatím chybí modelové prostředí."
-          : "U první detekce chybí modelové prostředí — neber jako místo vzniku."),
-      meta: env?.whyFactors?.[0]
-        ? `${env.whyFactors[0].label}: ${env.whyFactors[0].detail}`
-        : undefined,
-      reasons: env?.whyFactors?.map((f) => `${f.label}: ${f.detail}`),
+      body: factorsBody.includes("Satelit u jádra")
+        ? factorItems[0]
+          ? `Hlavní faktor: ${factorItems[0].label.toLowerCase()} — ${factorItems[0].detail}.`
+          : "Lokální podmínky u první detekce (satelit je nahoře)."
+        : factorsBody,
+      reasons: uniqueReasons(
+        factorItems.map((f) => `${f.label}: ${f.detail}`),
+        factorsBody,
+      ),
     },
     {
       id: "path",
-      title: "3 · Trasa a síla",
-      body: `Teď ${severityWhy.headline.replace(/\.$/, "")}. Směr ${dir} · ~${Math.round(feature.speedKmh)} km/h${
+      title: "3 · Trasa",
+      body: `Směr ${dir} · ~${Math.round(feature.speedKmh)} km/h${
         feature.motionSource === "radar-track"
           ? " (podle stopy)"
           : " (odhad z větru)"
-      }.`,
-      meta: `odhad: za ~${demise.etaMinLo}–${demise.etaMinHi} min ~${Math.round((feature.speedKmh * demise.etaMin) / 60)} km dál`,
-      reasons: [
-        ...(severityWhy.reasons ?? []),
-        ...(feature.fctDisagree
-          ? [
-              "ČHMÚ předpověď směru se odchyluje od stopy — širší koridor",
-            ]
-          : []),
-      ],
+      }. Za ~${demise.etaMinLo}–${demise.etaMinHi} min zhruba ~${Math.round((feature.speedKmh * demise.etaMin) / 60)} km dál.`,
+      reasons: feature.fctDisagree
+        ? ["ČHMÚ předpověď směru se odchyluje od stopy — širší koridor"]
+        : undefined,
     },
   ];
 
   // If growing, put growth headline into birth body as clearer
   if (growthWhy && (feature.phase === "growing" || feature.phase === "birth")) {
     steps[0].body = growthWhy.headline;
+    steps[0].reasons = uniqueReasons(
+      (growthWhy.reasons ?? []).filter(
+        (r) =>
+          !r.includes("vrchol mraku") &&
+          !r.includes("blesky") &&
+          !r.includes("satelit"),
+      ),
+      growthWhy.headline,
+    );
     if (feature.phase === "growing") {
       steps[0].meta = "nabírá sílu";
     }
@@ -693,10 +734,13 @@ export function buildStormLifecycle(
       title: "4 · Zesílení na cestě",
       body: intensifyWhy?.headline ?? formatIntensificationSummary(intens),
       meta:
-        intens.peakExpectedDbz != null
-          ? `za ~${intens.enterEtaMin} min · může zesílit`
-          : `za ~${intens.enterEtaMin} min`,
-      reasons: intensifyWhy?.reasons,
+        intens.enterEtaMin != null
+          ? `za ~${intens.enterEtaMin} min`
+          : undefined,
+      reasons: uniqueReasons(
+        intensifyWhy?.reasons,
+        intensifyWhy?.headline ?? "",
+      ),
       active: true,
     });
   } else {
@@ -705,7 +749,7 @@ export function buildStormLifecycle(
       id: "intensify",
       title: "4 · Zesílení na cestě",
       body: noIntens.headline,
-      reasons: noIntens.reasons,
+      reasons: uniqueReasons(noIntens.reasons, noIntens.headline),
     });
   }
 
@@ -716,8 +760,8 @@ export function buildStormLifecycle(
     id: "demise",
     title: willIntensify ? "5 · Útlum až potom" : "5 · Odhad zániku",
     body: demiseBodyCopy(demise, growingForecast, willIntensify),
-    meta: demise.reason,
-    reasons: demise.reasons,
+    meta: undefined,
+    reasons: uniqueReasons(demise.reasons, demiseBodyCopy(demise, growingForecast, willIntensify)),
     badge: willIntensify ? "po zesílení" : demiseBadge(demise.confidence),
   });
 
@@ -730,11 +774,11 @@ export function buildStormLifecycle(
 
   const summary = feature.trueBirth
     ? feature.phase === "birth"
-      ? `Nový zrod u ${place}. ${growthWhy?.headline ?? "Sledujeme růst, trasu a kde může zeslábnout."}`
+      ? `Nový zrod u ${place}.`
       : feature.phase === "growing"
-        ? `Roste u ${place}. ${growthWhy?.headline ?? ""}`
-        : `Buňka u ${place} jde na ${dir}. Od zrodu ~${feature.ageMinutes} min · ${severityWhy.headline}`
-    : `Buňka u ${place} jde na ${dir} · ~${Math.round(feature.speedKmh)} km/h. První detekce v historii ≠ zrod.`;
+        ? `Roste u ${place}.`
+        : `Buňka u ${place} jde na ${dir} · ~${Math.round(feature.speedKmh)} km/h.`
+    : `Buňka u ${place} jde na ${dir} · ~${Math.round(feature.speedKmh)} km/h. První detekce ≠ zrod.`;
 
   return {
     title:
