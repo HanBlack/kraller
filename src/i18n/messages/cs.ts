@@ -31,6 +31,7 @@ export const cs = {
     satAgeTitle: "Satelitní cooling před {min} min",
     satModelTitle: "Satelit: používáme model (ne živý snímek)",
     stale: "Čekáme na nová data ze serveru (~5 min)",
+    radarStale: "Radarový snímek je starý — čekáme na nový OPERA frame",
     envStale: "Vznik/vítr/sat zastarává — zesílení může být nepřesné",
     titleDetail: "Poslední synchronizace {time}",
   },

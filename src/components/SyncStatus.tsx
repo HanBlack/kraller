@@ -161,9 +161,13 @@ export function SyncStatus() {
               : t("sync.satModel"))}
         </span>
       )}
-      {(stale || envStale) && (
+      {(stale || radarStale || envStale) && (
         <span className="sync-status-hint">
-          {envStale && !stale ? t("sync.envStale") : t("sync.stale")}
+          {radarStale && !stale && !envStale
+            ? t("sync.radarStale")
+            : envStale && !stale
+              ? t("sync.envStale")
+              : t("sync.stale")}
         </span>
       )}
     </div>

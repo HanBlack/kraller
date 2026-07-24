@@ -10,21 +10,25 @@ const GH_HEADERS = (token) => ({
   "User-Agent": "kraller-radar-trigger",
 });
 
-async function jsonAgeMin(url) {
+async function jsonFieldAgeMin(url, field) {
   try {
     const res = await fetch(url, {
       headers: { "User-Agent": "kraller-radar-trigger" },
     });
     if (!res.ok) return null;
     const data = await res.json();
-    const updated = data?.updatedAt || data?.validAt;
-    if (!updated) return null;
-    const ts = Date.parse(String(updated));
+    const raw = data?.[field] || data?.updatedAt || data?.validAt;
+    if (!raw) return null;
+    const ts = Date.parse(String(raw));
     if (!Number.isFinite(ts)) return null;
     return (Date.now() - ts) / 60_000;
   } catch {
     return null;
   }
+}
+
+async function jsonAgeMin(url) {
+  return jsonFieldAgeMin(url, "updatedAt");
 }
 
 async function r2Base(env) {
@@ -34,9 +38,13 @@ async function r2Base(env) {
   return "https://pub-4b180166ad2d4648a27ba3853b3eebd1.r2.dev";
 }
 
-async function metaAgeMin(env) {
+/** Stáří OPERA snímku (operaTime); fallback updatedAt. */
+async function operaFrameAgeMin(env) {
   const base = await r2Base(env);
-  return jsonAgeMin(`${base}/data/meta.json`);
+  const url = `${base}/data/meta.json`;
+  const opera = await jsonFieldAgeMin(url, "operaTime");
+  if (opera != null) return opera;
+  return jsonAgeMin(url);
 }
 
 async function coolingAgeMin(env) {
@@ -59,11 +67,17 @@ async function workflowBusy(env, token, workflow) {
 }
 
 async function shouldDispatchRadar(env) {
-  const freshMin = Number(env.FRESH_MIN || "4");
-  const age = await metaAgeMin(env);
+  // Debounce podle stáří snímku, ne updatedAt (fast-path jinak blokuje nový OPERA)
+  const freshMin = Number(env.FRESH_MIN || "6");
+  const age = await operaFrameAgeMin(env);
   if (age != null && age < freshMin) {
-    console.log(`skip radar: R2 meta fresh (${age.toFixed(1)} min)`);
+    console.log(`skip radar: OPERA frame fresh (${age.toFixed(1)} min)`);
     return false;
+  }
+  if (age == null) {
+    console.log("radar: opera age unknown — dispatch");
+  } else {
+    console.log(`radar: OPERA stale (${age.toFixed(1)} min >= ${freshMin})`);
   }
   const token = env.GITHUB_TOKEN;
   if (!token) throw new Error("GITHUB_TOKEN secret missing");
@@ -192,7 +206,7 @@ export default {
       }
     }
     return new Response(
-      "kraller radar+sat trigger (cron */5; /trigger /trigger-sat)",
+      "kraller radar+sat trigger (cron */2; /trigger /trigger-sat)",
       { status: 200 },
     );
   },
