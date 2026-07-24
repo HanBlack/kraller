@@ -1,18 +1,18 @@
 {
-  "generatedAt": "2026-07-24T19:50:03Z",
+  "generatedAt": "2026-07-24T21:31:25Z",
   "sampleCounts": {
     "track": 4518,
-    "formation": 5915,
+    "formation": 6246,
     "birth_features": 2319,
     "intensity": 13504,
     "intensify": 2614,
-    "demise": 5431,
+    "demise": 5432,
     "track_sample_events": 17096,
     "withSurfaceDbz": 12550,
     "withFct": 4938,
     "withFreezingLevel": 17096,
     "withHailProxy": 182,
-    "total": 34301
+    "total": 34633
   },
   "readyForApply": true,
   "proposals": [
@@ -112,7 +112,7 @@
       "current": 28,
       "proposed": 28,
       "confidence": "low",
-      "n": 5915,
+      "n": 6246,
       "nUsable": 354,
       "nHit": 354,
       "nMiss": 0,
@@ -204,9 +204,9 @@
     "hint": "upřímná fialová — nízký hitRate → vyšší alertScoreMin / suppress"
   },
   "demise": {
-    "n": 5431,
+    "n": 5432,
     "reasons": {
-      "merge_or_jump": 5157,
+      "merge_or_jump": 5158,
       "fade": 274
     },
     "medianLifeMin": 0.0,
