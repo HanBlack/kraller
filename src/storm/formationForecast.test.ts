@@ -21,7 +21,7 @@ function assessment(score = 42): FormationAssessment {
     score,
     severity: score >= 65 ? "strong" : score >= 38 ? "moderate" : "weak",
     reasons: [],
-    hazards: { hail: 20, supercell: 10, tornado: 5 },
+    hazards: { overall: 40, hail: 20, rain: 30, supercell: 10, tornado: 5 },
   };
 }
 
