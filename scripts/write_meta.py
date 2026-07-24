@@ -12,6 +12,8 @@ CELLS = os.path.join("public", "data", "opera", "cells.geojson")
 LATEST = os.path.join("public", "data", "opera", "latest.geojson")
 ARCHIVE_MANIFEST = os.path.join("public", "data", "opera", "archive", "manifest.json")
 CHMI_META = os.path.join("public", "data", "chmi", "meta.json")
+MOSAIC_META = os.path.join("public", "data", "opera", "mosaic-meta.json")
+LATEST_RASTER = os.path.join("public", "data", "opera", "latest-raster.json")
 
 SOURCE_FILES = {
     "opera": LATEST,
@@ -78,6 +80,28 @@ def _time_from_archive_manifest() -> str | None:
         return normalize_opera_time(frames[-1].get("time"))
     except (OSError, json.JSONDecodeError, TypeError, ValueError):
         return None
+
+
+def mosaic_product_time(prev_meta: dict[str, Any] | None = None) -> str | None:
+    for path in (MOSAIC_META, LATEST_RASTER):
+        if not os.path.isfile(path):
+            continue
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                t = normalize_opera_time(
+                    data.get("mosaicTime") or data.get("time")
+                )
+                if t:
+                    return t
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+            pass
+    if prev_meta:
+        return normalize_opera_time(
+            prev_meta.get("mosaicTime") or prev_meta.get("radarTime")
+        )
+    return None
 
 
 def chmi_product_time(prev_meta: dict[str, Any] | None = None) -> str | None:
@@ -191,10 +215,33 @@ def write_meta(run_results: dict[str, dict[str, Any]] | None = None) -> dict[str
                     "error": None,
                 }
 
+    mosaic_t = mosaic_product_time(prev)
+    opera_t = opera_product_time(prev)
+    chmi_t = chmi_product_time(prev)
+    # Map display time: mosaic > chmi > opera
+    radar_t = mosaic_t or chmi_t or opera_t
+
+    attribution: list[str] = []
+    for path in (MOSAIC_META, LATEST_RASTER):
+        if not os.path.isfile(path):
+            continue
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict) and isinstance(data.get("attribution"), list):
+                attribution = [str(x) for x in data["attribution"]]
+                break
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+            pass
+
     meta = {
         "updatedAt": now,
-        "operaTime": opera_product_time(prev),
-        "chmiTime": chmi_product_time(prev),
+        "operaTime": opera_t,
+        "chmiTime": chmi_t,
+        "mosaicTime": mosaic_t,
+        "radarTime": radar_t,
+        "radarSource": "mosaic" if mosaic_t else ("chmi" if chmi_t else "opera"),
+        "radarAttribution": attribution,
         "opera": os.path.isfile(SOURCE_FILES["opera"]),
         "chmi": os.path.isfile(SOURCE_FILES["chmi"]),
         "wind": os.path.isfile(SOURCE_FILES["wind"]),
@@ -204,7 +251,11 @@ def write_meta(run_results: dict[str, dict[str, Any]] | None = None) -> dict[str
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(meta, f, indent=2)
-    print(f"Wrote {OUT} (operaTime={meta.get('operaTime')}, chmiTime={meta.get('chmiTime')})")
+    print(
+        f"Wrote {OUT} (radarTime={meta.get('radarTime')}, "
+        f"mosaicTime={meta.get('mosaicTime')}, operaTime={meta.get('operaTime')}, "
+        f"chmiTime={meta.get('chmiTime')})"
+    )
     return meta
 
 

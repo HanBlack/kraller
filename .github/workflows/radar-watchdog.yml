@@ -1,4 +1,4 @@
-# Záloha: pokud OPERA snímek (operaTime) na R2 starší než 8 min → Live radar;
+# Záloha: pokud mapový snímek (mosaicTime/radarTime) na R2 starší než 8 min → Live radar;
 # pokud sat cooling starší než 25 min → Live sat.
 # Primární spolehlivý trigger: workers/radar-trigger (Cloudflare Cron).
 
@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - name: Check OPERA frame + sat cooling age on R2
+      - name: Check map frame + sat cooling age on R2
         id: age
         env:
           R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
@@ -67,14 +67,14 @@ jobs:
               write(stale="false", sat_stale="false")
               sys.exit(0)
 
-          # --- radar: prefer operaTime (stáří snímku), ne updatedAt ---
           try:
               meta = fetch_json("data/meta.json")
-              stamp, age_min = age_from(meta.get("operaTime"))
-              label = "operaTime"
-              if stamp is None:
-                  stamp, age_min = age_from(meta.get("updatedAt"))
-                  label = "updatedAt"
+              stamp = age_min = label = None
+              for key in ("mosaicTime", "radarTime", "chmiTime", "operaTime", "updatedAt"):
+                  stamp, age_min = age_from(meta.get(key))
+                  if stamp is not None:
+                      label = key
+                      break
           except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
               print(f"meta fetch failed: {exc}")
               write(stale="true", reason="fetch_failed", sat_stale="false")
@@ -85,13 +85,12 @@ jobs:
           if stamp is None and age_min is None:
               pass
           elif not stamp:
-              print("meta operaTime/updatedAt missing")
+              print("meta radar timestamp missing")
               write(stale="true", reason="no_timestamp")
           else:
               print(f"meta.{label}={stamp} age_min={age_min:.1f} threshold={max_age}")
               write(stale="true" if age_min > max_age else "false", age_min=f"{age_min:.1f}")
 
-          # --- sat cooling ---
           try:
               cooling = fetch_json("data/satellite/cooling.json")
               sat_at, sat_age = age_from(
@@ -129,7 +128,7 @@ jobs:
               per_page: 1,
             });
             if (data.total_count > 0) {
-              core.info(`OPERA stale (${age} min) but Live radar already running — skip dispatch`);
+              core.info(`Map frame stale (${age} min) but Live radar already running — skip`);
               return;
             }
             const queued = await github.rest.actions.listWorkflowRuns({
@@ -140,10 +139,10 @@ jobs:
               per_page: 1,
             });
             if (queued.data.total_count > 0) {
-              core.info(`OPERA stale (${age} min) but Live radar already queued — skip dispatch`);
+              core.info(`Map frame stale (${age} min) but Live radar already queued — skip`);
               return;
             }
-            core.info(`OPERA stale (${age} min) — dispatching Live radar`);
+            core.info(`Map frame stale (${age} min) — dispatching Live radar`);
             await github.rest.actions.createWorkflowDispatch({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -190,4 +189,4 @@ jobs:
       - name: OK
         if: steps.age.outputs.stale != 'true' && steps.age.outputs.sat_stale != 'true'
         run: |
-          echo "OPERA fresh (${{ steps.age.outputs.age_min }} min), cooling fresh (${{ steps.age.outputs.sat_age_min }} min) — no dispatch"
+          echo "Map fresh (${{ steps.age.outputs.age_min }} min), cooling fresh (${{ steps.age.outputs.sat_age_min }} min) — no dispatch"

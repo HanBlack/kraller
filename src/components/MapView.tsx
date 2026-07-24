@@ -1803,14 +1803,15 @@ export function MapView({
     satelliteCooling,
     operaTime,
     chmiTime,
+    radarTime,
   } = useStormDataContext();
   const [historyLoad, setHistoryLoad] = useState<RadarHistoryLoad | null>(null);
   const [liveClockMs, setLiveClockMs] = useState(() => Date.now());
   const forecastMinutes = Math.max(0, timeOffsetMinutes);
   const isLiveNow = timeOffsetMinutes === 0;
   const windGrid = windLow;
-  /** OPERA snímek řídí raster; ČHMÚ jen fallback času. */
-  const radarProductIso = operaTime ?? chmiTime;
+  /** Mapový čas (mozaika) řídí raster; OPERA/ČHMÚ fallback. */
+  const radarProductIso = radarTime ?? operaTime ?? chmiTime;
 
   useEffect(() => {
     if (!isLiveNow) return;

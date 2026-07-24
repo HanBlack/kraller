@@ -319,11 +319,11 @@ function RadarLifecycleDetail({
 }) {
 
   const { t, locale } = useI18n();
-  const { operaTime, chmiTime, windLow, windUpper, satelliteCooling } =
+  const { operaTime, chmiTime, radarTime, windLow, windUpper, satelliteCooling } =
     useStormDataContext();
   const motionMinutes = motionMinutesForView({
     timeOffsetMinutes: forecastMinutes,
-    productIso: operaTime ?? chmiTime,
+    productIso: radarTime ?? operaTime ?? chmiTime,
   });
 
   let life;

@@ -1,6 +1,6 @@
 # Stáhne radar → R2 (rychlé CDN) + volitelný git backup.
-# Cíl: ~3–5 min od snímku (fast-path PNG/meta hned po OPERA).
-# Satelit běží odděleně (workflow live-sat.yml). Viz docs/RADAR-TRIGGER.md
+# Mapa = národní mozaika (ČHMÚ/DWD/SHMÚ/IMGW/MCH) + OPERA fill; tracking = OPERA.
+# Viz docs/RADAR-TRIGGER.md
 
 name: Live radar
 
@@ -15,7 +15,6 @@ on:
 permissions:
   contents: write
 
-# Nezrušovat běh uprostřed — jinak se R2 nikdy neaktualizuje při více triggerech
 concurrency:
   group: live-radar
   cancel-in-progress: false
@@ -44,7 +43,7 @@ jobs:
           cache: pip
           cache-dependency-path: requirements.txt
 
-      - name: Cache OPERA + CHMI HDF5
+      - name: Cache OPERA + CHMI + national HDF5
         if: steps.gate.outputs.skip != 'true'
         uses: actions/cache@v4
         with:
@@ -52,8 +51,10 @@ jobs:
             .cache/opera
             .cache/chmi
             .cache/chmi_dualpol
-          key: radar-h5-v2-${{ github.run_id }}
+            .cache/national
+          key: radar-h5-v3-${{ github.run_id }}
           restore-keys: |
+            radar-h5-v3-
             radar-h5-v2-
             radar-h5-v1-
 
@@ -61,10 +62,18 @@ jobs:
         if: steps.gate.outputs.skip != 'true'
         run: pip install -r requirements.txt
 
-      - name: Fetch OPERA + early meta
+      - name: Fetch OPERA + national mosaics
         if: steps.gate.outputs.skip != 'true'
         run: |
-          python scripts/opera_fetch_convert.py --frames 7
+          # OPERA (tracking + fill) a národní compositý paralelně
+          python scripts/opera_fetch_convert.py --frames 7 &
+          pid_opera=$!
+          python scripts/fetch_national_radar.py --sources chmi,dwd,shmu,imgw,mch &
+          pid_nat=$!
+          wait $pid_opera || { echo "ERROR: opera_fetch failed"; exit 1; }
+          wait $pid_nat || echo "WARN: national fetch partial/failed"
+          python scripts/build_radar_mosaic.py \
+            || echo "WARN: mosaic failed — keeping OPERA PNG"
           python scripts/write_meta.py
 
       - name: Fast-path upload (PNG + cells + meta)
@@ -76,26 +85,30 @@ jobs:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
         run: |
+          mkdir -p public/data/opera public/data/national
+          if [ ! -f public/data/opera/mosaic-meta.json ]; then
+            echo '{"radarSource":"opera"}' > public/data/opera/mosaic-meta.json
+          fi
           python scripts/upload_data_r2.py \
             --files data/meta.json \
             --files data/opera/latest.png \
             --files data/opera/latest-raster.json \
+            --files data/opera/mosaic-meta.json \
             --files data/opera/latest.geojson \
             --files data/opera/cells.geojson \
-            --only data/opera/history/
+            --only data/opera/history/ \
+            --only data/national/
 
-      - name: Enrich (ČHMÚ ∥ dual-pol + env) + full meta
+      - name: Enrich (ČHMÚ cells + dual-pol + env) + full meta
         if: steps.gate.outputs.skip != 'true'
         env:
           R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
         run: |
-          # ČHMÚ pak dual-pol (oba píší cells.geojson — nesmí běžet paralelně)
           python scripts/chmi_radar.py \
             || echo "WARN: chmi_radar failed"
           python scripts/chmi_dualpol.py \
             || echo "WARN: chmi_dualpol failed"
 
-          # Čerstvý env/cooling z R2 (před refresh) — správné stáří
           if [ -n "${R2_PUBLIC_URL:-}" ]; then
             base="${R2_PUBLIC_URL%/}"
             mkdir -p public/data/satellite public/data/formation public/data/wind
@@ -114,7 +127,6 @@ jobs:
               && echo "pulled wind from R2" \
               || echo "WARN: could not pull wind from R2"
           fi
-          # Soft-fail: Open-Meteo výpadek nesmí zrušit upload radaru na R2
           python scripts/refresh_env_if_stale.py --skip-sat \
             || echo "WARN: env refresh failed — keep previous formation/wind"
           python scripts/merge_sat_cooling.py
@@ -141,7 +153,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/data/meta.json public/data/opera public/data/chmi public/data/wind public/data/formation public/data/learning
+          git add public/data/meta.json public/data/opera public/data/chmi public/data/national public/data/wind public/data/formation public/data/learning
           if git diff --staged --quiet; then
             echo "No git backup changes."
           else
@@ -152,4 +164,4 @@ jobs:
 
       - name: Skipped (R2 fresh)
         if: steps.gate.outputs.skip == 'true'
-        run: echo "Skipped — OPERA frame fresh (${{ steps.gate.outputs.age_min }} min)"
+        run: echo "Skipped — map frame fresh (${{ steps.gate.outputs.age_min }} min)"

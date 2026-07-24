@@ -38,12 +38,14 @@ async function r2Base(env) {
   return "https://pub-4b180166ad2d4648a27ba3853b3eebd1.r2.dev";
 }
 
-/** Stáří OPERA snímku (operaTime); fallback updatedAt. */
+/** Stáří mapového radaru (mosaicTime → radarTime → chmi → opera). */
 async function operaFrameAgeMin(env) {
   const base = await r2Base(env);
   const url = `${base}/data/meta.json`;
-  const opera = await jsonFieldAgeMin(url, "operaTime");
-  if (opera != null) return opera;
+  for (const field of ["mosaicTime", "radarTime", "chmiTime", "operaTime"]) {
+    const age = await jsonFieldAgeMin(url, field);
+    if (age != null) return age;
+  }
   return jsonAgeMin(url);
 }
 
@@ -71,13 +73,13 @@ async function shouldDispatchRadar(env) {
   const freshMin = Number(env.FRESH_MIN || "6");
   const age = await operaFrameAgeMin(env);
   if (age != null && age < freshMin) {
-    console.log(`skip radar: OPERA frame fresh (${age.toFixed(1)} min)`);
+    console.log(`skip radar: map frame fresh (${age.toFixed(1)} min)`);
     return false;
   }
   if (age == null) {
     console.log("radar: opera age unknown — dispatch");
   } else {
-    console.log(`radar: OPERA stale (${age.toFixed(1)} min >= ${freshMin})`);
+    console.log(`radar: map frame stale (${age.toFixed(1)} min >= ${freshMin})`);
   }
   const token = env.GITHUB_TOKEN;
   if (!token) throw new Error("GITHUB_TOKEN secret missing");

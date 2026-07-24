@@ -16,30 +16,39 @@ def _attr_str(val: Any) -> str:
     return str(val)
 
 
-def read_odim_grid(path: str, quantity: str) -> tuple[np.ndarray, dict]:
-    """Načte první dataset s danou quantity (DBZH, HGHT, …)."""
-    qty_want = quantity.strip().upper()
+def read_odim_grid(path: str, quantity: str | None = None) -> tuple[np.ndarray, dict]:
+    """Načte dataset — quantity=None → první DBZH / TH / RATE / …"""
+    prefer = (
+        [quantity.strip().upper()]
+        if quantity
+        else ["DBZH", "TH", "DBZ", "RATE", "ACRR"]
+    )
     with h5py.File(path, "r") as f:
         chosen = None
-        for ds_name in f.keys():
-            if not re.match(r"dataset\d+", ds_name):
-                continue
-            for data_name in f[ds_name].keys():
-                if not re.match(r"data\d+", data_name):
+        found_qty = ""
+        for qty_want in prefer:
+            for ds_name in f.keys():
+                if not re.match(r"dataset\d+", ds_name):
                     continue
-                what_path = f"{ds_name}/{data_name}/what"
-                if what_path not in f:
-                    continue
-                what = f[what_path]
-                qty = _attr_str(what.attrs.get("quantity", "")).strip().upper()
-                if qty == qty_want:
-                    chosen = (ds_name, data_name)
+                for data_name in f[ds_name].keys():
+                    if not re.match(r"data\d+", data_name):
+                        continue
+                    what_path = f"{ds_name}/{data_name}/what"
+                    if what_path not in f:
+                        continue
+                    what = f[what_path]
+                    qty = _attr_str(what.attrs.get("quantity", "")).strip().upper()
+                    if qty == qty_want:
+                        chosen = (ds_name, data_name)
+                        found_qty = qty
+                        break
+                if chosen:
                     break
             if chosen:
                 break
 
         if not chosen:
-            raise RuntimeError(f"Could not find {quantity} in {path}")
+            raise RuntimeError(f"Could not find quantity in {path} (tried {prefer})")
 
         ds_name, data_name = chosen
         raw = f[f"{ds_name}/{data_name}/data"][()]
@@ -55,6 +64,13 @@ def read_odim_grid(path: str, quantity: str) -> tuple[np.ndarray, dict]:
             data[data == undetect] = np.nan
         values = offset + gain * data
 
+        # RATE (mm/h) → dBZ proxy (Marshall–Palmer Z=200 R^1.6)
+        if found_qty in ("RATE", "ACRR"):
+            r = np.where(np.isfinite(values) & (values > 0.05), values, np.nan)
+            z = 200.0 * np.power(r, 1.6)
+            values = np.where(np.isfinite(z), 10.0 * np.log10(z), np.nan)
+            found_qty = "DBZH"
+
         where = f.get("where") or f.get(f"{ds_name}/where")
         if where is None:
             raise RuntimeError("Missing /where georeferencing")
@@ -65,22 +81,40 @@ def read_odim_grid(path: str, quantity: str) -> tuple[np.ndarray, dict]:
             "nodata": nodata,
             "undetect": undetect,
             "shape": values.shape,
-            "xsize": int(where.attrs["xsize"]),
-            "ysize": int(where.attrs["ysize"]),
+            "xsize": int(where.attrs.get("xsize", values.shape[1])),
+            "ysize": int(where.attrs.get("ysize", values.shape[0])),
             "xscale": float(where.attrs.get("xscale", 1000)),
             "yscale": float(where.attrs.get("yscale", 1000)),
-            "quantity": qty_want,
+            "quantity": found_qty,
         }
         for corner in ("UL", "UR", "LL", "LR"):
-            meta[f"{corner}_lon"] = float(where.attrs[f"{corner}_lon"])
-            meta[f"{corner}_lat"] = float(where.attrs[f"{corner}_lat"])
+            lon_k, lat_k = f"{corner}_lon", f"{corner}_lat"
+            if lon_k in where.attrs and lat_k in where.attrs:
+                meta[lon_k] = float(where.attrs[lon_k])
+                meta[lat_k] = float(where.attrs[lat_k])
         if "projdef" in where.attrs:
             meta["projdef"] = _attr_str(where.attrs["projdef"])
+        # Fallback corners from LL/UR if incomplete
+        if "UL_lon" not in meta and "LL_lon" in meta and "UR_lon" in meta:
+            meta["UL_lon"] = meta["LL_lon"]
+            meta["UL_lat"] = meta.get("UR_lat", meta["LL_lat"])
+            meta["LR_lon"] = meta["UR_lon"]
+            meta["LR_lat"] = meta["LL_lat"]
 
         if "what" in f:
             for k in ("date", "time"):
                 if k in f["what"].attrs:
                     meta[k] = _attr_str(f["what"].attrs[k])
+        ds_what = f.get(f"{ds_name}/what")
+        if ds_what is not None:
+            if "enddate" in ds_what.attrs:
+                meta["date"] = _attr_str(ds_what.attrs["enddate"])
+            elif "startdate" in ds_what.attrs and "date" not in meta:
+                meta["date"] = _attr_str(ds_what.attrs["startdate"])
+            if "endtime" in ds_what.attrs:
+                meta["time"] = _attr_str(ds_what.attrs["endtime"])
+            elif "starttime" in ds_what.attrs and "time" not in meta:
+                meta["time"] = _attr_str(ds_what.attrs["starttime"])
 
         return values, meta
 

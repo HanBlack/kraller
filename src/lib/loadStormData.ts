@@ -26,6 +26,10 @@ export type DataMeta = {
   updatedAt: string;
   operaTime?: string | null;
   chmiTime?: string | null;
+  mosaicTime?: string | null;
+  radarTime?: string | null;
+  radarSource?: string | null;
+  radarAttribution?: string[] | null;
   opera?: boolean;
   chmi?: boolean;
   wind?: boolean;
@@ -53,6 +57,9 @@ export type StormDataBundle = {
   metaUpdatedAt: string | null;
   operaTime: string | null;
   chmiTime: string | null;
+  /** Čas mapového radaru (mozaika > ČHMÚ > OPERA). */
+  radarTime: string | null;
+  radarAttribution: string[];
   dataSources: DataMeta["sources"] | null;
   radarHistory: RadarHistoryManifest | null;
   satelliteCooling: SatelliteCoolingGrid | null;
@@ -130,6 +137,15 @@ export async function loadStormData(
     metaUpdatedAt: meta?.updatedAt ?? null,
     operaTime: meta?.operaTime ?? null,
     chmiTime: meta?.chmiTime ?? null,
+    radarTime:
+      meta?.radarTime ??
+      meta?.mosaicTime ??
+      meta?.chmiTime ??
+      meta?.operaTime ??
+      null,
+    radarAttribution: Array.isArray(meta?.radarAttribution)
+      ? meta.radarAttribution.map(String)
+      : [],
     dataSources: meta?.sources ?? null,
     radarHistory,
     satelliteCooling,

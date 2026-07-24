@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""Skip Live radar jen když je OPERA snímek na R2 ještě čerstvý.
-
-Dříve se debounceovalo podle meta.updatedAt — po fast-path/env refresh
-vypadal sync „před 2 min“, ale operaTime mohl být 10+ min starý a job se
-přeskočil. Gate musí hledět na operaTime (stáří radaru), ne na updatedAt.
-"""
+"""Skip Live radar jen když je mapový snímek (mozaika/ČHMÚ/OPERA) ještě čerstvý."""
 
 from __future__ import annotations
 
@@ -29,8 +24,7 @@ def write_output(key: str, value: str) -> None:
 
 def main() -> int:
     force = os.environ.get("FORCE", "").lower() in ("1", "true", "yes")
-    # Skip jen když máme snímek mladší než toto (OPERA ~5 min)
-    max_opera_age = float(os.environ.get("MAX_AGE_MIN", "6"))
+    max_age = float(os.environ.get("MAX_AGE_MIN", "6"))
     base = (os.environ.get("R2_PUBLIC_URL") or "").strip().rstrip("/")
 
     if force:
@@ -55,39 +49,38 @@ def main() -> int:
         return 0
 
     now = datetime.now(timezone.utc)
-    opera_age = age_minutes(parse_iso(meta.get("operaTime")), now)
+    frame_keys = ("mosaicTime", "radarTime", "chmiTime", "operaTime")
+    frame_iso = None
+    frame_key = None
+    for k in frame_keys:
+        if meta.get(k):
+            frame_iso = meta.get(k)
+            frame_key = k
+            break
+    frame_age = age_minutes(parse_iso(frame_iso), now)
     meta_age = age_minutes(parse_iso(meta.get("updatedAt")), now)
-
-    # Fallback: starý meta bez operaTime
-    frame_age = opera_age if opera_age is not None else meta_age
     if frame_age is None:
-        frame_age = 999.0
+        frame_age = meta_age if meta_age is not None else 999.0
 
     print(
-        f"gate: opera_age={opera_age if opera_age is not None else 'n/a'} min "
-        f"meta_age={meta_age if meta_age is not None else 'n/a'} min "
-        f"threshold={max_opera_age:.0f}",
+        f"gate: {frame_key or 'n/a'}={frame_age:.1f} min "
+        f"meta_age={meta_age if meta_age is not None else 'n/a'} "
+        f"threshold={max_age:.0f}",
         flush=True,
     )
-    write_output(
-        "age_min",
-        f"{frame_age:.1f}",
-    )
-    write_output(
-        "opera_age_min",
-        f"{opera_age:.1f}" if opera_age is not None else "",
-    )
+    write_output("age_min", f"{frame_age:.1f}")
+    write_output("opera_age_min", f"{frame_age:.1f}")
 
-    if frame_age < max_opera_age:
+    if frame_age < max_age:
         print(
-            f"gate: skip — OPERA frame still fresh ({frame_age:.1f} min)",
+            f"gate: skip — map frame still fresh ({frame_age:.1f} min)",
             flush=True,
         )
         write_output("skip", "true")
         return 0
 
     print(
-        f"gate: run — OPERA frame stale ({frame_age:.1f} min >= {max_opera_age:.0f})",
+        f"gate: run — map frame stale ({frame_age:.1f} min >= {max_age:.0f})",
         flush=True,
     )
     write_output("skip", "false")
