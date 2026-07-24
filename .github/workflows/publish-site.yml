@@ -57,7 +57,17 @@ jobs:
         env:
           EUMETSAT_CONSUMER_KEY: ${{ secrets.CONSUMER_KEY_EUMETSAT }}
           EUMETSAT_CONSUMER_SECRET: ${{ secrets.CONSUMER_SECRET_EUMETSAT }}
-        run: npm run data:update
+          VITE_DATA_ROOT: ${{ secrets.VITE_DATA_ROOT }}
+        run: |
+          # Live mosaic je na R2. data:update umí jen OPERA (bez národní mozaiky)
+          # a přepíše public/data → do Pages se dostane OPERA PNG (605×425) se
+          # starými souřadnicemi. Klient s VITE_DATA_ROOT pak při same-origin
+          # fallbacku namíchá R2 mosaic coords + Pages OPERA PNG = prázdná mapa.
+          if [ -n "${VITE_DATA_ROOT:-}" ]; then
+            echo "VITE_DATA_ROOT set — skip data:update (R2 serves live mosaic)"
+          else
+            npm run data:update
+          fi
 
       - name: Build site
         env:

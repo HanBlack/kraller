@@ -615,7 +615,8 @@ function syncRadarRasterImage(
 ): Promise<boolean> {
   const gen = ++rasterSyncGeneration;
   ensureStormLayers(map);
-  if (!meta?.url) {
+  // Relative data/… musí projít preloadRadarRaster → blob; jinak Pages≠R2 mozaika.
+  if (!meta?.url || !/^(blob:|data:|https?:)/i.test(meta.url)) {
     lastSyncedRasterUrl = null;
     const hadFrame = map.isSourceLoaded(RADAR_RASTER_SOURCE);
     if (!hadFrame) {
