@@ -1,18 +1,18 @@
 {
-  "generatedAt": "2026-07-24T15:49:58Z",
+  "generatedAt": "2026-07-24T17:55:06Z",
   "sampleCounts": {
     "track": 4518,
-    "formation": 5593,
-    "birth_features": 2317,
-    "intensity": 13502,
+    "formation": 5704,
+    "birth_features": 2318,
+    "intensity": 13504,
     "intensify": 2614,
-    "demise": 5428,
-    "track_sample_events": 17088,
+    "demise": 5430,
+    "track_sample_events": 17092,
     "withSurfaceDbz": 12550,
     "withFct": 4938,
-    "withFreezingLevel": 17088,
+    "withFreezingLevel": 17092,
     "withHailProxy": 182,
-    "total": 33972
+    "total": 34088
   },
   "readyForApply": true,
   "proposals": [
@@ -102,7 +102,7 @@
         }
       },
       "confidence": "medium",
-      "n": 2317,
+      "n": 2318,
       "medianBirthDbzTrue": 37.0,
       "medianBirthDbzFalse": 43.0,
       "reason": "oddělení trueBirth vs příjezd podle birthDbz"
@@ -112,9 +112,9 @@
       "current": 28,
       "proposed": 28,
       "confidence": "low",
-      "n": 5593,
-      "nUsable": 353,
-      "nHit": 353,
+      "n": 5704,
+      "nUsable": 354,
+      "nHit": 354,
       "nMiss": 0,
       "reason": "málo ověřených miss (timeouty nepočítat) — práh nedržet z F1"
     },
@@ -171,7 +171,7 @@
       "current": 0.55,
       "proposed": 0.65,
       "confidence": "high",
-      "n": 13502,
+      "n": 13504,
       "medianBiasDbz": 3.5,
       "medianAbsErrDbz": 6.5,
       "file": "src/storm/config.ts (evolution) + ACTIVE_CONSTANTS emit_learning",
@@ -192,10 +192,10 @@
     }
   ],
   "intensity": {
-    "n": 13502,
+    "n": 13504,
     "medianAbsErrDbz": 6.5,
     "medianAbsErrEvolveDbz": 6.5,
-    "nWithEvolve": 13502,
+    "nWithEvolve": 13504,
     "hint": "errEvolveDbz ladí stormConfig.evolution; slope errDbz je baseline"
   },
   "intensifyPurple": {
@@ -204,9 +204,9 @@
     "hint": "upřímná fialová — nízký hitRate → vyšší alertScoreMin / suppress"
   },
   "demise": {
-    "n": 5428,
+    "n": 5430,
     "reasons": {
-      "merge_or_jump": 5154,
+      "merge_or_jump": 5156,
       "fade": 274
     },
     "medianLifeMin": 0.0,
