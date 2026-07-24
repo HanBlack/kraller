@@ -1,6 +1,6 @@
 # Stáhne radar → R2 (rychlé CDN) + volitelný git backup.
-# Cíl: ~5–7 min od snímku. Satelit běží odděleně (workflow live-sat.yml).
-# Viz docs/RADAR-TRIGGER.md
+# Cíl: ~3–5 min od snímku (fast-path PNG/meta hned po OPERA).
+# Satelit běží odděleně (workflow live-sat.yml). Viz docs/RADAR-TRIGGER.md
 
 name: Live radar
 
@@ -9,7 +9,7 @@ on:
   repository_dispatch:
     types: [live-radar]
   schedule:
-    # GitHub cron je nespolehlivý — záloha; hlavní je Cloudflare Cron Worker (*/5)
+    # GitHub cron je nespolehlivý — záloha; hlavní je Cloudflare Cron Worker (*/2)
     - cron: "*/10 * * * *"
 
 permissions:
@@ -61,15 +61,41 @@ jobs:
         if: steps.gate.outputs.skip != 'true'
         run: pip install -r requirements.txt
 
-      - name: Fetch radar (OPERA + ČHMÚ + dual-pol + env bez sat)
+      - name: Fetch OPERA + early meta
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          python scripts/opera_fetch_convert.py --frames 7
+          python scripts/write_meta.py
+
+      - name: Fast-path upload (PNG + cells + meta)
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+        run: |
+          python scripts/upload_data_r2.py \
+            --files data/meta.json \
+            --files data/opera/latest.png \
+            --files data/opera/latest-raster.json \
+            --files data/opera/latest.geojson \
+            --files data/opera/cells.geojson \
+            --only data/opera/history/
+
+      - name: Enrich (ČHMÚ ∥ dual-pol + env) + full meta
         if: steps.gate.outputs.skip != 'true'
         env:
           R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
         run: |
-          python scripts/opera_fetch_convert.py --frames 7
-          python scripts/chmi_radar.py
-          python scripts/chmi_dualpol.py
-          # Čerstvý env/cooling z R2 (před refresh) — správné stáří, méně zbytečných Open-Meteo hitů
+          # ČHMÚ pak dual-pol (oba píší cells.geojson — nesmí běžet paralelně)
+          python scripts/chmi_radar.py \
+            || echo "WARN: chmi_radar failed"
+          python scripts/chmi_dualpol.py \
+            || echo "WARN: chmi_dualpol failed"
+
+          # Čerstvý env/cooling z R2 (před refresh) — správné stáří
           if [ -n "${R2_PUBLIC_URL:-}" ]; then
             base="${R2_PUBLIC_URL%/}"
             mkdir -p public/data/satellite public/data/formation public/data/wind
@@ -94,7 +120,7 @@ jobs:
           python scripts/merge_sat_cooling.py
           python scripts/write_meta.py
 
-      - name: Upload radar to Cloudflare R2
+      - name: Upload full radar tree to R2
         if: steps.gate.outputs.skip != 'true'
         env:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}

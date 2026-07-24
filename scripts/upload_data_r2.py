@@ -8,6 +8,8 @@ Volitelně: R2_PUBLIC_URL (jen informativní log)
 CLI:
   --exclude data/satellite/   (lze opakovat) — neuploaduj prefix
   --only data/satellite/      (lze opakovat) — upload jen tyto prefixy
+  --files data/opera/latest.png  (lze opakovat) — konkrétní soubory
+  --files a --only se sčítají (OR); --exclude platí vždy
 """
 
 from __future__ import annotations
@@ -50,6 +52,14 @@ def _norm_prefix(p: str) -> str:
     return p.replace("\\", "/").lstrip("/")
 
 
+def _norm_file_rel(p: str) -> str:
+    """public/data/... nebo data/... → data/..."""
+    n = _norm_prefix(p)
+    if n.startswith("public/"):
+        n = n[len("public/") :]
+    return n
+
+
 def _matches_prefix(rel: str, pref: str) -> bool:
     n = _norm_prefix(pref)
     if n.endswith("/"):
@@ -62,6 +72,7 @@ def _should_upload(
     *,
     only: list[str] | None = None,
     exclude: list[str] | None = None,
+    files: set[str] | None = None,
 ) -> bool:
     if not rel.startswith("data/"):
         return False
@@ -69,8 +80,10 @@ def _should_upload(
         return False
     if exclude and any(_matches_prefix(rel, p) for p in exclude):
         return False
-    if only:
-        return any(_matches_prefix(rel, p) for p in only)
+    if files or only:
+        in_files = bool(files and rel in files)
+        in_only = bool(only and any(_matches_prefix(rel, p) for p in only))
+        return in_files or in_only
     return True
 
 
@@ -112,16 +125,23 @@ def ensure_bucket_cors(client, bucket: str) -> bool:
         return False
 
 
-def upload_tree(*, only: list[str] | None = None, exclude: list[str] | None = None) -> int:
+def upload_tree(
+    *,
+    only: list[str] | None = None,
+    exclude: list[str] | None = None,
+    files: list[str] | None = None,
+) -> int:
     account = os.environ.get("R2_ACCOUNT_ID", "").strip()
     access = os.environ.get("R2_ACCESS_KEY_ID", "").strip()
     secret = os.environ.get("R2_SECRET_ACCESS_KEY", "").strip()
     bucket = os.environ.get("R2_BUCKET", "").strip()
 
+    file_set = {_norm_file_rel(f) for f in (files or []) if f.strip()} or None
+
     if not all((account, access, secret, bucket)):
         print("R2: credentials missing — skip upload (set GitHub Secrets)", flush=True)
-        # Explicit --only/--exclude běhy (sat path) musí failnout, ne tiše uspět
-        if only or exclude:
+        # Explicit --only/--exclude/--files běhy musí failnout, ne tiše uspět
+        if only or exclude or file_set:
             return 1
         return 0
 
@@ -148,11 +168,40 @@ def upload_tree(*, only: list[str] | None = None, exclude: list[str] | None = No
 
     uploaded = 0
     skipped = 0
+    missing = 0
+
+    # Explicit --files: upload i když nejsou v rglob (fail soft s logem)
+    if file_set:
+        for rel in sorted(file_set):
+            path = PUBLIC / rel
+            if not path.is_file():
+                print(f"R2: missing file {rel}", file=sys.stderr, flush=True)
+                missing += 1
+                continue
+            if not _should_upload(
+                rel, only=only, exclude=exclude, files=file_set
+            ):
+                skipped += 1
+                continue
+            client.upload_file(
+                str(path),
+                bucket,
+                rel,
+                ExtraArgs={
+                    "ContentType": _mime(path),
+                    "CacheControl": CACHE_CONTROL,
+                },
+            )
+            uploaded += 1
+
     for path in sorted(PUBLIC.rglob("*")):
         if not path.is_file():
             continue
         rel = path.relative_to(PUBLIC).as_posix()
-        if not _should_upload(rel, only=only, exclude=exclude):
+        # Už nahráno přes --files
+        if file_set and rel in file_set:
+            continue
+        if not _should_upload(rel, only=only, exclude=exclude, files=file_set):
             skipped += 1
             continue
         client.upload_file(
@@ -172,13 +221,19 @@ def upload_tree(*, only: list[str] | None = None, exclude: list[str] | None = No
         filt.append(f"only={only}")
     if exclude:
         filt.append(f"exclude={exclude}")
+    if file_set:
+        filt.append(f"files={len(file_set)}")
     extra = f" ({', '.join(filt)})" if filt else ""
     print(
-        f"R2: uploaded {uploaded} file(s) to s3://{bucket}/{extra} (skipped {skipped})",
+        f"R2: uploaded {uploaded} file(s) to s3://{bucket}/{extra} "
+        f"(skipped {skipped}, missing {missing})",
         flush=True,
     )
     if public_url:
         print(f"R2: public base {public_url.rstrip('/')}/", flush=True)
+    # Explicit --files: chybějící cesty = fail (fast-path nesmí tiše uspět)
+    if file_set and missing:
+        return 1
     return 0
 
 
@@ -196,10 +251,21 @@ def main() -> int:
         default=[],
         help="Upload only this prefix (repeatable)",
     )
+    ap.add_argument(
+        "--files",
+        action="append",
+        default=[],
+        help="Upload specific file(s) under public/ (repeatable), e.g. data/opera/latest.png",
+    )
     args = ap.parse_args()
+    # Allow space-separated paths in a single --files "a b c"
+    files: list[str] = []
+    for entry in args.files or []:
+        files.extend(p for p in entry.split() if p.strip())
     return upload_tree(
         only=args.only or None,
         exclude=args.exclude or None,
+        files=files or None,
     )
 
 

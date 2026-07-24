@@ -1,5 +1,7 @@
-/** Interval obnovy dat v prohlížeči. */
+/** Interval obnovy dat v prohlížeči (klid). */
 export const DATA_REFRESH_MS = 30 * 1000;
+/** Při živé bouři — rychlejší zachycení nového PNG po fast-path uploadu. */
+export const DATA_REFRESH_STORM_MS = 15 * 1000;
 
 const BASE = (import.meta.env.BASE_URL ?? "/").replace(/\/?$/, "/");
 

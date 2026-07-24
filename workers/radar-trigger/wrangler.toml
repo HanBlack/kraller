@@ -2,10 +2,10 @@ name = "kraller-radar-trigger"
 main = "src/index.js"
 compatibility_date = "2024-12-01"
 
-# Spolehlivější než GitHub Actions schedule — každých 5 min
-# (Live radar vždy; Live sat když cooling.json starší než SAT_FRESH_MIN)
+# Spolehlivější než GitHub Actions schedule — každých 2 min
+# Debounce FRESH_MIN (~4) brání zbytečným běhům; Live sat dle SAT_FRESH_MIN
 [triggers]
-crons = ["*/5 * * * *"]
+crons = ["*/2 * * * *"]
 
 [vars]
 GITHUB_REPO = "HanBlack/kraller"

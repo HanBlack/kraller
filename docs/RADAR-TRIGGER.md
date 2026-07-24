@@ -1,10 +1,10 @@
 # Spolehlivá obnova radaru (≤ 7 min)
 
 GitHub Actions `schedule` **sám o sobě nestačí** — běhy se vynechávají (15–30 min mezery).  
-Cíl **5–7 min** od snímku vyžaduje **Cloudflare Cron Worker**, který každých 5 min spustí workflow **Live radar**.
+Cíl **~3–5 min** od snímku (limit zdroje ~5 min) — **Cloudflare Cron Worker** každých 2 min spustí **Live radar** (debounce ~4 min).
 
 ```
-Cloudflare Cron (*/5) → Live radar (meta ≤ ~7 min)
+Cloudflare Cron (*/2) → Live radar (meta ≤ ~7 min; fast-path PNG dřív)
                      → Live sat když cooling.json > ~22 min
 Live sat schedule (*/20)  → záloha (nespolehlivé stejně jako dřív u radaru)
 Radar watchdog (*/3)      → meta > 7 min → Live radar; cooling > 25 min → Live sat
@@ -40,7 +40,7 @@ npx wrangler secret put TRIGGER_SECRET
 npm run deploy
 ```
 
-Worker má cron **`*/5 * * * *`** (UTC). Po deployi:
+Worker má cron **`*/2 * * * *`** (UTC). Po deployi:
 
 - Cloudflare dashboard → **Workers** → `kraller-radar-trigger` → **Triggers** → měl by být cron
 - Logs: `npm run tail` nebo dashboard → **Logs**
@@ -59,7 +59,7 @@ curl -H "Authorization: Bearer <TRIGGER_SECRET>" https://kraller-radar-trigger.<
 
 | Kontrola | Očekávání |
 |----------|-----------|
-| Actions → **Live radar** | nový běh cca každých 5 min |
+| Actions → **Live radar** | nový běh když meta zestárne (cron */2 + debounce) |
 | `https://pub-xxx.r2.dev/data/meta.json` | `updatedAt` do ~7 min od teď |
 | kraller.eu SyncStatus | „Aktualizace · před 0–5 min“ |
 
@@ -69,7 +69,7 @@ curl -H "Authorization: Bearer <TRIGGER_SECRET>" https://kraller-radar-trigger.<
 
 | Část | Úloha |
 |------|--------|
-| **Cloudflare Worker** | spolehlivý trigger každých 5 min |
+| **Cloudflare Worker** | spolehlivý trigger každých 2 min (+ FRESH_MIN debounce) |
 | **Live radar** (GHA) | stáhne data, nahraje R2 |
 | **Radar watchdog** (GHA) | záloha — meta > 7 min → dispatch |
 | **GitHub schedule** (*/10) | záloha, když Worker vypadne |
