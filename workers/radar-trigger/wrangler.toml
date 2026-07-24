@@ -14,5 +14,5 @@ SAT_WORKFLOW_FILE = "live-sat.yml"
 GITHUB_REF = "main"
 # Volitelně — stejná URL jako GitHub secret R2_PUBLIC_URL (debounce triggeru)
 # R2_PUBLIC_URL = "https://pub-....r2.dev"
-# FRESH_MIN = "4"
+# FRESH_MIN = "6"   # skip jen když operaTime mladší než toto (ne updatedAt)
 # SAT_FRESH_MIN = "22"

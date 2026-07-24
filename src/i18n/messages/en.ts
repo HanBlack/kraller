@@ -33,6 +33,7 @@ export const en = {
     satAgeTitle: "Satellite cooling {min} min ago",
     satModelTitle: "Satellite: using model (not live cloud-top)",
     stale: "Waiting for fresh server data (~5 min)",
+    radarStale: "Radar frame is old — waiting for a new OPERA frame",
     envStale: "Formation/wind/sat getting stale — intensification may be off",
     titleDetail: "Last sync {time}",
   },

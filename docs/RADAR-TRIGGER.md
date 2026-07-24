@@ -10,7 +10,7 @@ Live sat schedule (*/20)  → záloha (nespolehlivé stejně jako dřív u radar
 Radar watchdog (*/3)      → meta > 7 min → Live radar; cooling > 25 min → Live sat
 ```
 
-Záloha: workflow **Radar watchdog** (každé 3 min) — když `meta.updatedAt` na R2 > 7 min, spustí Live radar znovu.
+Záloha: workflow **Radar watchdog** (každé 3 min) — když `operaTime` na R2 > 8 min, spustí Live radar znovu.
 
 ---
 
@@ -93,7 +93,7 @@ I při perfektním triggeru bývá Y **3–8 min** — to je limit zdroje, ne ch
 | Git backup `push rejected (fetch first)` | R2 je už nahrané — git backup je `continue-on-error` + `pull --rebase` před push |
 | Actions „Canceling…“ / data >10 min stará | Sat je oddělený (`live-sat.yml`); radar job nesmí cancelovat uprostřed uploadu |
 
-| Data „pozdě“ / fronta běhů | Debounce: skip když R2 meta < 4 min; Worker + workflow gate |
+| Data „pozdě“ / fronta běhů | Debounce podle **operaTime** (~6 min), ne updatedAt; Worker + workflow gate |
 | Worker neběží | Cloudflare → Workers → Triggers; `wrangler tail` |
 | Dispatch 401/403 | Token musí mít **Actions: Read and write** |
 | meta pořád staré | Actions log Live radar — OPERA/CHMI fetch fail |

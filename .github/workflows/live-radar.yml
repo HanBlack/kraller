@@ -33,7 +33,7 @@ jobs:
         id: gate
         env:
           R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
-          MAX_AGE_MIN: "4"
+          MAX_AGE_MIN: "6"
           FORCE: ${{ github.event_name == 'workflow_dispatch' }}
         run: python scripts/check_r2_fresh.py
 
@@ -152,4 +152,4 @@ jobs:
 
       - name: Skipped (R2 fresh)
         if: steps.gate.outputs.skip == 'true'
-        run: echo "Skipped — R2 meta fresh (${{ steps.gate.outputs.age_min }} min ago)"
+        run: echo "Skipped — OPERA frame fresh (${{ steps.gate.outputs.age_min }} min)"
