@@ -146,6 +146,8 @@ async function fetchDecodePng(
  * Stáhne a dekóduje latest.png během bootu / refresh —
  * mapa pak dostane blob:URL a radar je hned vidět.
  * Relativní path → R2 / GitHub fallback přes dataRoots.
+ * Při selhání všech kořenů vrať null (ne relative URL) —
+ * jinak MapLibre tahá same-origin Pages PNG s R2 mosaic coords.
  */
 export async function preloadRadarRaster(
   meta: RadarRasterMeta | null,
@@ -163,7 +165,7 @@ export async function preloadRadarRaster(
       return { ...meta, url: objectUrl };
     }
   }
-  return meta;
+  return null;
 }
 
 /**
@@ -182,5 +184,5 @@ export async function preloadRadarRasterKeep(
     const objectUrl = await fetchDecodePng(url, cache);
     if (objectUrl) return { ...meta, url: objectUrl };
   }
-  return meta;
+  return null;
 }
