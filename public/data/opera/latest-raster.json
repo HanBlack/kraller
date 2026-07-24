@@ -18,24 +18,24 @@
       45.5
     ]
   ],
-  "time": "20260724070000",
+  "time": "20260724071000",
   "minDbz": 18,
   "blurSigma": 0.0,
   "crs": "EPSG:3857",
   "uv": "web-mercator",
   "radarSource": "mosaic",
-  "mosaicTime": "2026-07-24T07:00:00Z",
+  "mosaicTime": "2026-07-24T07:10:00Z",
   "layers": {
     "opera": true,
     "chmi": {
       "ok": true,
-      "time": "2026-07-24T07:00:00Z",
-      "ageMin": 4.647473166666667
+      "time": "2026-07-24T07:10:00Z",
+      "ageMin": 4.12094145
     },
     "dwd": {
       "ok": false,
       "reason": "stale",
-      "ageMin": 10.514139833333333
+      "ageMin": 19.987608116666667
     }
   },
   "attribution": [
