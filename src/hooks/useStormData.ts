@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FeatureCollection } from "geojson";
-import { DATA_REFRESH_MS } from "../lib/dataUrls";
+import { DATA_REFRESH_MS, DATA_REFRESH_STORM_MS } from "../lib/dataUrls";
 import {
   loadStormData,
   type DataSourceStatus,
@@ -85,6 +85,8 @@ export function useStormData(
   const [loading, setLoading] = useState(false);
   const busyRef = useRef(false);
   const bootedRef = useRef(false);
+  /** Živá aktivita → kratší poll (15 s). */
+  const stormActiveRef = useRef(false);
 
   const refresh = useCallback(async () => {
     if (busyRef.current) return;
@@ -133,6 +135,9 @@ export function useStormData(
       setDataSources(data.dataSources ?? null);
       setRadarHistory(data.radarHistory);
       setSatelliteCooling(data.satelliteCooling);
+      stormActiveRef.current =
+        data.trackedCells.length > 0 ||
+        (data.radarData.features?.length ?? 0) > 0;
       bootedRef.current = true;
     } catch {
       /* ponechat poslední známá data */
@@ -144,9 +149,23 @@ export function useStormData(
   }, [fallbackFormation]);
 
   useEffect(() => {
-    void refresh();
-    const id = window.setInterval(() => void refresh(), DATA_REFRESH_MS);
-    return () => window.clearInterval(id);
+    let cancelled = false;
+    let timer: number | undefined;
+
+    const tick = async () => {
+      await refresh();
+      if (cancelled) return;
+      const ms = stormActiveRef.current
+        ? DATA_REFRESH_STORM_MS
+        : DATA_REFRESH_MS;
+      timer = window.setTimeout(() => void tick(), ms);
+    };
+
+    void tick();
+    return () => {
+      cancelled = true;
+      if (timer != null) window.clearTimeout(timer);
+    };
   }, [refresh]);
 
   return {
