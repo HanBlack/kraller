@@ -1,6 +1,7 @@
 import { t, type Locale } from "../i18n";
 import type { StormAlert } from "../types";
 import type { FormationAssessment } from "../storm/types";
+import { formationShowsForecast } from "../storm/formationForecast";
 
 export type Severity = StormAlert["severity"] | FormationAssessment["severity"];
 
@@ -11,7 +12,11 @@ export function severityLabel(severity: Severity, locale?: Locale): string {
 export function formationSeverityLabel(
   severity: FormationAssessment["severity"],
   locale?: Locale,
+  score?: number,
 ): string {
+  if (score != null && !formationShowsForecast(score)) {
+    return t("severity.formNone", undefined, locale);
+  }
   const key =
     severity === "weak"
       ? "severity.formWeak"

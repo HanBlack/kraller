@@ -144,9 +144,10 @@ export const en = {
     weak: "Weak",
     moderate: "Moderate",
     strong: "Strong",
-    formWeak: "Low potential",
-    formModerate: "Moderate potential",
-    formStrong: "High potential",
+    formWeak: "Low chance",
+    formModerate: "Moderate chance",
+    formStrong: "High chance",
+    formNone: "No significant risk",
   },
   direction: {
     n: "north",
@@ -206,6 +207,8 @@ export const en = {
     weakEnv:
       "Near {place} the environment is rather weak — a storm is possible but not strong yet.",
     weakPossible: "Near {place} a weaker storm formation is possible.",
+    satAheadRisk:
+      "Near {place} satellite sees cloud-top cooling — initiation may arrive sooner than radar shows.",
     mayForm: "Near {place} {type} may form in {when}.",
     afterBirth:
       "After birth it will move {dir} (~{speed} km/h), expected strength ~{dbz} dBZ.",
@@ -235,7 +238,7 @@ export const en = {
     detailToYou: "To you:",
     detailEnv: "Environment:",
     signalLabel: "Before echo",
-    signalSatLabel: "Satellite · minutes ahead",
+    signalSatLabel: "Satellite · before echo",
     signalModelLabel: "Model (not satellite)",
     signalNone: "No cloud-top cooling signal.",
     signalSatCooling:
@@ -247,8 +250,11 @@ export const en = {
       "Model hints at instability (proxy) — live sat cooling not confirming yet.",
     signalModelQuiet: "No strong cooling signal — watch the radar.",
     initWindow: "formation estimate in {when}",
+    initWindowSat: "satellite: formation estimate in {when}",
     afterBirthDir: "after birth toward {dir}",
     arrivalEta: "arrival estimate in roughly {eta} min",
+    noConcreteEta:
+      "No concrete formation timing — the environment is still weak.",
     note:
       "Formation = environment + satellite before echo. Once on radar, Track takes over.",
     panelTitle: "Formation · {place}",

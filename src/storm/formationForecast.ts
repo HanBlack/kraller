@@ -11,6 +11,9 @@ import { stormSteeringMotion, type WindGrid } from "../lib/windField";
 import { stormConfig } from "./config";
 import type { EnvironmentSignals, FormationAssessment } from "./types";
 
+/** Pod tímto skóre neukazuj konkrétní ETA/sílu — jen „zatím nečekáme“. */
+export const FORMATION_FORECAST_MIN_SCORE = 28;
+
 export type FormationForecast = {
   /** Odhad do kdy se může objevit echo na radaru (minuty). */
   initEtaMin: number;
@@ -28,6 +31,10 @@ export type FormationForecast = {
   arrivalEtaMin: number | null;
   threatensUser: boolean;
 };
+
+export function formationShowsForecast(score: number): boolean {
+  return score >= FORMATION_FORECAST_MIN_SCORE;
+}
 
 function clamp(n: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, n));
@@ -60,6 +67,61 @@ function steeringMotion(
   return stormSteeringMotion(windLow, windUpper, lon, lat);
 }
 
+/** Live sat = minutes-ahead; model cooling je slabší proxy. */
+function applySatelliteTiming(
+  env: EnvironmentSignals,
+  center: number,
+): { center: number; satGrowing: boolean; satWarming: boolean } {
+  const cfg = stormConfig.formation.cloudTopCoolingCPer15min;
+  const satCfg = stormConfig.satellite;
+  const cooling15 = Math.max(0, -(env.cloudTopCoolingCPer15min ?? 0));
+  const cooling45 =
+    env.cloudTopCoolingCPer45min != null
+      ? Math.max(0, -env.cloudTopCoolingCPer45min)
+      : 0;
+  const warming =
+    (env.cloudTopCoolingCPer15min ?? 0) >= cfg.growing;
+  const towerRise = env.cloudTopHeightDeltaMPer15min ?? 0;
+  const coldTop =
+    env.cloudTopTempC != null && env.cloudTopTempC <= satCfg.coldTopTempC;
+  const lightning =
+    (env.lightningFlashes15min ?? 0) >= satCfg.lightningActiveMin;
+
+  if (env.coolingSource !== "satellite") {
+    // Model / LI proxy — jen mírný posun, ať se nevydává za live CTT
+    if (cooling15 >= 4) return { center: center - 5, satGrowing: false, satWarming: false };
+    if (cooling15 >= 2) return { center: center - 3, satGrowing: false, satWarming: false };
+    return { center, satGrowing: false, satWarming: false };
+  }
+
+  let next = center;
+  if (warming) {
+    next += 14;
+  } else if (cooling15 >= cfg.rapid) {
+    next -= 18;
+  } else if (cooling15 >= cfg.growing) {
+    next -= 14;
+  } else if (cooling45 >= satCfg.longCoolingCPer45min) {
+    next -= 10;
+  } else if (cooling15 >= 1) {
+    next -= 5;
+  }
+
+  if (towerRise >= satCfg.towerRisingMPer15min) next -= 6;
+  if (coldTop && (cooling15 >= 1 || cooling45 >= satCfg.longCoolingCPer45min)) {
+    next -= 4;
+  }
+  if (lightning) next -= 4;
+
+  const satGrowing =
+    !warming &&
+    (cooling15 >= cfg.growing ||
+      cooling45 >= satCfg.longCoolingCPer45min ||
+      towerRise >= satCfg.towerRisingMPer15min);
+
+  return { center: next, satGrowing, satWarming: warming };
+}
+
 function estimateInitiationWindow(
   env: EnvironmentSignals,
   score: number,
@@ -70,7 +132,7 @@ function estimateInitiationWindow(
   let center = 50;
   if (score >= 55) center = 28;
   else if (score >= 40) center = 38;
-  else if (score >= 28) center = 52;
+  else if (score >= FORMATION_FORECAST_MIN_SCORE) center = 52;
 
   // Peak CAPE (horizont) vs CAPE teď — ráno peak lže o „za 15 min“
   if (capeNow < 50 && capePeak >= 250) center += 22;
@@ -86,16 +148,24 @@ function estimateInitiationWindow(
   else if (li <= 0 && capeNow >= 60) center -= 4;
   else if (li >= 2) center += 8;
 
-  const cooling = Math.max(0, -env.cloudTopCoolingCPer15min);
-  if (cooling >= 4 && capeNow >= 80) center -= 8;
-  else if (cooling >= 2 && capeNow >= 60) center -= 4;
+  const sat = applySatelliteTiming(env, center);
+  center = sat.center;
 
   if ((env.dewpointC ?? -40) >= 16) center -= 3;
 
-  // Když je energie až odpoledne, neříkej „za 15 min“
-  const minFloor = capeNow < 60 ? 40 : capeNow < 120 ? 25 : 18;
-  const spread =
+  // Když je energie až odpoledne, neříkej „za 15 min“ —
+  // live sat cooling ale může oprávněně jít pod CAPE floor (minutes-ahead).
+  let minFloor = capeNow < 60 ? 40 : capeNow < 120 ? 25 : 18;
+  let spread =
     capeNow < capePeak * 0.35 ? 22 : score >= 42 ? 12 : 18;
+
+  if (sat.satGrowing) {
+    minFloor = Math.min(minFloor, capeNow < 80 ? 18 : 12);
+    spread = Math.min(spread, 10);
+  } else if (sat.satWarming) {
+    minFloor = Math.max(minFloor, 35);
+    spread = Math.max(spread, 16);
+  }
 
   center = clamp(center, minFloor + 5, 85);
   return {
@@ -146,10 +216,30 @@ function estimateMaxDbz(
   env: EnvironmentSignals,
   a: FormationAssessment,
 ): number {
+  const cfg = stormConfig.formation.cloudTopCoolingCPer15min;
+  const satCfg = stormConfig.satellite;
+  const cooling15 = Math.max(0, -(env.cloudTopCoolingCPer15min ?? 0));
+
   let dbz = 30 + a.score * 0.28;
   if (env.capeJkg >= 1500) dbz += 10;
   else if (env.capeJkg >= 700) dbz += 5;
   if (env.shear0to6Ms >= 18) dbz += 4;
+
+  // Live CTT / LI — silnější buňka dřív, než to uvidí radar
+  if (env.coolingSource === "satellite") {
+    if (cooling15 >= cfg.rapid) dbz += 5;
+    else if (cooling15 >= cfg.growing) dbz += 3;
+    if (
+      env.cloudTopTempC != null &&
+      env.cloudTopTempC <= satCfg.coldTopTempC
+    ) {
+      dbz += 2;
+    }
+    if ((env.lightningFlashes15min ?? 0) >= satCfg.lightningActiveMin) {
+      dbz += 2;
+    }
+  }
+
   if (env.capeJkg < 120) dbz = Math.min(dbz, 42);
   return Math.round(clamp(dbz, 32, 62));
 }
@@ -184,7 +274,7 @@ export function forecastFormation(
   let arrivalEtaMin: number | null = null;
   let threatensUser = false;
 
-  if (user && assessment.score >= 28) {
+  if (user && formationShowsForecast(assessment.score)) {
     const toUser = bearingDeg(lat, lon, user.lat, user.lon);
     const approach = angleDiffDeg(headingDeg, toUser);
     const distKm = distanceKm(lat, lon, user.lat, user.lon);
@@ -225,7 +315,7 @@ export function formatFormationPrediction(
   userPlace?: string,
   locale?: Locale,
 ): string {
-  if (a.score < 28) {
+  if (!formationShowsForecast(a.score)) {
     return t("formation.noStormNear", { place }, locale);
   }
 
@@ -267,7 +357,7 @@ export function formationMapLabelWithForecast(
   f: FormationForecast,
   locale?: Locale,
 ): string {
-  if (a.score < 28) {
+  if (!formationShowsForecast(a.score)) {
     return `${place}\n${t("formation.noRiskLabel", undefined, locale)}`;
   }
   const [endLon, endLat] = f.trackEnd;
