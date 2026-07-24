@@ -142,9 +142,10 @@ export const cs = {
     weak: "Slabá",
     moderate: "Střední",
     strong: "Silná",
-    formWeak: "Nízký potenciál",
-    formModerate: "Střední potenciál",
-    formStrong: "Vysoký potenciál",
+    formWeak: "Nízká šance",
+    formModerate: "Střední šance",
+    formStrong: "Vysoká šance",
+    formNone: "Bez rizika",
   },
   direction: {
     n: "sever",
@@ -204,6 +205,8 @@ export const cs = {
     weakEnv:
       "V okolí {place} je prostředí spíše slabé — bouřka je možná, ale zatím ne silná.",
     weakPossible: "V okolí {place} je možný spíše slabší vznik bouřky.",
+    satAheadRisk:
+      "V okolí {place} satelit vidí ochlazování vrcholu — vznik může přijít dřív, než ukáže radar.",
     mayForm:
       "V okolí {place} může vzniknout {type} za {when}.",
     afterBirth:
@@ -234,7 +237,7 @@ export const cs = {
     detailToYou: "K tobě:",
     detailEnv: "Prostředí:",
     signalLabel: "Před echom",
-    signalSatLabel: "Satelit · minutes ahead",
+    signalSatLabel: "Satelit · před echom",
     signalModelLabel: "Model (ne satelit)",
     signalNone: "Bez signálu ochlazování vrcholu.",
     signalSatCooling:
@@ -246,8 +249,11 @@ export const cs = {
       "Model naznačuje nestabilitu (proxy) — live sat cooling zatím nepotvrzuje.",
     signalModelQuiet: "Bez silného cooling signálu — drž se radaru.",
     initWindow: "odhad vzniku za {when}",
+    initWindowSat: "satelit: odhad vzniku za {when}",
     afterBirthDir: "po zrodu na {dir}",
     arrivalEta: "odhad příletu zhruba za {eta} min",
+    noConcreteEta:
+      "Bez konkrétního odhadu vzniku — prostředí je zatím slabé.",
     note:
       "Vznik = prostředí + satelit před echom. Až se objeví na radaru, přebírá Stopa.",
     panelTitle: "Vznik · {place}",

@@ -1,6 +1,7 @@
 import { t, type Locale } from "../i18n";
 import { stormConfig } from "./config";
 import type { FormationZone } from "./demo";
+import { formationShowsForecast } from "./formationForecast";
 import type { EnvironmentSignals, FormationAssessment } from "./types";
 
 /** @deprecated use formationSeverityLabel from lib/severity */
@@ -8,9 +9,9 @@ export const formationSeverityLabelCs: Record<
   FormationAssessment["severity"],
   string
 > = {
-  weak: "Nízký potenciál",
-  moderate: "Střední potenciál",
-  strong: "Vysoký potenciál",
+  weak: "Nízká šance",
+  moderate: "Střední šance",
+  strong: "Vysoká šance",
 };
 
 export function formationPlaceName(zone: FormationZone): string {
@@ -150,14 +151,36 @@ export function formationEnvironmentSummary(
   return bits.join(" · ");
 }
 
+/** Live sat cooling = minutes-ahead vůči samotnému prostředí. */
+function satGrowingAhead(env?: EnvironmentSignals | null): boolean {
+  if (!env || env.coolingSource !== "satellite") return false;
+  const grow = stormConfig.formation.cloudTopCoolingCPer15min.growing;
+  const cooling15 = Math.max(0, -(env.cloudTopCoolingCPer15min ?? 0));
+  const cooling45 =
+    env.cloudTopCoolingCPer45min != null
+      ? Math.max(0, -env.cloudTopCoolingCPer45min)
+      : 0;
+  const tower = env.cloudTopHeightDeltaMPer15min ?? 0;
+  return (
+    cooling15 >= grow ||
+    cooling45 >= stormConfig.satellite.longCoolingCPer45min ||
+    tower >= stormConfig.satellite.towerRisingMPer15min
+  );
+}
+
 /** Hlavní věta panelu Vznik — bez technického balastu. */
 export function formatFormationHeadline(
   a: FormationAssessment,
   place: string,
   locale?: Locale,
+  env?: EnvironmentSignals | null,
 ): string {
-  if (a.score < 28) {
+  if (!formationShowsForecast(a.score)) {
     return t("formation.noStormWatch", { place }, locale);
+  }
+
+  if (satGrowingAhead(env)) {
+    return t("formation.satAheadRisk", { place }, locale);
   }
 
   if (a.severity === "strong") {
@@ -216,11 +239,12 @@ export function formationMapLabel(
   locale?: Locale,
 ): string {
   const place = formationPlaceName(zone);
-  const level =
-    a.severity === "weak"
+  const level = formationShowsForecast(a.score)
+    ? a.severity === "weak"
       ? t("severity.formWeak", undefined, locale)
       : a.severity === "moderate"
         ? t("severity.formModerate", undefined, locale)
-        : t("severity.formStrong", undefined, locale);
+        : t("severity.formStrong", undefined, locale)
+    : t("severity.formNone", undefined, locale);
   return `${place}\n${level}`;
 }

@@ -1,6 +1,10 @@
 import type { FeatureCollection } from "geojson";
-import { getLocale, type Locale } from "../i18n";import { severityRank } from "../lib/severity";
-import { formationMapLabelWithForecast } from "./formationForecast";
+import { getLocale, type Locale } from "../i18n";
+import { severityRank } from "../lib/severity";
+import {
+  formationMapLabelWithForecast,
+  formationShowsForecast,
+} from "./formationForecast";
 import { formationPlaceName } from "./formationCopy";
 import type { FormationFeature } from "./mapFeatures";
 import type { FormationCellLink } from "./formationLinks";
@@ -90,7 +94,7 @@ export function formationTracksGeoJSON(
   return {
     type: "FeatureCollection",
     features: features
-      .filter((f) => f.assessment.score >= 28)
+      .filter((f) => formationShowsForecast(f.assessment.score))
       .map((f) => ({
         type: "Feature",
         properties: {
@@ -115,7 +119,7 @@ export function formationArrowsGeoJSON(
   return {
     type: "FeatureCollection",
     features: features
-      .filter((f) => f.assessment.score >= 28)
+      .filter((f) => formationShowsForecast(f.assessment.score))
       .map((f) => ({
         type: "Feature",
         properties: {
