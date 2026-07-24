@@ -4,49 +4,49 @@
     {
       "index": 0,
       "offsetMinutes": -30,
-      "time": "20260724023000",
+      "time": "20260724024000",
       "path": "data/opera/history/frame-0.geojson",
       "rasterPath": "data/opera/history/frame-0-raster.json"
     },
     {
       "index": 1,
       "offsetMinutes": -25,
-      "time": "20260724023500",
+      "time": "20260724024500",
       "path": "data/opera/history/frame-1.geojson",
       "rasterPath": "data/opera/history/frame-1-raster.json"
     },
     {
       "index": 2,
       "offsetMinutes": -20,
-      "time": "20260724024000",
+      "time": "20260724025000",
       "path": "data/opera/history/frame-2.geojson",
       "rasterPath": "data/opera/history/frame-2-raster.json"
     },
     {
       "index": 3,
       "offsetMinutes": -15,
-      "time": "20260724024500",
+      "time": "20260724025500",
       "path": "data/opera/history/frame-3.geojson",
       "rasterPath": "data/opera/history/frame-3-raster.json"
     },
     {
       "index": 4,
       "offsetMinutes": -10,
-      "time": "20260724025000",
+      "time": "20260724030000",
       "path": "data/opera/history/frame-4.geojson",
       "rasterPath": "data/opera/history/frame-4-raster.json"
     },
     {
       "index": 5,
       "offsetMinutes": -5,
-      "time": "20260724025500",
+      "time": "20260724030500",
       "path": "data/opera/history/frame-5.geojson",
       "rasterPath": "data/opera/history/frame-5-raster.json"
     },
     {
       "index": 6,
       "offsetMinutes": 0,
-      "time": "20260724030000",
+      "time": "20260724031000",
       "path": "data/opera/history/frame-6.geojson",
       "rasterPath": "data/opera/history/frame-6-raster.json"
     }
