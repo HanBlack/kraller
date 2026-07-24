@@ -24,6 +24,19 @@ function formatClock(iso: string, dateLocale: string): string {
   }
 }
 
+const ATTR_LABEL: Record<string, string> = {
+  chmi: "ČHMÚ",
+  dwd: "DWD",
+  shmu: "SHMÚ",
+  imgw: "IMGW",
+  mch: "MeteoSwiss",
+  opera: "OPERA",
+};
+
+function formatAttribution(ids: string[]): string {
+  return ids.map((id) => ATTR_LABEL[id] ?? id.toUpperCase()).join("+");
+}
+
 function formatFull(iso: string, dateLocale: string): string {
   try {
     return new Intl.DateTimeFormat(dateLocale, {
@@ -54,6 +67,8 @@ export function SyncStatus() {
     lastUpdated,
     operaTime,
     chmiTime,
+    radarTime,
+    radarAttribution,
     dataSources,
     loading,
     satelliteCooling,
@@ -68,7 +83,7 @@ export function SyncStatus() {
   if (!lastUpdated && !loading) return null;
 
   const age = lastUpdated ? ageMinutes(lastUpdated, now) : null;
-  const radarIso = operaTime ?? chmiTime;
+  const radarIso = radarTime ?? operaTime ?? chmiTime;
   const radarAge = radarIso ? ageMinutes(radarIso, now) : null;
   const windAge = sourceAge(dataSources, "wind", now);
   const formAge = sourceAge(dataSources, "formation", now);
@@ -139,12 +154,17 @@ export function SyncStatus() {
       </span>
       {radarIso && (
         <span className="sync-status-radar">
-          {operaTime
-            ? t("sync.radar", { time: formatClock(operaTime, dateLocale) })
-            : t("sync.radarChmi", { time: formatClock(radarIso, dateLocale) })}
+          {t("sync.radar", { time: formatClock(radarIso, dateLocale) })}
           {radarAge != null && radarAge > 0
             ? t("sync.radarAge", { min: radarAge })
             : ""}
+        </span>
+      )}
+      {radarAttribution.length > 0 && (
+        <span className="sync-status-attr" title={radarAttribution.join(", ")}>
+          {t("sync.radarSources", {
+            sources: formatAttribution(radarAttribution),
+          })}
         </span>
       )}
       {(windAge != null || formAge != null || satAge != null) && (

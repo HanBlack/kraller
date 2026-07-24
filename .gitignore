@@ -13,11 +13,10 @@ dist-ssr
 .cache
 __pycache__
 *.pyc
+public/data/opera/latest-dbz.npy
+public/data/national/*.json
+!public/data/national/.gitkeep.json
 *.local
-access.txt
-.env
-.env.*
-
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

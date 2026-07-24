@@ -518,6 +518,12 @@ def write_radar_raster(
     rgba = _dbz_to_rgba(dbz_ll)
     os.makedirs(os.path.dirname(png_path) or ".", exist_ok=True)
     Image.fromarray(rgba, mode="RGBA").save(png_path, optimize=True)
+    # Sidecar pro národní mozaiku (OPERA fill)
+    try:
+        npy_path = os.path.join(os.path.dirname(png_path) or ".", "latest-dbz.npy")
+        np.save(npy_path, dbz_ll.astype(np.float32))
+    except OSError as exc:
+        print(f"WARN: could not write latest-dbz.npy ({exc})", flush=True)
 
     rel_png = png_path.replace("\\", "/")
     if "public/" in rel_png:

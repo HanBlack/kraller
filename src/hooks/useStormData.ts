@@ -35,6 +35,8 @@ export type StormDataState = {
   lastUpdated: string | null;
   operaTime: string | null;
   chmiTime: string | null;
+  radarTime: string | null;
+  radarAttribution: string[];
   dataSources: {
     opera?: DataSourceStatus;
     chmi?: DataSourceStatus;
@@ -72,6 +74,8 @@ export function useStormData(
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [operaTime, setOperaTime] = useState<string | null>(null);
   const [chmiTime, setChmiTime] = useState<string | null>(null);
+  const [radarTime, setRadarTime] = useState<string | null>(null);
+  const [radarAttribution, setRadarAttribution] = useState<string[]>([]);
   const [dataSources, setDataSources] = useState<StormDataState["dataSources"]>(
     null,
   );
@@ -132,6 +136,8 @@ export function useStormData(
       setLastUpdated(data.metaUpdatedAt);
       setOperaTime(data.operaTime);
       setChmiTime(data.chmiTime);
+      setRadarTime(data.radarTime);
+      setRadarAttribution(data.radarAttribution);
       setDataSources(data.dataSources ?? null);
       setRadarHistory(data.radarHistory);
       setSatelliteCooling(data.satelliteCooling);
@@ -181,6 +187,8 @@ export function useStormData(
     lastUpdated,
     operaTime,
     chmiTime,
+    radarTime,
+    radarAttribution,
     dataSources,
     radarHistory,
     satelliteCooling,
