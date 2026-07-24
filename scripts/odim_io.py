@@ -17,7 +17,10 @@ def _attr_str(val: Any) -> str:
 
 
 def read_odim_grid(path: str, quantity: str | None = None) -> tuple[np.ndarray, dict]:
-    """Načte dataset — quantity=None → první DBZH / TH / RATE / …"""
+    """Načte dataset — quantity=None → první DBZH / TH / RATE / …
+
+    Některé NMS (SHMÚ) dávají quantity/gain do datasetN/what, ne dataN/what.
+    """
     prefer = (
         [quantity.strip().upper()]
         if quantity
@@ -26,33 +29,61 @@ def read_odim_grid(path: str, quantity: str | None = None) -> tuple[np.ndarray, 
     with h5py.File(path, "r") as f:
         chosen = None
         found_qty = ""
+        what_src = None
+
+        def _qty_from(what_group) -> str:
+            if what_group is None:
+                return ""
+            return _attr_str(what_group.attrs.get("quantity", "")).strip().upper()
+
         for qty_want in prefer:
             for ds_name in f.keys():
                 if not re.match(r"dataset\d+", ds_name):
                     continue
+                ds_what = f.get(f"{ds_name}/what")
+                ds_qty = _qty_from(ds_what)
                 for data_name in f[ds_name].keys():
                     if not re.match(r"data\d+", data_name):
                         continue
-                    what_path = f"{ds_name}/{data_name}/what"
-                    if what_path not in f:
-                        continue
-                    what = f[what_path]
-                    qty = _attr_str(what.attrs.get("quantity", "")).strip().upper()
+                    data_what = f.get(f"{ds_name}/{data_name}/what")
+                    qty = _qty_from(data_what) or ds_qty
                     if qty == qty_want:
                         chosen = (ds_name, data_name)
                         found_qty = qty
+                        what_src = data_what if data_what is not None else ds_what
                         break
                 if chosen:
                     break
             if chosen:
                 break
 
+        # Fallback: první data* s jakoukoli quantity (nebo bez)
+        if not chosen:
+            for ds_name in f.keys():
+                if not re.match(r"dataset\d+", ds_name):
+                    continue
+                ds_what = f.get(f"{ds_name}/what")
+                for data_name in f[ds_name].keys():
+                    if not re.match(r"data\d+", data_name):
+                        continue
+                    if f"{ds_name}/{data_name}/data" not in f:
+                        continue
+                    data_what = f.get(f"{ds_name}/{data_name}/what")
+                    chosen = (ds_name, data_name)
+                    found_qty = _qty_from(data_what) or _qty_from(ds_what) or "DBZH"
+                    what_src = data_what if data_what is not None else ds_what
+                    break
+                if chosen:
+                    break
+
         if not chosen:
             raise RuntimeError(f"Could not find quantity in {path} (tried {prefer})")
 
         ds_name, data_name = chosen
         raw = f[f"{ds_name}/{data_name}/data"][()]
-        what = f[f"{ds_name}/{data_name}/what"]
+        what = what_src if what_src is not None else f.get(f"{ds_name}/what")
+        if what is None:
+            raise RuntimeError(f"Missing what group in {path}")
         nodata = float(what.attrs.get("nodata", -9999))
         undetect = float(what.attrs.get("undetect", -8888))
         gain = float(what.attrs.get("gain", 1.0))
@@ -94,7 +125,6 @@ def read_odim_grid(path: str, quantity: str | None = None) -> tuple[np.ndarray, 
                 meta[lat_k] = float(where.attrs[lat_k])
         if "projdef" in where.attrs:
             meta["projdef"] = _attr_str(where.attrs["projdef"])
-        # Fallback corners from LL/UR if incomplete
         if "UL_lon" not in meta and "LL_lon" in meta and "UR_lon" in meta:
             meta["UL_lon"] = meta["LL_lon"]
             meta["UL_lat"] = meta.get("UR_lat", meta["LL_lat"])

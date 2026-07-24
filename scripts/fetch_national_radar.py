@@ -231,67 +231,54 @@ def fetch_shmu() -> dict[str, Any]:
 
 
 def fetch_imgw() -> dict[str, Any]:
-    """IMGW HVD CMAX composite via public datastore API."""
-    list_url = "https://danepubliczne.imgw.pl/datastore/getFilesList"
-    # Polish + EN endpoints vary — try path query
+    """IMGW HVD CMAX — POST getFilesList (HTML) + getfiledown."""
     product = "Oper/Polrad/Produkty/HVD/HVD_COMPO_CMAX_250.comp.cmax"
-    # API often wants POST or GET with path
-    candidates = [
-        f"{list_url}?path={product}",
-        f"https://danepubliczne.imgw.pl/en/datastore/getFilesList?path={product}",
-        f"https://danepubliczne.imgw.pl/datastore/getfiledown/{product}",
+    list_urls = [
+        "https://danepubliczne.imgw.pl/en/datastore/getFilesList",
+        "https://danepubliczne.imgw.pl/datastore/getFilesList",
     ]
-    listing: list[str] = []
-    for u in candidates[:2]:
+    hrefs: list[str] = []
+    for list_url in list_urls:
         try:
-            r = requests.get(u, headers=UA, timeout=TIMEOUT)
+            r = requests.post(
+                list_url, data={"path": product}, headers=UA, timeout=TIMEOUT
+            )
             if not r.ok:
+                print(f"IMGW list {list_url}: HTTP {r.status_code}", flush=True)
                 continue
-            data = r.json() if "json" in (r.headers.get("content-type") or "") else None
-            if isinstance(data, list):
-                listing = [str(x.get("fileName") or x.get("name") or x) for x in data if x]
-            elif isinstance(data, dict):
-                files = data.get("files") or data.get("data") or data.get("list") or []
-                listing = [str(x.get("fileName") or x.get("name") or x) for x in files]
-            if listing:
+            p = _HrefParser()
+            p.feed(r.text)
+            hrefs = [
+                h
+                for h in p.hrefs
+                if h.lower().endswith(".h5") or "cmax" in h.lower()
+            ]
+            if hrefs:
                 break
-            # HTML fallback
-            hrefs = _list_hrefs(u) if False else []
-            listing = hrefs
         except Exception as exc:
-            print(f"IMGW list try failed ({exc})", flush=True)
+            print(f"IMGW list failed ({exc})", flush=True)
 
-    if not listing:
-        # Direct directory scrape known mirror pattern
-        scrape = f"https://danepubliczne.imgw.pl/data/produkty/oper/polrad/hvd_compo_cmax_250/"
-        try:
-            hrefs = _list_hrefs(scrape)
-            listing = [h for h in hrefs if h.lower().endswith((".h5", ".hdf", ".hdf5", ".gz"))]
-        except Exception:
-            listing = []
-
-    if not listing:
+    if not hrefs:
         raise RuntimeError("IMGW: could not list CMAX files")
 
-    listing = [x.split("/")[-1] for x in listing if x]
-    listing.sort()
-    name = listing[-1]
-    down_bases = [
-        f"https://danepubliczne.imgw.pl/datastore/getfiledown/{product}/",
-        f"https://danepubliczne.imgw.pl/en/datastore/getfiledown/{product}/",
-        "https://danepubliczne.imgw.pl/data/produkty/oper/polrad/hvd_compo_cmax_250/",
-    ]
+    names = sorted({h.split("/")[-1] for h in hrefs if h.split("/")[-1]})
+    if not names:
+        raise RuntimeError("IMGW: empty CMAX listing")
+    name = names[-1]
     dest = CACHE / "imgw" / name
     if dest.is_file():
         print(f"IMGW: cached {name}", flush=True)
         _write_meta("imgw", dest, {"file": name})
         return {"ok": True, "source": "imgw", "file": name}
 
+    down_urls = [
+        f"https://danepubliczne.imgw.pl/en/datastore/getfiledown/{product}/{name}",
+        f"https://danepubliczne.imgw.pl/datastore/getfiledown/{product}/{name}",
+    ]
     last_err: Exception | None = None
-    for b in down_bases:
-        url = urljoin(b if b.endswith("/") else b + "/", name)
+    for url in down_urls:
         try:
-            print(f"IMGW: downloading {url}", flush=True)
+            print(f"IMGW: downloading {name}", flush=True)
             _download(url, dest)
             _write_meta("imgw", dest, {"url": url, "file": name})
             return {"ok": True, "source": "imgw", "file": name}
@@ -303,54 +290,74 @@ def fetch_imgw() -> dict[str, Any]:
 
 
 def fetch_mch() -> dict[str, Any]:
-    """MeteoSwiss RZC (rain rate) via STAC — convert later in mosaic."""
+    """MeteoSwiss RZC (rain rate) via STAC — paginace, nejnovější denní item."""
     coll = (
         "https://data.geo.admin.ch/api/stac/v1/collections/"
         "ch.meteoschweiz.ogd-radar-precip/items"
     )
-    # newest items first
-    r = requests.get(
-        coll,
-        headers=UA,
-        params={"limit": 20, "datetime": "../now"},
-        timeout=TIMEOUT,
-    )
-    r.raise_for_status()
-    data = r.json()
-    features = data.get("features") or []
-    asset_url = None
-    item_id = None
-    for feat in features:
-        assets = feat.get("assets") or {}
-        # Prefer RZC / PRECIP hdf
-        for key, asset in assets.items():
-            href = (asset or {}).get("href") or ""
-            k = key.lower()
-            if href and (
-                "rzc" in k
-                or "rzc" in href.lower()
-                or href.lower().endswith(".h5")
-            ):
-                if "cpc" in href.lower() and "rzc" not in href.lower():
-                    continue
-                asset_url = href
-                item_id = feat.get("id")
+    features: list[dict[str, Any]] = []
+    next_url: str | None = coll
+    params: dict[str, Any] | None = {"limit": 100}
+    while next_url and len(features) < 40:
+        r = requests.get(
+            next_url,
+            headers=UA,
+            params=params if next_url == coll else None,
+            timeout=TIMEOUT,
+        )
+        r.raise_for_status()
+        data = r.json()
+        features.extend(data.get("features") or [])
+        next_url = None
+        for link in data.get("links") or []:
+            if link.get("rel") == "next" and link.get("href"):
+                next_url = str(link["href"])
                 break
-        if asset_url:
+        params = None
+
+    if not features:
+        raise RuntimeError("MCH: empty STAC features")
+
+    features.sort(key=lambda f: str(f.get("id") or ""), reverse=True)
+    feat = None
+    rzc_keys: list[str] = []
+    for candidate in features:
+        assets = candidate.get("assets") or {}
+        keys = sorted(
+            k
+            for k in assets
+            if k.lower().startswith("rzc")
+            or "rzc" in ((assets[k] or {}).get("href") or "").lower()
+        )
+        if keys:
+            feat = candidate
+            rzc_keys = keys
             break
+    if feat is None or not rzc_keys:
+        raise RuntimeError("MCH: no RZC in recent STAC items")
+
+    assets = feat.get("assets") or {}
+    key = rzc_keys[-1]
+    asset_url = (assets[key] or {}).get("href")
     if not asset_url:
-        raise RuntimeError("MCH: no RZC asset in STAC")
-    name = asset_url.split("/")[-1] or f"{item_id}.h5"
+        raise RuntimeError("MCH: RZC href missing")
+    item_id = feat.get("id")
+    name = key
     dest = CACHE / "mch" / name
     if not dest.is_file():
-        print(f"MCH: downloading {name}", flush=True)
+        print(f"MCH: downloading {item_id}/{name}", flush=True)
         _download(asset_url, dest)
     else:
         print(f"MCH: cached {name}", flush=True)
     _write_meta(
         "mch",
         dest,
-        {"url": asset_url, "file": name, "quantity": "RATE", "itemId": item_id},
+        {
+            "url": asset_url,
+            "file": name,
+            "quantity": "RATE",
+            "itemId": item_id,
+        },
     )
     return {"ok": True, "source": "mch", "file": name}
 
