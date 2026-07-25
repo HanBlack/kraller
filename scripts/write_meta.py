@@ -90,6 +90,9 @@ def mosaic_product_time(prev_meta: dict[str, Any] | None = None) -> str | None:
             with open(path, encoding="utf-8") as f:
                 data = json.load(f)
             if isinstance(data, dict):
+                # Explicitně opera = nepřepisovat radarTime z mrtvé mozaiky
+                if str(data.get("radarSource") or "").lower() == "opera":
+                    return None
                 t = normalize_opera_time(
                     data.get("mosaicTime") or data.get("time")
                 )
@@ -218,18 +221,27 @@ def write_meta(run_results: dict[str, dict[str, Any]] | None = None) -> dict[str
     mosaic_t = mosaic_product_time(prev)
     opera_t = opera_product_time(prev)
     chmi_t = chmi_product_time(prev)
-    # Map display time: mosaic > chmi > opera
-    radar_t = mosaic_t or chmi_t or opera_t
+    # Mapa = OPERA (mozaika vypnutá) — radarTime z opera/chmi
+    radar_t = opera_t or chmi_t or mosaic_t
 
     attribution: list[str] = []
+    radar_source = "opera"
     for path in (MOSAIC_META, LATEST_RASTER):
         if not os.path.isfile(path):
             continue
         try:
             with open(path, encoding="utf-8") as f:
                 data = json.load(f)
-            if isinstance(data, dict) and isinstance(data.get("attribution"), list):
+            if not isinstance(data, dict):
+                continue
+            src = str(data.get("radarSource") or "").lower()
+            if src == "opera":
+                radar_source = "opera"
+                attribution = ["opera"]
+                break
+            if isinstance(data.get("attribution"), list) and data["attribution"]:
                 attribution = [str(x) for x in data["attribution"]]
+                radar_source = "mosaic" if mosaic_t else radar_source
                 break
         except (OSError, json.JSONDecodeError, TypeError, ValueError):
             pass
@@ -240,8 +252,10 @@ def write_meta(run_results: dict[str, dict[str, Any]] | None = None) -> dict[str
         "chmiTime": chmi_t,
         "mosaicTime": mosaic_t,
         "radarTime": radar_t,
-        "radarSource": "mosaic" if mosaic_t else ("chmi" if chmi_t else "opera"),
-        "radarAttribution": attribution,
+        "radarSource": radar_source
+        if radar_source == "opera"
+        else ("mosaic" if mosaic_t else ("chmi" if chmi_t else "opera")),
+        "radarAttribution": attribution or ["opera"],
         "opera": os.path.isfile(SOURCE_FILES["opera"]),
         "chmi": os.path.isfile(SOURCE_FILES["chmi"]),
         "wind": os.path.isfile(SOURCE_FILES["wind"]),
