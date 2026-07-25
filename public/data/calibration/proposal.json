@@ -1,18 +1,18 @@
 {
-  "generatedAt": "2026-07-25T06:31:34Z",
+  "generatedAt": "2026-07-25T09:14:20Z",
   "sampleCounts": {
     "track": 4518,
-    "formation": 7024,
-    "birth_features": 2320,
+    "formation": 7399,
+    "birth_features": 2322,
     "intensity": 13504,
     "intensify": 2614,
-    "demise": 5433,
-    "track_sample_events": 17098,
+    "demise": 5435,
+    "track_sample_events": 17102,
     "withSurfaceDbz": 12550,
     "withFct": 4938,
-    "withFreezingLevel": 17098,
+    "withFreezingLevel": 17102,
     "withHailProxy": 182,
-    "total": 35413
+    "total": 35792
   },
   "readyForApply": true,
   "proposals": [
@@ -102,7 +102,7 @@
         }
       },
       "confidence": "medium",
-      "n": 2320,
+      "n": 2322,
       "medianBirthDbzTrue": 37.0,
       "medianBirthDbzFalse": 43.0,
       "reason": "oddělení trueBirth vs příjezd podle birthDbz"
@@ -112,7 +112,7 @@
       "current": 28,
       "proposed": 28,
       "confidence": "low",
-      "n": 7024,
+      "n": 7399,
       "nUsable": 354,
       "nHit": 354,
       "nMiss": 0,
@@ -204,9 +204,9 @@
     "hint": "upřímná fialová — nízký hitRate → vyšší alertScoreMin / suppress"
   },
   "demise": {
-    "n": 5433,
+    "n": 5435,
     "reasons": {
-      "merge_or_jump": 5159,
+      "merge_or_jump": 5161,
       "fade": 274
     },
     "medianLifeMin": 0.0,
