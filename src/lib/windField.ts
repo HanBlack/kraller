@@ -68,11 +68,11 @@ function buildGrid(
   rows: number,
   fill: (lon: number, lat: number, i: number, j: number) => { u: number; v: number },
 ): WindGrid {
-  // Demo mřížka = stejný bbox jako live vítr (CH … východní SK)
-  const west = 7.0;
-  const east = 22.5;
-  const south = 46.5;
-  const north = 52.5;
+  // Demo mřížka = stejný bbox jako live vítr (DE–PL–CZ–SK–AT–HU)
+  const west = 5.8;
+  const east = 24.2;
+  const south = 45.7;
+  const north = 55.0;
   const u = new Float32Array(cols * rows);
   const v = new Float32Array(cols * rows);
 

@@ -16,6 +16,7 @@ import time
 import urllib.parse
 from datetime import datetime, timezone
 
+from central_europe import EAST, NORTH, SOUTH, WEST
 from data_freshness import age_minutes, is_fresh_path, read_valid_at
 from http_util import get_json
 from openmeteo_client import (
@@ -26,9 +27,7 @@ from openmeteo_client import (
 )
 from openmeteo_hour import current_hour_index
 
-# Střední Evropa: CH … východní SK (stejný bbox jako vítr)
-WEST, SOUTH, EAST, NORTH = 7.0, 46.5, 22.5, 52.5
-COLS, ROWS = 28, 18
+COLS, ROWS = 36, 24
 
 # ICON seamless = blízké Windy/DWD pro střední Evropu (CAPE, LI)
 MODEL = "icon_seamless"
@@ -242,6 +241,22 @@ def main() -> int:
 
 def _use_existing_grid(now: datetime, reason: str, max_minutes: float) -> bool:
     if not os.path.isfile(OUT_PATH):
+        return False
+    try:
+        with open(OUT_PATH, encoding="utf-8") as f:
+            data = json.load(f)
+        if (
+            abs(float(data.get("west", 0)) - WEST) > 0.05
+            or abs(float(data.get("south", 0)) - SOUTH) > 0.05
+            or abs(float(data.get("east", 0)) - EAST) > 0.05
+            or abs(float(data.get("north", 0)) - NORTH) > 0.05
+        ):
+            print(
+                "Formation grid má starý bbox — vynucuji refresh na DE–PL–CZ–SK–AT–HU.",
+                flush=True,
+            )
+            return False
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
         return False
     if not is_fresh_path(OUT_PATH, max_minutes):
         return False

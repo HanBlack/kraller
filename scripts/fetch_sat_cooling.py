@@ -25,9 +25,10 @@ import zipfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-# Stejný pás jako fetch_formation.py
-WEST, SOUTH, EAST, NORTH = 7.0, 46.5, 22.5, 52.5
-COLS, ROWS = 28, 18
+from central_europe import EAST, NORTH, SOUTH, WEST
+
+# Stejný pás jako fetch_formation.py (DE–PL–CZ–SK–AT–HU)
+COLS, ROWS = 36, 24
 OUT_PATH = Path("public/data/satellite/cooling.json")
 LAST_ERROR_PATH = Path("public/data/satellite/cooling.last_error.json")
 # Preferuj MTG CTT+CTH (má teplotu). MSG CTH je native binary — jen nouzový fallback.
