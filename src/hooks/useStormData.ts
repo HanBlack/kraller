@@ -100,23 +100,31 @@ export function useStormData(
     else setLoading(true);
     try {
       const bust = Date.now();
+      // Paralelní start: data + styl mapy hned na začátku bootu
       if (isBoot) setBootPhase("data");
+      const stylePromise = isBoot
+        ? preloadMapStyle().catch(() => undefined)
+        : Promise.resolve(undefined);
+
       const data = isBoot
         ? await loadStormDataForBoot(fallbackFormation, (phase) => {
             setBootPhase(phase === "fetch" ? "fetch" : "refresh");
           })
         : await loadStormData(bust, fallbackFormation);
+
       if (isBoot) setBootPhase("history");
-      const [rasterReady] = await Promise.all([
-        preloadRadarRaster(data.radarRaster, bust),
-        preloadRadarHistoryRasters(data.radarHistory, bust),
-      ]);
+      // Kritická cesta: jen live radar PNG — historie na pozadí (stránka dřív použitelná)
+      const rasterReady = await preloadRadarRaster(data.radarRaster, bust);
+      void preloadRadarHistoryRasters(data.radarHistory, bust).then(() => {
+        void preloadRadarHistoryFrames(data.radarHistory, bust);
+      });
+
       if (isBoot) {
         setBootPhase("map");
-        await preloadMapStyle();
+        await stylePromise;
         setBootPhase("done");
       }
-      void preloadRadarHistoryFrames(data.radarHistory, bust);
+
       setRadarData(data.radarData);
       if (rasterReady?.url) commitLiveRasterBlobSwap(rasterReady.url);
       setRadarRaster(rasterReady);

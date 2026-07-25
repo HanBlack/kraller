@@ -97,9 +97,21 @@ def write_cooling(
     }
 
     # empty/error/no_credentials: nepřepisuj poslední dobrý cooling — UI i merge drží last-good
+    # Výjimka: starý bbox (před DE–PL–… expand) — vždy přepiš novým pásem
     if status in ("empty", "error", "no_credentials"):
         existing = _read_existing_cooling()
-        if _has_usable_cooling(existing):
+        same_domain = False
+        if existing:
+            try:
+                same_domain = (
+                    abs(float(existing.get("west", 0)) - WEST) < 0.05
+                    and abs(float(existing.get("south", 0)) - SOUTH) < 0.05
+                    and abs(float(existing.get("east", 0)) - EAST) < 0.05
+                    and abs(float(existing.get("north", 0)) - NORTH) < 0.05
+                )
+            except (TypeError, ValueError):
+                same_domain = False
+        if same_domain and _has_usable_cooling(existing):
             diag = {
                 **payload,
                 "keptLastGood": True,
@@ -111,10 +123,16 @@ def write_cooling(
             print(
                 f"Keep last-good {OUT_PATH} (status={existing.get('status')} "
                 f"points={len(existing.get('points') or [])} validAt={existing.get('validAt')}) "
-                f"- new {status} -> {LAST_ERROR_PATH}",
+                f"— new {status} → {LAST_ERROR_PATH}",
                 flush=True,
             )
             return
+        if existing and not same_domain:
+            print(
+                "Sat cooling starý bbox — přepisuji i při "
+                f"{status} (nový pás DE–PL–CZ–SK–AT–HU)",
+                flush=True,
+            )
 
     OUT_PATH.write_text(json.dumps(payload), encoding="utf-8")
     print(f"Wrote {OUT_PATH} status={status} points={len(payload['points'])}", flush=True)
