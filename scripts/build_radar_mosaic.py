@@ -324,6 +324,82 @@ def blend_layers(
     return out, {"layers": used, "mosaicTime": mosaic_time}
 
 
+def stamp_cell_peaks(
+    dbz: np.ndarray,
+    lon_g: np.ndarray,
+    lat_g: np.ndarray,
+    cells_path: Path,
+    radius_px: int = 3,
+) -> int:
+    """
+    Doštěpí OPERA peaky z cells.geojson — pin Silná musí mít viditelný blob.
+    """
+    if not cells_path.is_file():
+        return 0
+    try:
+        fc = json.loads(cells_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return 0
+    features = fc.get("features") or []
+    if not features:
+        return 0
+
+    wgs_to_merc = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+    # Mosaic grid is linear in mercator; approximate via corner merc of lon_g/lat_g
+    h, w = dbz.shape
+    corners = [
+        (float(lon_g[0, 0]), float(lat_g[0, 0])),
+        (float(lon_g[0, -1]), float(lat_g[0, -1])),
+        (float(lon_g[-1, -1]), float(lat_g[-1, -1])),
+        (float(lon_g[-1, 0]), float(lat_g[-1, 0])),
+    ]
+    merc = [wgs_to_merc.transform(lon, lat) for lon, lat in corners]
+    mx0 = min(p[0] for p in merc)
+    mx1 = max(p[0] for p in merc)
+    my0 = min(p[1] for p in merc)
+    my1 = max(p[1] for p in merc)
+
+    stamped = 0
+    yy, xx = np.mgrid[-radius_px : radius_px + 1, -radius_px : radius_px + 1]
+    dist = np.sqrt(yy.astype(np.float64) ** 2 + xx.astype(np.float64) ** 2)
+    kernel = np.clip(1.0 - dist / max(1.0, radius_px), 0.0, 1.0)
+
+    for feat in features:
+        props = feat.get("properties") or {}
+        geom = feat.get("geometry") or {}
+        if geom.get("type") != "Point":
+            continue
+        coords = geom.get("coordinates") or []
+        if len(coords) < 2:
+            continue
+        lon, lat = float(coords[0]), float(coords[1])
+        peak = props.get("maxDbz")
+        if peak is None or not np.isfinite(peak) or float(peak) < 18.0:
+            continue
+        peak_f = float(peak)
+        mx, my = wgs_to_merc.transform(lon, lat)
+        col = (mx - mx0) / max(1e-9, mx1 - mx0) * w - 0.5
+        row = (my1 - my) / max(1e-9, my1 - my0) * h - 0.5
+        ci, ri = int(round(col)), int(round(row))
+        if ri < 0 or ri >= h or ci < 0 or ci >= w:
+            continue
+        # Paint kernel — never lower existing stronger echo
+        for dy in range(-radius_px, radius_px + 1):
+            for dx in range(-radius_px, radius_px + 1):
+                r2, c2 = ri + dy, ci + dx
+                if r2 < 0 or r2 >= h or c2 < 0 or c2 >= w:
+                    continue
+                wgt = float(kernel[dy + radius_px, dx + radius_px])
+                if wgt <= 0:
+                    continue
+                val = peak_f * (0.55 + 0.45 * wgt)
+                cur = dbz[r2, c2]
+                if not np.isfinite(cur) or val > cur:
+                    dbz[r2, c2] = val
+        stamped += 1
+    return stamped
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Build national+OPERA radar mosaic PNG")
     ap.add_argument(
@@ -376,6 +452,10 @@ def main() -> int:
         return 0
 
     blended, info = blend_layers(opera, nationals, lon_g, lat_g, now)
+    cells_path = ROOT / "public" / "data" / "opera" / "cells.geojson"
+    n_stamp = stamp_cell_peaks(blended, lon_g, lat_g, cells_path)
+    if n_stamp:
+        print(f"mosaic: stamped {n_stamp} cell peaks onto raster", flush=True)
     save_mosaic_dbz_sidecar(np.where(np.isfinite(blended), blended, 0.0))
     rain_n = int(np.sum(np.isfinite(blended) & (blended >= 18.0)))
     print(
