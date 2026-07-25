@@ -84,8 +84,8 @@ export function explainGrowthWhy(
     if (satRate < 1.5 && cooling >= 1.5) {
       reasons.push(
         env.coolingSource === "satellite"
-          ? "vrchol mraku se ochlazuje — bouřka nahoře ještě roste"
-          : "model ukazuje rostoucí nestabilitu — může ještě zesílit",
+          ? "vrchol se ochlazuje"
+          : "model ukazuje rostoucí nestabilitu",
       );
     }
     const li = env.liftedIndexC;
@@ -95,19 +95,19 @@ export function explainGrowthWhy(
   }
 
   if (feature.isNewborn || feature.phase === "birth") {
-    reasons.push("mladé echo — typicky ještě nabírá sílu, pokud podmínky drží");
+    reasons.push("mladé echo");
   }
 
   if (reasons.length === 0) {
-    reasons.push("radarová stopa ukazuje mladší / sílící buňku");
+    reasons.push("mladší / sílící buňka");
   }
 
   const primary = reasons[0];
   const headline =
     feature.phase === "growing" || growth >= 3
-      ? `Roste, protože ${primary}.`
+      ? `Roste · ${primary}`
       : feature.phase === "birth"
-        ? `Nový zrod — ${primary}.`
+        ? `Nový zrod · ${primary}`
         : primary;
 
   const shortLabel =

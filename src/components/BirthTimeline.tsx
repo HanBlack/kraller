@@ -41,7 +41,7 @@ export function BirthTimeline({
   ageMinutes,
   intensifyEtaMin = null,
   demiseEtaMin = null,
-  demiseConfidence = null,
+  demiseConfidence: _demiseConfidence = null,
   willIntensify = false,
 }: Props) {
   const { t } = useI18n();
@@ -77,13 +77,6 @@ export function BirthTimeline({
     demiseEtaMin != null &&
     Number.isFinite(demiseEtaMin) &&
     demiseEtaMin > 0;
-
-  const demiseLabel =
-    demiseConfidence === "observed"
-      ? t("storm.timelineDemiseObserved")
-      : demiseConfidence === "trending"
-        ? t("storm.timelineDemiseTrend")
-        : t("storm.timelineDemiseEstimate");
 
   return (
     <div className="birth-timeline" aria-label={t("storm.timelineTitle")}>
@@ -130,19 +123,13 @@ export function BirthTimeline({
             <span className="birth-step-label">
               {t("storm.timelineDemise", {
                 min: Math.round(demiseEtaMin!),
-                kind: demiseLabel,
               })}
             </span>
           </li>
         ) : null}
       </ol>
-      <p className="birth-timeline-note">
-        {ageMinutes <= 10
-          ? t("storm.timelineNew")
-          : t("storm.timelineGrowth", { age: ageMinutes })}
-      </p>
-      {showDemise ? (
-        <p className="birth-timeline-legend">{t("storm.demiseLegend")}</p>
+      {ageMinutes <= 10 ? (
+        <p className="birth-timeline-note">{t("storm.timelineNew")}</p>
       ) : null}
     </div>
   );

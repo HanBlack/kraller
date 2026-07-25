@@ -93,7 +93,7 @@ export const stormConfig = {
   active: {
     /** Detekce cell (dBZ). */
     reflectivityDbz: {
-      cell: 35,
+      cell: 40,
       moderate: 45,
       strong: 55,
       severe: 60,

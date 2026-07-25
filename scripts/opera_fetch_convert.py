@@ -564,11 +564,11 @@ def track_cells(
     c0: int,
     meta: dict,
     geo: dict,
-    min_dbz: float = 35.0,
-    min_area: int = 8,
+    min_dbz: float = 40.0,
+    min_area: int = 16,
 ) -> list[dict]:
     """Segmentace buněk + epicentrum = argmax dBZ uvnitř buňky.
-    min_area=8 zachytí i malý začátek echa (zrod přeháňky/bouřky).
+    min_dbz=40 / min_area=16 — méně clutteru a falešných pinů.
     """
     mask = np.isfinite(crop) & (crop >= min_dbz)
     labeled, n = label(mask)

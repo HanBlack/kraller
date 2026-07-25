@@ -685,119 +685,49 @@ function RadarLifecycleDetail({
 
 
                   {step.id === "birth" &&
-
                     step.reasons &&
-
                     step.reasons.length > 0 && (
-
-                      <div className="lifecycle-why">
-
-                        <p className="lifecycle-why-title">
-
-                          {feature.phase === "growing"
-
-                            ? t("storm.whyGrowing")
-
-                            : t("storm.whyNow")}
-
-                        </p>
-
-                        <ul className="lifecycle-why-list">
-
-                          {step.reasons.map((r) => (
-
-                            <li key={r}>{r}</li>
-
-                          ))}
-
-                        </ul>
-
-                      </div>
-
+                      <ul className="lifecycle-why-list">
+                        {step.reasons.map((r) => (
+                          <li key={r}>{r}</li>
+                        ))}
+                      </ul>
                     )}
-
-
 
                   {step.id === "path" &&
-
                     step.reasons &&
-
                     step.reasons.length > 0 && (
-
-                      <div className="lifecycle-why">
-
-                        <p className="lifecycle-why-title">{t("storm.whyStrength")}</p>
-
-                        <ul className="lifecycle-why-list">
-
-                          {step.reasons.map((r) => (
-
-                            <li key={r}>{r}</li>
-
-                          ))}
-
-                        </ul>
-
-                      </div>
-
+                      <ul className="lifecycle-why-list">
+                        {step.reasons.map((r) => (
+                          <li key={r}>{r}</li>
+                        ))}
+                      </ul>
                     )}
 
-
-
                   {step.id === "factors" && factors.length > 0 && (
-
                     <ul className="birth-factor-list compact">
-
                       {factors.map((f) => (
-
                         <li
-
                           key={`${f.key}-${f.label}`}
-
                           className={`birth-factor birth-factor-${f.key}`}
-
                         >
-
                           <span className="birth-factor-label">{f.label}</span>
-
                           <span className="birth-factor-detail">{f.detail}</span>
-
                         </li>
-
                       ))}
-
                     </ul>
-
                   )}
 
-
-
                   {step.id !== "factors" &&
-
                     step.id !== "birth" &&
-
                     step.id !== "path" &&
-
                     step.reasons &&
-
                     step.reasons.length > 0 && (
-
-                      <div className="lifecycle-why">
-
-                        <p className="lifecycle-why-title">{t("storm.whyHappens")}</p>
-
-                        <ul className="lifecycle-why-list">
-
-                          {step.reasons.map((r) => (
-
-                            <li key={r}>{r}</li>
-
-                          ))}
-
-                        </ul>
-
-                      </div>
-
+                      <ul className="lifecycle-why-list">
+                        {step.reasons.map((r) => (
+                          <li key={r}>{r}</li>
+                        ))}
+                      </ul>
                     )}
 
                 </div>

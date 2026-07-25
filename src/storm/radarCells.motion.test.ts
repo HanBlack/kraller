@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { FeatureCollection, Point } from "geojson";
 import {
@@ -13,10 +11,10 @@ import {
 } from "./radarCells";
 
 describe("effectivePeakDbz", () => {
-  it("nesníží OPERA max nižším ČHMÚ samplem", () => {
+  it("věří ČHMÚ když OPERA je nafouklý ghost", () => {
     expect(
       effectivePeakDbz({ maxDbz: 54, peakDbz: 35, chmiDbz: 35 }),
-    ).toBe(54);
+    ).toBe(35);
   });
 
   it("vezme vyšší ČHMÚ když je silnější než OPERA", () => {
@@ -108,12 +106,125 @@ describe("peakAtForecastMinutes", () => {
   });
 });
 
-describe("real OPERA cells", () => {
-  const raw = readFileSync(
-    resolve(process.cwd(), "public/data/opera/cells.geojson"),
-    "utf8",
-  );
-  const fc = JSON.parse(raw) as FeatureCollection;
+describe("tracked cells fixture", () => {
+  const fc: FeatureCollection = {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        properties: {
+          kind: "peak",
+          cellId: "cell-3",
+          id: "cell-3",
+          maxDbz: 48,
+        },
+        geometry: { type: "Point", coordinates: [16.2, 49.8] },
+      },
+      {
+        type: "Feature",
+        properties: {
+          kind: "cell",
+          id: "cell-3",
+          maxDbz: 48,
+          trackHeadingDeg: 90,
+          trackSpeedKmh: 36,
+          historyMinutes: 30,
+          history: [
+            {
+              time: "a",
+              peakLon: 15.9,
+              peakLat: 49.8,
+              maxDbz: 42,
+            },
+            {
+              time: "b",
+              peakLon: 16.05,
+              peakLat: 49.8,
+              maxDbz: 45,
+            },
+            {
+              time: "c",
+              peakLon: 16.2,
+              peakLat: 49.8,
+              maxDbz: 48,
+            },
+          ],
+        },
+        geometry: {
+          type: "Polygon",
+          coordinates: [
+            [
+              [16.1, 49.7],
+              [16.3, 49.7],
+              [16.3, 49.9],
+              [16.1, 49.9],
+              [16.1, 49.7],
+            ],
+          ],
+        },
+      },
+      // duplicitní polygon se stejným id — parse má nechat jeden
+      {
+        type: "Feature",
+        properties: {
+          kind: "cell",
+          id: "cell-3",
+          maxDbz: 40,
+          history: [
+            { time: "a", peakLon: 16.2, peakLat: 49.8, maxDbz: 40 },
+          ],
+        },
+        geometry: {
+          type: "Polygon",
+          coordinates: [
+            [
+              [16.15, 49.75],
+              [16.25, 49.75],
+              [16.25, 49.85],
+              [16.15, 49.85],
+              [16.15, 49.75],
+            ],
+          ],
+        },
+      },
+      {
+        type: "Feature",
+        properties: {
+          kind: "peak",
+          cellId: "cell-7",
+          id: "cell-7",
+          maxDbz: 41,
+        },
+        geometry: { type: "Point", coordinates: [17.1, 50.1] },
+      },
+      {
+        type: "Feature",
+        properties: {
+          kind: "cell",
+          id: "cell-7",
+          maxDbz: 41,
+          trackHeadingDeg: 45,
+          trackSpeedKmh: 20,
+          history: [
+            { time: "a", peakLon: 17.0, peakLat: 50.0, maxDbz: 38 },
+            { time: "b", peakLon: 17.1, peakLat: 50.1, maxDbz: 41 },
+          ],
+        },
+        geometry: {
+          type: "Polygon",
+          coordinates: [
+            [
+              [17.0, 50.0],
+              [17.2, 50.0],
+              [17.2, 50.2],
+              [17.0, 50.2],
+              [17.0, 50.0],
+            ],
+          ],
+        },
+      },
+    ],
+  };
   const cells = parseTrackedCells(fc);
   const features = buildRadarProgressFeatures(cells, null, null, [], null);
 
@@ -122,6 +233,7 @@ describe("real OPERA cells", () => {
     expect(cell).toBeDefined();
     const f = features.find((x) => x.id === "cell-3");
     expect(f?.peak).toEqual(cell!.peak);
+    expect(f?.peak).toEqual([16.2, 49.8]);
   });
 
   it("cell-3 má pozorovaný pohyb a posune se v +30 min", () => {
@@ -135,7 +247,7 @@ describe("real OPERA cells", () => {
   });
 
   it("duplicitní cell id — jedna buňka na id", () => {
-    const dupes = cells.filter((c) => c.id === "cell-7");
+    const dupes = cells.filter((c) => c.id === "cell-3");
     expect(dupes).toHaveLength(1);
   });
 
@@ -156,5 +268,53 @@ describe("real OPERA cells", () => {
     const d30 = Math.hypot(c30[0] - c0[0], c30[1] - c0[1]);
     expect(d15).toBeGreaterThan(0.01);
     expect(d30).toBeGreaterThan(d15);
+  });
+
+  it("slabé / ghost ČHMÚ buňky nejdou na mapu", () => {
+    const ghostFc: FeatureCollection = {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: {
+            kind: "peak",
+            cellId: "ghost",
+            id: "ghost",
+            maxDbz: 52,
+            chmiDbz: 18,
+            peakDbz: 18,
+          },
+          geometry: { type: "Point", coordinates: [15, 50] },
+        },
+        {
+          type: "Feature",
+          properties: {
+            kind: "cell",
+            id: "ghost",
+            maxDbz: 52,
+            chmiDbz: 18,
+            peakDbz: 18,
+            history: [
+              { time: "a", peakLon: 15, peakLat: 50, maxDbz: 52 },
+            ],
+          },
+          geometry: {
+            type: "Polygon",
+            coordinates: [
+              [
+                [14.9, 49.9],
+                [15.1, 49.9],
+                [15.1, 50.1],
+                [14.9, 50.1],
+                [14.9, 49.9],
+              ],
+            ],
+          },
+        },
+      ],
+    };
+    const gCells = parseTrackedCells(ghostFc);
+    const gFeatures = buildRadarProgressFeatures(gCells, null, null, [], null);
+    expect(gFeatures.find((f) => f.id === "ghost")).toBeUndefined();
   });
 });

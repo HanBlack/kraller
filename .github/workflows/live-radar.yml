@@ -77,6 +77,13 @@ jobs:
           mkdir -p public/data/opera
           printf '%s\n' '{"radarSource":"opera","note":"mosaic disabled — OPERA PNG is map source of truth"}' \
             > public/data/opera/mosaic-meta.json
+          # Ghost cells pryč PŘED uploadem pinů (PNG zůstává OPERA).
+          python scripts/chmi_radar.py \
+            || echo "WARN: chmi_radar failed"
+          python scripts/reconcile_cells_national.py \
+            || echo "WARN: national reconcile failed"
+          python scripts/chmi_dualpol.py \
+            || echo "WARN: chmi_dualpol failed"
           python scripts/write_meta.py
 
       - name: Fast-path upload (PNG + cells + meta)
@@ -102,13 +109,12 @@ jobs:
             --only data/opera/history/ \
             --only data/national/
 
-      - name: Enrich (ČHMÚ cells + dual-pol + env) + full meta
+      - name: Enrich (env + dual-pol retry) + full meta
         if: steps.gate.outputs.skip != 'true'
         env:
           R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
         run: |
-          python scripts/chmi_radar.py \
-            || echo "WARN: chmi_radar failed"
+          # Cells už vyčištěné výše; dual-pol znovu soft-fail pokud dřív selhal
           python scripts/chmi_dualpol.py \
             || echo "WARN: chmi_dualpol failed"
 

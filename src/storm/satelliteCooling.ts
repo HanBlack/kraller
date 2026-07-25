@@ -346,7 +346,7 @@ function satelliteExtraHints(sample: SatelliteSample): string[] {
     hints.push(explainSatelliteLightning(sample));
   }
   if (sample.deepIceTop && sample.trend !== "cold_top" && sample.cloudTopTempC != null) {
-    hints.push("hluboká ledová vrstva");
+    hints.push("ledová vrstva");
   }
   if (
     sample.cloudTopCoolingCPer45min != null &&
@@ -361,27 +361,27 @@ function satelliteExtraHints(sample: SatelliteSample): string[] {
 
 export function explainSatelliteGrowth(sample: SatelliteSample): string {
   const rate = satelliteGrowthRate(sample.cloudTopCoolingCPer15min);
-  return `vrchol mraku se ochlazuje (−${rate.toFixed(1)} °C / 15 min) — bouřka nahoře roste`;
+  return `vrchol chladne (−${rate.toFixed(1)} °C / 15 min)`;
 }
 
 export function explainSatelliteLongGrowth(sample: SatelliteSample): string {
   const rate = satelliteLongGrowthRate(sample.cloudTopCoolingCPer45min);
-  return `vrchol mraku chladne dlouhodobě (−${rate.toFixed(1)} °C / 45 min) — růst před silnějším deštěm`;
+  return `vrchol chladne (−${rate.toFixed(1)} °C / 45 min)`;
 }
 
 export function explainSatelliteTowerRising(sample: SatelliteSample): string {
   const km = towerRiseRate(sample.cloudTopHeightDeltaMPer15min) / 1000;
-  return `mrak roste do výšky (+${km.toFixed(1)} km / 15 min)`;
+  return `mrak roste (+${km.toFixed(1)} km / 15 min)`;
 }
 
 export function explainSatelliteTowerFalling(sample: SatelliteSample): string {
   const km = towerFallRate(sample.cloudTopHeightDeltaMPer15min) / 1000;
-  return `mrak klesá (−${km.toFixed(1)} km / 15 min) — nahoře slábne`;
+  return `mrak klesá (−${km.toFixed(1)} km / 15 min)`;
 }
 
 export function explainSatelliteColdTop(sample: SatelliteSample): string {
   const t = sample.cloudTopTempC ?? stormConfig.satellite.coldTopTempC;
-  return `studený vrchol (~${t.toFixed(0)} °C) — hluboká bouřka`;
+  return `studený vrchol (~${t.toFixed(0)} °C)`;
 }
 
 export function explainSatelliteDeepIce(sample: SatelliteSample): string {
@@ -389,13 +389,13 @@ export function explainSatelliteDeepIce(sample: SatelliteSample): string {
     sample.cloudTopTempC != null
       ? `~${sample.cloudTopTempC.toFixed(0)} °C`
       : "vysoko";
-  return `hluboká ledová vrstva (${t}) — ne mělká přeháňka`;
+  return `ledová vrstva (${t})`;
 }
 
 export function explainSatelliteLightning(sample: SatelliteSample): string {
   const n = sample.lightningFlashes15min;
   const rate = Math.max(1, Math.round(n / 15));
-  return `blesky v okolí (~${rate}/min) — bouřka je aktivní`;
+  return `blesky (~${rate}/min)`;
 }
 
 export function explainSatelliteWarming(sample: SatelliteSample): string {
@@ -403,7 +403,7 @@ export function explainSatelliteWarming(sample: SatelliteSample): string {
     return explainSatelliteTowerFalling(sample);
   }
   const rate = satelliteWarmingRate(sample.cloudTopCoolingCPer15min);
-  return `vrchol mraku se otepluje (+${rate.toFixed(1)} °C / 15 min) — nahoře slábne`;
+  return `vrchol se otepluje (+${rate.toFixed(1)} °C / 15 min)`;
 }
 
 /** Všechny sat signály pro lifecycle (priorita — růst XOR útlum). */
