@@ -37,15 +37,12 @@ COUNTRY_BBOX: dict[str, tuple[float, float, float, float]] = {
 
 # Feather šířka ve stupních (~40 km)
 FEATHER_DEG = 0.45
-# SHMÚ/IMGW často ~10–15 min; příliš přísný práh = jen OPERA ghosty vs Windy
-MAX_NATIONAL_AGE_MIN = 18.0
-# Teprve odtud kreslíme národní déšť (slabší = clutter / AP, ne to co vidíš venku)
-NATIONAL_RAIN_MIN_DBZ = 25.0
-# OPERA fill jen mimo národní pokrytí a jen nad tímto prahem
-OPERA_FILL_MIN_DBZ = 28.0
+MAX_NATIONAL_AGE_MIN = 15.0
+# Národní může doplnit / zostřit jádra; OPERA zůstává základ (ukazuje bouřky)
+NATIONAL_RAIN_MIN_DBZ = 18.0
+OPERA_BASE_WEIGHT = 1.0  # legacy name — blend je max-composite OPERA-first
 
 DEFAULT_BBOX = (5.5, 45.5, 24.5, 55.2)  # DE–PL–CH–SK + CZ
-# Širší bbox potřebuje víc pixelů — jinak jádra zůstanou 1 px a na zoomu zmizí
 DEFAULT_WIDTH = 1800
 DEFAULT_HEIGHT = 1400
 
@@ -276,14 +273,16 @@ def blend_layers(
     now: dt.datetime,
 ) -> tuple[np.ndarray, dict[str, Any]]:
     """
-    Národní radar first (jako Windy) — OPERA jen do děr mimo pokrytí ČHMÚ/SHMÚ/….
-
-    Dřívější OPERA-base + clear-suppress furt nechávalo falešné Silná buňky
-    tam, kde venku / na Windy nic nebylo.
+    OPERA first — to je produkt, který umí ukázat bouřky.
+    Národní compositý jen doplní / zostří, nikdy OPERA nevymažou.
     """
-    h, width = lon_g.shape
-    out = np.full((h, width), np.nan, dtype=np.float64)
-    national_cover = np.zeros((h, width), dtype=bool)
+    out = np.where(np.isfinite(opera), opera.astype(np.float64), np.nan)
+    opera_rain = int(np.sum(np.isfinite(out) & (out >= 18.0)))
+    opera_max = float(np.nanmax(out)) if np.isfinite(out).any() else float("nan")
+    print(
+        f"mosaic: OPERA base rain>=18: {opera_rain} maxDbz={opera_max:.1f}",
+        flush=True,
+    )
     used: dict[str, Any] = {"opera": True}
     times: list[str] = []
 
@@ -300,9 +299,8 @@ def blend_layers(
         if not bbox:
             continue
         fw = feather_weight(lon_g, lat_g, bbox)
-        # Uvnitř státu belí OPERA fill — platné i když je národní „undetect“
-        national_cover |= fw > 0.4
         valid = np.isfinite(dbz)
+        # Doplň / zostři — nepřepisuj OPERA clear-air ani undetectem
         nat_rain = valid & (dbz >= NATIONAL_RAIN_MIN_DBZ) & (fw > 0.15)
         take = nat_rain & (~np.isfinite(out) | (dbz > out))
         out = np.where(take, dbz, out)
@@ -315,29 +313,14 @@ def blend_layers(
         if time_iso:
             times.append(time_iso)
         print(
-            f"mosaic: {source} painted={int(np.sum(take))} "
-            f"cover_px={int(np.sum(fw > 0.4))}",
+            f"mosaic: {source} painted={int(np.sum(take))}",
             flush=True,
         )
-
-    # OPERA jen mimo národní bboxy — žádné ghosty nad CZ/SK/PL/CH/DE coverage
-    opera_ok = (
-        np.isfinite(opera)
-        & (opera >= OPERA_FILL_MIN_DBZ)
-        & ~national_cover
-    )
-    opera_take = opera_ok & (~np.isfinite(out) | (opera > out))
-    out = np.where(opera_take, opera, out)
-    print(
-        f"mosaic: OPERA fill outside national cover "
-        f"painted={int(np.sum(opera_take))} "
-        f"(cover_px={int(np.sum(national_cover))})",
-        flush=True,
-    )
 
     mosaic_time = None
     if times:
         mosaic_time = max(times)
+    # Čas snímku: preferuj OPERA když je čerstvější než národní
     return out, {"layers": used, "mosaicTime": mosaic_time}
 
 
@@ -574,21 +557,24 @@ def main() -> int:
         return 0
 
     blended, info = blend_layers(opera, nationals, lon_g, lat_g, now)
-    cells_path = ROOT / "public" / "data" / "opera" / "cells.geojson"
-    # Žádné stampování OPERA peaků — národní mozaika je source of truth pro mapu
-    n_reconcile = reconcile_cells_with_mosaic(blended, lon_g, lat_g, cells_path)
-    if n_reconcile:
-        print(
-            f"mosaic: reconciled {n_reconcile} cell features vs national mosaic",
-            flush=True,
-        )
+    # Buňky zůstávají z OPERA tracking — nesmazávat podle národní mozaiky
     save_mosaic_dbz_sidecar(np.where(np.isfinite(blended), blended, 0.0))
-    rain_n = int(np.sum(np.isfinite(blended) & (blended >= 25.0)))
+    rain_n = int(np.sum(np.isfinite(blended) & (blended >= 18.0)))
     print(
-        f"mosaic: blended rain>={25}: {rain_n} "
+        f"mosaic: blended rain>={18}: {rain_n} "
         f"maxDbz={float(np.nanmax(blended)) if np.isfinite(blended).any() else float('nan'):.1f}",
         flush=True,
     )
+
+    # Když mozaika ztratí OPERA déšť (resample/prázdno), nech OPERA PNG z fetch
+    opera_rain = int(np.sum(np.isfinite(opera) & (opera >= 18.0)))
+    if opera_rain >= 50 and rain_n < max(20, opera_rain // 4):
+        print(
+            f"mosaic: WARN keep OPERA PNG — blend too empty "
+            f"(opera_rain={opera_rain} blended={rain_n})",
+            flush=True,
+        )
+        return 0
 
     rgba = _dbz_to_rgba(np.nan_to_num(blended, nan=0.0))
     png_path.parent.mkdir(parents=True, exist_ok=True)
@@ -603,7 +589,7 @@ def main() -> int:
         "url": "data/opera/latest.png",
         "coordinates": coordinates,
         "time": _time_str_compact(mosaic_time),
-        "minDbz": 25,
+        "minDbz": 18,
         "blurSigma": 0.0,
         "crs": "EPSG:3857",
         "uv": "web-mercator",
