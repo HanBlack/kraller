@@ -54,16 +54,52 @@ async function coolingAgeMin(env) {
   return jsonAgeMin(`${base}/data/satellite/cooling.json`);
 }
 
+/** Ignore ghost queued/in_progress runs older than this (minutes). */
+function busyMaxAgeMin(env) {
+  const n = Number(env.BUSY_MAX_AGE_MIN || "25");
+  return Number.isFinite(n) && n > 0 ? n : 25;
+}
+
+/**
+ * True if a recent run is in_progress or queued.
+ * Ghost "queued" runs stuck for hours must not block forever.
+ */
 async function workflowBusy(env, token, workflow) {
   const repo = env.GITHUB_REPO || "HanBlack/kraller";
+  const maxAgeMs = busyMaxAgeMin(env) * 60_000;
+  const now = Date.now();
+
   for (const status of ["in_progress", "queued"]) {
     const url =
       `https://api.github.com/repos/${repo}/actions/workflows/${workflow}/runs` +
-      `?status=${status}&per_page=1`;
+      `?status=${status}&per_page=5`;
     const res = await fetch(url, { headers: GH_HEADERS(token) });
     if (!res.ok) continue;
     const data = await res.json();
-    if ((data.total_count ?? 0) > 0) return true;
+    const runs = data.workflow_runs || [];
+    for (const run of runs) {
+      const created = Date.parse(run.created_at || "");
+      if (!Number.isFinite(created)) continue;
+      const ageMs = now - created;
+      if (ageMs <= maxAgeMs) return true;
+      console.log(
+        `ignore stale ${status} run ${run.id} age=${(ageMs / 60_000).toFixed(0)} min`,
+      );
+      // Best-effort: clear ghost so GitHub UI / future checks recover
+      try {
+        const cancelUrl = `https://api.github.com/repos/${repo}/actions/runs/${run.id}/cancel`;
+        const cancelRes = await fetch(cancelUrl, {
+          method: "POST",
+          headers: GH_HEADERS(token),
+        });
+        if (!cancelRes.ok) {
+          const forceUrl = `https://api.github.com/repos/${repo}/actions/runs/${run.id}/force-cancel`;
+          await fetch(forceUrl, { method: "POST", headers: GH_HEADERS(token) });
+        }
+      } catch {
+        /* ignore cancel failures */
+      }
+    }
   }
   return false;
 }

@@ -120,25 +120,53 @@ jobs:
         with:
           script: |
             const age = '${{ steps.age.outputs.age_min }}';
-            const { data } = await github.rest.actions.listWorkflowRuns({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'live-radar.yml',
-              status: 'in_progress',
-              per_page: 1,
-            });
-            if (data.total_count > 0) {
+            // Ghost queued runs stuck for hours must not block forever
+            const BUSY_MAX_AGE_MIN = 25;
+            const cutoff = Date.now() - BUSY_MAX_AGE_MIN * 60_000;
+
+            async function hasRecentBusy(status) {
+              const { data } = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'live-radar.yml',
+                status,
+                per_page: 5,
+              });
+              for (const run of data.workflow_runs || []) {
+                const created = Date.parse(run.created_at || '');
+                if (!Number.isFinite(created)) continue;
+                if (created >= cutoff) return true;
+                core.info(`ignore stale ${status} Live radar run ${run.id} (age > ${BUSY_MAX_AGE_MIN} min)`);
+                try {
+                  await github.rest.actions.cancelWorkflowRun({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    run_id: run.id,
+                  });
+                } catch (err) {
+                  core.info(`cancel ${run.id} failed: ${err.message || err}`);
+                  try {
+                    await github.request(
+                      'POST /repos/{owner}/{repo}/actions/runs/{run_id}/force-cancel',
+                      {
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        run_id: run.id,
+                      },
+                    );
+                  } catch (err2) {
+                    core.info(`force-cancel ${run.id} failed: ${err2.message || err2}`);
+                  }
+                }
+              }
+              return false;
+            }
+
+            if (await hasRecentBusy('in_progress')) {
               core.info(`Map frame stale (${age} min) but Live radar already running — skip`);
               return;
             }
-            const queued = await github.rest.actions.listWorkflowRuns({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'live-radar.yml',
-              status: 'queued',
-              per_page: 1,
-            });
-            if (queued.data.total_count > 0) {
+            if (await hasRecentBusy('queued')) {
               core.info(`Map frame stale (${age} min) but Live radar already queued — skip`);
               return;
             }
@@ -156,25 +184,52 @@ jobs:
         with:
           script: |
             const age = '${{ steps.age.outputs.sat_age_min }}';
-            const { data } = await github.rest.actions.listWorkflowRuns({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'live-sat.yml',
-              status: 'in_progress',
-              per_page: 1,
-            });
-            if (data.total_count > 0) {
+            const BUSY_MAX_AGE_MIN = 25;
+            const cutoff = Date.now() - BUSY_MAX_AGE_MIN * 60_000;
+
+            async function hasRecentBusy(status) {
+              const { data } = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'live-sat.yml',
+                status,
+                per_page: 5,
+              });
+              for (const run of data.workflow_runs || []) {
+                const created = Date.parse(run.created_at || '');
+                if (!Number.isFinite(created)) continue;
+                if (created >= cutoff) return true;
+                core.info(`ignore stale ${status} Live sat run ${run.id} (age > ${BUSY_MAX_AGE_MIN} min)`);
+                try {
+                  await github.rest.actions.cancelWorkflowRun({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    run_id: run.id,
+                  });
+                } catch (err) {
+                  core.info(`cancel ${run.id} failed: ${err.message || err}`);
+                  try {
+                    await github.request(
+                      'POST /repos/{owner}/{repo}/actions/runs/{run_id}/force-cancel',
+                      {
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        run_id: run.id,
+                      },
+                    );
+                  } catch (err2) {
+                    core.info(`force-cancel ${run.id} failed: ${err2.message || err2}`);
+                  }
+                }
+              }
+              return false;
+            }
+
+            if (await hasRecentBusy('in_progress')) {
               core.info(`Cooling stale (${age} min) but Live sat already running — skip`);
               return;
             }
-            const queued = await github.rest.actions.listWorkflowRuns({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'live-sat.yml',
-              status: 'queued',
-              per_page: 1,
-            });
-            if (queued.data.total_count > 0) {
+            if (await hasRecentBusy('queued')) {
               core.info(`Cooling stale (${age} min) but Live sat already queued — skip`);
               return;
             }
