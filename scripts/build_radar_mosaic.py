@@ -37,9 +37,12 @@ COUNTRY_BBOX: dict[str, tuple[float, float, float, float]] = {
 
 # Feather šířka ve stupních (~40 km)
 FEATHER_DEG = 0.45
-MAX_NATIONAL_AGE_MIN = 10.0
+# SHMÚ/IMGW často ~10–15 min; příliš přísný práh = jen OPERA ghosty vs Windy
+MAX_NATIONAL_AGE_MIN = 18.0
 # National rain below this is treated as non-echo (no wipe / no paint)
 NATIONAL_RAIN_MIN_DBZ = 15.0
+# Kde národní radar vidí klid, OPERA echo nad tímto prahem bereme jako ghost
+NATIONAL_CLEAR_MAX_DBZ = 18.0
 
 DEFAULT_BBOX = (5.5, 45.5, 24.5, 55.2)  # DE–PL–CH–SK + CZ
 # Širší bbox potřebuje víc pixelů — jinak jádra zůstanou 1 px a na zoomu zmizí
@@ -272,7 +275,7 @@ def blend_layers(
     lat_g: np.ndarray,
     now: dt.datetime,
 ) -> tuple[np.ndarray, dict[str, Any]]:
-    """Max-composite: silnější echo vyhrává. Žádné ředění průměrem / clear-air."""
+    """Max-composite + národní clear přebíjí OPERA ghosty (shoda s Windy/SHMÚ)."""
     out = np.where(np.isfinite(opera), opera.astype(np.float64), np.nan)
     opera_rain = int(np.sum(np.isfinite(out) & (out >= 18.0)))
     opera_max = float(np.nanmax(out)) if np.isfinite(out).any() else float("nan")
@@ -296,12 +299,16 @@ def blend_layers(
         if not bbox:
             continue
         fw = feather_weight(lon_g, lat_g, bbox)
-        # Jen skutečný déšť uvnitř státu — clear/nodata OPERA nepřepisuje
-        nat_rain = (
-            np.isfinite(dbz)
-            & (dbz >= NATIONAL_RAIN_MIN_DBZ)
-            & (fw > 0.15)
-        )
+        in_country = fw > 0.35
+        valid = np.isfinite(dbz)
+
+        # Národní clear/slabý návrat uvnitř státu → smaž OPERA ghosty
+        nat_clear = valid & (dbz < NATIONAL_CLEAR_MAX_DBZ) & in_country
+        cleared = int(np.sum(nat_clear & np.isfinite(out) & (out >= 18.0)))
+        out = np.where(nat_clear, np.nan, out)
+
+        # Silnější národní déšť přemaľuje / doplní
+        nat_rain = valid & (dbz >= NATIONAL_RAIN_MIN_DBZ) & (fw > 0.15)
         take = nat_rain & (~np.isfinite(out) | (dbz > out))
         out = np.where(take, dbz, out)
         used[source] = {
@@ -309,12 +316,13 @@ def blend_layers(
             "time": time_iso or None,
             "ageMin": age,
             "painted": int(np.sum(take)),
+            "clearedOpera": cleared,
         }
         if time_iso:
             times.append(time_iso)
         print(
             f"mosaic: {source} painted={int(np.sum(take))} "
-            f"(rain pixels in feather)",
+            f"clearedOperaGhosts={cleared}",
             flush=True,
         )
 
@@ -332,7 +340,8 @@ def stamp_cell_peaks(
     radius_px: int = 3,
 ) -> int:
     """
-    Doštěpí OPERA peaky z cells.geojson — pin Silná musí mít viditelný blob.
+    Doostří existující echo u OPERA peaku — nikdy nevytváří déšť z prázdna
+    (to by dělalo falešné Silná vs Windy/SHMÚ).
     """
     if not cells_path.is_file():
         return 0
@@ -345,7 +354,6 @@ def stamp_cell_peaks(
         return 0
 
     wgs_to_merc = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
-    # Mosaic grid is linear in mercator; approximate via corner merc of lon_g/lat_g
     h, w = dbz.shape
     corners = [
         (float(lon_g[0, 0]), float(lat_g[0, 0])),
@@ -369,6 +377,8 @@ def stamp_cell_peaks(
         geom = feat.get("geometry") or {}
         if geom.get("type") != "Point":
             continue
+        if props.get("kind") not in (None, "peak"):
+            continue
         coords = geom.get("coordinates") or []
         if len(coords) < 2:
             continue
@@ -383,7 +393,12 @@ def stamp_cell_peaks(
         ci, ri = int(round(col)), int(round(row))
         if ri < 0 or ri >= h or ci < 0 or ci >= w:
             continue
-        # Paint kernel — never lower existing stronger echo
+        # Jen pokud mozaika už má v okolí reálné echo (národní/OPERA shoda)
+        r0, r1 = max(0, ri - radius_px), min(h, ri + radius_px + 1)
+        c0, c1 = max(0, ci - radius_px), min(w, ci + radius_px + 1)
+        neighborhood = dbz[r0:r1, c0:c1]
+        if not np.any(np.isfinite(neighborhood) & (neighborhood >= 18.0)):
+            continue
         for dy in range(-radius_px, radius_px + 1):
             for dx in range(-radius_px, radius_px + 1):
                 r2, c2 = ri + dy, ci + dx
@@ -392,12 +407,110 @@ def stamp_cell_peaks(
                 wgt = float(kernel[dy + radius_px, dx + radius_px])
                 if wgt <= 0:
                     continue
-                val = peak_f * (0.55 + 0.45 * wgt)
                 cur = dbz[r2, c2]
-                if not np.isfinite(cur) or val > cur:
+                if not np.isfinite(cur) or cur < 18.0:
+                    continue
+                val = max(cur, peak_f * (0.55 + 0.45 * wgt))
+                if val > cur:
                     dbz[r2, c2] = val
         stamped += 1
     return stamped
+
+
+def reconcile_cells_with_mosaic(
+    dbz: np.ndarray,
+    lon_g: np.ndarray,
+    lat_g: np.ndarray,
+    cells_path: Path,
+    min_support_dbz: float = 28.0,
+) -> int:
+    """
+    Sníží/odstraní OPERA buňky, které mozaika (národní) nepodporuje.
+    Jinak UI hlásí Silná 28–46 mm/h, zatímco Windy má 0.3 mm/h.
+    """
+    if not cells_path.is_file():
+        return 0
+    try:
+        fc = json.loads(cells_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return 0
+    features = fc.get("features") or []
+    if not features:
+        return 0
+
+    wgs_to_merc = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+    h, w = dbz.shape
+    corners = [
+        (float(lon_g[0, 0]), float(lat_g[0, 0])),
+        (float(lon_g[0, -1]), float(lat_g[0, -1])),
+        (float(lon_g[-1, -1]), float(lat_g[-1, -1])),
+        (float(lon_g[-1, 0]), float(lat_g[-1, 0])),
+    ]
+    merc = [wgs_to_merc.transform(lon, lat) for lon, lat in corners]
+    mx0 = min(p[0] for p in merc)
+    mx1 = max(p[0] for p in merc)
+    my0 = min(p[1] for p in merc)
+    my1 = max(p[1] for p in merc)
+
+    def sample_max(lon: float, lat: float, radius_px: int = 4) -> float:
+        mx, my = wgs_to_merc.transform(lon, lat)
+        col = (mx - mx0) / max(1e-9, mx1 - mx0) * w - 0.5
+        row = (my1 - my) / max(1e-9, my1 - my0) * h - 0.5
+        ci, ri = int(round(col)), int(round(row))
+        r0, r1 = max(0, ri - radius_px), min(h, ri + radius_px + 1)
+        c0, c1 = max(0, ci - radius_px), min(w, ci + radius_px + 1)
+        patch = dbz[r0:r1, c0:c1]
+        if patch.size == 0 or not np.isfinite(patch).any():
+            return float("nan")
+        return float(np.nanmax(patch))
+
+    # peak id → mosaic support
+    support: dict[str, float] = {}
+    for feat in features:
+        props = feat.get("properties") or {}
+        geom = feat.get("geometry") or {}
+        if geom.get("type") != "Point" or props.get("kind") != "peak":
+            continue
+        cid = str(props.get("id") or props.get("cellId") or "")
+        coords = geom.get("coordinates") or []
+        if len(coords) < 2 or not cid:
+            continue
+        support[cid] = sample_max(float(coords[0]), float(coords[1]))
+
+    kept: list[Any] = []
+    demoted = 0
+    for feat in features:
+        props = feat.get("properties") or {}
+        cid = str(props.get("id") or props.get("cellId") or "")
+        mosaic_z = support.get(cid)
+        if mosaic_z is None or not np.isfinite(mosaic_z):
+            # Bez podpory v mozaice — drop (OPERA ghost)
+            if props.get("kind") in ("cell", "peak", "centroid"):
+                demoted += 1
+                continue
+            kept.append(feat)
+            continue
+        if mosaic_z < 18.0:
+            demoted += 1
+            continue
+        peak = props.get("maxDbz")
+        if peak is not None and np.isfinite(peak) and float(peak) > mosaic_z + 5:
+            props = dict(props)
+            props["maxDbz"] = round(float(mosaic_z), 1)
+            props["dbzCappedByMosaic"] = True
+            feat = {**feat, "properties": props}
+            demoted += 1
+        if props.get("kind") == "cell" and mosaic_z < min_support_dbz:
+            # Slabá podpora — nechat, ale už s capped dBZ
+            pass
+        kept.append(feat)
+
+    fc["features"] = kept
+    cells_path.write_text(
+        json.dumps(fc, ensure_ascii=False, separators=(",", ":")),
+        encoding="utf-8",
+    )
+    return demoted
 
 
 def main() -> int:
@@ -456,6 +569,12 @@ def main() -> int:
     n_stamp = stamp_cell_peaks(blended, lon_g, lat_g, cells_path)
     if n_stamp:
         print(f"mosaic: stamped {n_stamp} cell peaks onto raster", flush=True)
+    n_reconcile = reconcile_cells_with_mosaic(blended, lon_g, lat_g, cells_path)
+    if n_reconcile:
+        print(
+            f"mosaic: reconciled {n_reconcile} cell features vs national mosaic",
+            flush=True,
+        )
     save_mosaic_dbz_sidecar(np.where(np.isfinite(blended), blended, 0.0))
     rain_n = int(np.sum(np.isfinite(blended) & (blended >= 18.0)))
     print(
