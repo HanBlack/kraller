@@ -297,21 +297,20 @@ _DBZ_RGB = np.array(
 
 
 def _dbz_to_rgba(dbz: np.ndarray) -> np.ndarray:
-    """Spojité barvy + silnější alfa — echo musí jít dobře číst na mapě."""
+    """Spojité barvy — prah 25 dBZ schová clutter/AP, který venku nevidíš jako déšť."""
     z = np.nan_to_num(dbz, nan=0.0).astype(np.float64)
     rgb = np.zeros(z.shape + (3,), dtype=np.float64)
     for c in range(3):
         rgb[..., c] = np.interp(z, _DBZ_STOPS, _DBZ_RGB[:, c])
 
     alpha = np.zeros_like(z, dtype=np.float64)
-    # Silnější než dřív — soft déšť i jádra musí být vidět přes basemap
-    soft = (z >= 18) & (z < 28)
-    mid = (z >= 28) & (z < 45)
+    soft = (z >= 25) & (z < 32)
+    mid = (z >= 32) & (z < 45)
     hard = z >= 45
-    alpha[soft] = 0.28 + 0.42 * ((z[soft] - 18) / 10.0)
-    alpha[mid] = 0.72 + 0.16 * ((z[mid] - 28) / 17.0)
+    alpha[soft] = 0.35 + 0.35 * ((z[soft] - 25) / 7.0)
+    alpha[mid] = 0.72 + 0.16 * ((z[mid] - 32) / 13.0)
     alpha[hard] = np.clip(0.90 + 0.10 * ((z[hard] - 45) / 25.0), 0.0, 0.98)
-    alpha[z < 18] = 0.0
+    alpha[z < 25] = 0.0
 
     out = np.zeros(z.shape + (4,), dtype=np.uint8)
     out[..., :3] = np.clip(rgb, 0, 255).astype(np.uint8)
@@ -565,11 +564,11 @@ def track_cells(
     c0: int,
     meta: dict,
     geo: dict,
-    min_dbz: float = 35.0,
-    min_area: int = 8,
+    min_dbz: float = 40.0,
+    min_area: int = 24,
 ) -> list[dict]:
     """Segmentace buněk + epicentrum = argmax dBZ uvnitř buňky.
-    min_area=8 zachytí i malý začátek echa (zrod přeháňky/bouřky).
+    min_area/min_dbz vyšší — malý clutter nesmí vypadat jako Silná bouřka.
     """
     mask = np.isfinite(crop) & (crop >= min_dbz)
     labeled, n = label(mask)

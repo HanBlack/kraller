@@ -627,7 +627,8 @@ export function cellMotion(
 
 /** Všechny smysluplné buňky — i v budoucnosti musí jet. */
 const MAX_MAP_CELLS = 80;
-const MIN_MAP_DBZ = 26;
+/** Pod ~40 dBZ = slabé/clutter; na mapě i v panelu to vypadá jako falešná bouřka. */
+const MIN_MAP_DBZ = 40;
 
 export function buildRadarProgressFeatures(
   cells: TrackedCell[],
@@ -651,7 +652,7 @@ export function buildRadarProgressFeatures(
       ranked
         .filter((c) => {
           const d = distanceKm(c.peak[1], c.peak[0], user.lat, user.lon);
-          return d <= 90 && c.maxDbz >= 30;
+          return d <= 90 && c.maxDbz >= 40;
         })
         .slice(0, 3)
         .map((c) => c.id),
