@@ -65,15 +65,18 @@ jobs:
       - name: Fetch OPERA + national mosaics
         if: steps.gate.outputs.skip != 'true'
         run: |
-          # OPERA (tracking + fill) a národní compositý paralelně
+          # OPERA = mapa + tracking (stabilní produkt).
+          # Národní compositý jen pro enrich (ČHMÚ) — NEpřepisují latest.png.
+          # build_radar_mosaic dřív střídavě mazal bouřky / vyráběl ghosty = opakovaný chaos.
           python scripts/opera_fetch_convert.py --frames 7 &
           pid_opera=$!
           python scripts/fetch_national_radar.py --sources chmi,dwd,shmu,imgw,mch &
           pid_nat=$!
           wait $pid_opera || { echo "ERROR: opera_fetch failed"; exit 1; }
           wait $pid_nat || echo "WARN: national fetch partial/failed"
-          python scripts/build_radar_mosaic.py \
-            || echo "WARN: mosaic failed — keeping OPERA PNG"
+          mkdir -p public/data/opera
+          printf '%s\n' '{"radarSource":"opera","note":"mosaic disabled — OPERA PNG is map source of truth"}' \
+            > public/data/opera/mosaic-meta.json
           python scripts/write_meta.py
 
       - name: Fast-path upload (PNG + cells + meta)

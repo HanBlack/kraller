@@ -326,11 +326,27 @@ def apply_enrichment(
     if chmi_dbz is not None and chmi_dbz >= 20:
         props["chmiDbz"] = round(chmi_dbz, 1)
         opera = float(props.get("maxDbz") or 0)
-        # Nikdy nesnižovat OPERA max — ČHMÚ sample může minout jádro / být starší.
-        peak = max(chmi_dbz, opera) if opera > 0 else chmi_dbz
+        # ČHMÚ je lokální pravda nad ČR — když OPERA hlásí Silnou a ČHMÚ skoro nic,
+        # seřízni (opakovaný falešný alarm). Jinak ber max.
+        if opera >= 45 and chmi_dbz + 12 < opera:
+            peak = chmi_dbz
+            props["maxDbz"] = round(chmi_dbz, 1)
+            props["dbzCappedByChmi"] = True
+            props["dbzSource"] = "CHMI"
+        else:
+            peak = max(chmi_dbz, opera) if opera > 0 else chmi_dbz
+            props["dbzSource"] = "CHMI" if chmi_dbz >= opera else "OPERA-ORD"
         props["peakDbz"] = round(peak, 1)
-        props["dbzSource"] = "CHMI" if chmi_dbz >= opera else "OPERA-ORD"
         touched = True
+    elif chmi_dbz is not None and chmi_dbz < 20:
+        # ČHMÚ v místě skoro clear — OPERA buňka nad ČR je podezřelá
+        opera = float(props.get("maxDbz") or 0)
+        props["chmiDbz"] = round(chmi_dbz, 1)
+        if opera >= 40:
+            props["maxDbz"] = round(min(opera, max(chmi_dbz, 32.0)), 1)
+            props["dbzCappedByChmi"] = True
+            props["dbzSource"] = "CHMI"
+            touched = True
 
     if echo_m is not None and echo_m >= 500:
         props["echoTopKm"] = round(echo_m / 1000.0, 2)
