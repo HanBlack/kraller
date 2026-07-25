@@ -47,8 +47,8 @@ export function commitLiveRasterBlobSwap(activeUrl: string | null | undefined) {
 export const RADAR_RASTER_BASE_OPACITY = 1;
 
 /**
- * Opacity podle zoomu: přehled = plný radar, od obcí basemap musí jít číst.
- * (Dřív fade od z11 — pozdě; obce pod jádrem nešly přečíst.)
+ * Opacity podle zoomu: přehled = plný radar; u obcí mírný fade kvůli popiskům.
+ * Nesmí klesnout tak, aby Silná jádra vypadala jako „prázdná záře“.
  */
 export function radarRasterOpacityByZoom(
   base: number,
@@ -60,14 +60,14 @@ export function radarRasterOpacityByZoom(
     ["zoom"],
     8.5,
     b,
-    9.5,
+    10,
+    Number((b * 0.88).toFixed(3)),
+    11.5,
     Number((b * 0.72).toFixed(3)),
-    10.5,
+    13,
+    Number((b * 0.58).toFixed(3)),
+    14.5,
     Number((b * 0.48).toFixed(3)),
-    12,
-    Number((b * 0.36).toFixed(3)),
-    13.5,
-    Number((b * 0.28).toFixed(3)),
   ];
 }
 
