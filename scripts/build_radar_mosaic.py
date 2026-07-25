@@ -300,10 +300,14 @@ def blend_layers(
             continue
         fw = feather_weight(lon_g, lat_g, bbox)
         in_country = fw > 0.35
+        deep = fw > 0.5
         valid = np.isfinite(dbz)
 
-        # Národní clear/slabý návrat uvnitř státu → smaž OPERA ghosty
-        nat_clear = valid & (dbz < NATIONAL_CLEAR_MAX_DBZ) & in_country
+        # Národní clear: slabý návrat NEBO undetect/nodata (NaN) hluboko ve státě
+        # — jinak OPERA ghosty přežijí (SHMÚ undetect → NaN) a UI hlásí Silná vs Windy 0.3
+        nat_clear = in_country & (
+            (valid & (dbz < NATIONAL_CLEAR_MAX_DBZ)) | ((~valid) & deep)
+        )
         cleared = int(np.sum(nat_clear & np.isfinite(out) & (out >= 18.0)))
         out = np.where(nat_clear, np.nan, out)
 
