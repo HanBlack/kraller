@@ -9,12 +9,36 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Kraller — bouřky a radar</title>
     <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin />
+    <link rel="preconnect" href="https://pub-4b180166ad2d4648a27ba3853b3eebd1.r2.dev" crossorigin />
+    <link rel="dns-prefetch" href="https://pub-4b180166ad2d4648a27ba3853b3eebd1.r2.dev" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Outfit:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
+    <script type="module">
+      // Zahřát kritická data hned při parse HTML — dřív než React bootstrap
+      const R = "https://pub-4b180166ad2d4648a27ba3853b3eebd1.r2.dev";
+      const t = Date.now();
+      for (const p of [
+        "/data/meta.json",
+        "/data/opera/latest-raster.json",
+        "/data/opera/cells.geojson",
+        "/data/wind/low.json",
+        "/data/wind/upper.json",
+        "/data/formation/grid.json",
+        "/data/satellite/cooling.json",
+      ]) {
+        void fetch(`${R}${p}?t=${t}`, { cache: "no-store", mode: "cors" }).catch(
+          () => {},
+        );
+      }
+      void fetch("https://tiles.openfreemap.org/styles/dark", {
+        cache: "force-cache",
+        mode: "cors",
+      }).catch(() => {});
+    </script>
   </head>
   <body>
     <div id="root"></div>
