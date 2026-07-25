@@ -130,8 +130,30 @@ jobs:
               && echo "pulled wind from R2" \
               || echo "WARN: could not pull wind from R2"
           fi
+          # Nový bbox: formation/wind se samy přegenerují při starém pásu (domain check)
           python scripts/refresh_env_if_stale.py --skip-sat \
             || echo "WARN: env refresh failed — keep previous formation/wind"
+          # Když R2 stáhlo starý bbox, vynutit formation (zapíše i wind)
+          python - <<'PY'
+          import json, os, subprocess, sys
+          p = "public/data/formation/grid.json"
+          need = True
+          if os.path.isfile(p):
+              try:
+                  d = json.load(open(p, encoding="utf-8"))
+                  need = not (
+                      abs(float(d.get("west", 0)) - 5.8) < 0.05
+                      and abs(float(d.get("east", 0)) - 24.2) < 0.05
+                      and abs(float(d.get("south", 0)) - 45.7) < 0.05
+                      and abs(float(d.get("north", 0)) - 55.0) < 0.05
+                  )
+              except Exception:
+                  need = True
+          if need:
+              print("domain mismatch — fetch_formation --force", flush=True)
+              sys.exit(subprocess.call([sys.executable, "scripts/fetch_formation.py", "--force"]))
+          print("formation domain OK", flush=True)
+          PY
           python scripts/merge_sat_cooling.py
           python scripts/write_meta.py
 

@@ -7,10 +7,10 @@ import {
 } from "./satelliteCooling";
 
 const grid: SatelliteCoolingGrid = {
-  west: 7,
-  south: 46.5,
-  east: 22.5,
-  north: 52.5,
+  west: 5.8,
+  south: 45.7,
+  east: 24.2,
+  north: 55.0,
   cols: 28,
   rows: 18,
   status: "ok",

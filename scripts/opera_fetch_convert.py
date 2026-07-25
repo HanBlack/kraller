@@ -17,7 +17,7 @@ from PIL import Image
 S3_ENDPOINT = "https://s3.waw3-1.cloudferro.com"
 BUCKET = "openradar-24h"
 
-CZ_BBOX = (12.0, 48.5, 19.0, 51.1)
+from central_europe import BBOX as MAP_BBOX
 
 
 def s3_list(prefix: str) -> list[str]:
@@ -223,12 +223,12 @@ def find_cz_pixel_bounds(meta: dict, geo: dict, step: int = 12) -> tuple[int, in
     for row in range(0, meta["ysize"], step):
         for col in range(0, meta["xsize"], step):
             lon, lat = pixel_to_lonlat(row, col, meta, geo)
-            if CZ_BBOX[0] <= lon <= CZ_BBOX[2] and CZ_BBOX[1] <= lat <= CZ_BBOX[3]:
+            if MAP_BBOX[0] <= lon <= MAP_BBOX[2] and MAP_BBOX[1] <= lat <= MAP_BBOX[3]:
                 rows.append(row)
                 cols.append(col)
     if not rows:
-        raise RuntimeError("Could not locate Czechia in OPERA grid")
-    margin = 50
+        raise RuntimeError("Could not locate Central Europe in OPERA grid")
+    margin = 40
     return (
         max(0, min(rows) - margin),
         min(meta["ysize"] - 1, max(rows) + margin),

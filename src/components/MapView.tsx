@@ -90,11 +90,11 @@ import type { SelectedStorm } from "./StormDetail";
 import type { UserLocation } from "../types";
 import { stormConfig } from "../storm/config";
 
-const CZ_BOUNDS: [[number, number], [number, number]] = [
-  [12.05, 48.5],
-  [18.95, 51.1],
+const MAP_BOUNDS: [[number, number], [number, number]] = [
+  [5.9, 45.8],
+  [24.1, 54.9],
 ];
-const CZ_CENTER: [number, number] = [15.5, 49.75];
+const MAP_CENTER: [number, number] = [15.0, 50.2];
 
 const FORM_SOURCE = "formation-zones";
 const FORM_GRID_SOURCE = "formation-grid";
@@ -2197,11 +2197,11 @@ export function MapView({
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: MAP_STYLE_URL,
-      center: CZ_CENTER,
-      zoom: 6.6,
+      center: MAP_CENTER,
+      zoom: 5.4,
       maxBounds: [
-        [6.2, 45.9],
-        [23.2, 53.0],
+        [4.5, 44.5],
+        [25.5, 56.0],
       ],
       attributionControl: { compact: true },
     });
@@ -2210,7 +2210,7 @@ export function MapView({
       new maplibregl.NavigationControl({ showCompass: false }),
       "bottom-right",
     );
-    map.fitBounds(CZ_BOUNDS, { padding: 48, duration: 0 });
+    map.fitBounds(MAP_BOUNDS, { padding: 40, duration: 0 });
 
     windOverlayRef.current = new WindParticleOverlay(map);
     if (windLowRef.current && windUpperRef.current) {

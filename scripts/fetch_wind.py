@@ -14,6 +14,7 @@ import time
 import urllib.parse
 from datetime import datetime, timezone
 
+from central_europe import EAST, NORTH, SOUTH, WEST
 from data_freshness import age_minutes, is_fresh_path, read_valid_at
 from http_util import get_json
 from openmeteo_client import (
@@ -24,15 +25,30 @@ from openmeteo_client import (
 )
 from openmeteo_hour import current_hour_index
 
-# Střední Evropa: CH … východní SK, sever za Cottbus
-WEST, SOUTH, EAST, NORTH = 7.0, 46.5, 22.5, 52.5
-COLS, ROWS = 18, 12
+# Mřížka větru — hustota ~ podobná jako dřív na menším pásu
+COLS, ROWS = 26, 18
 BATCH_SIZE = 48
 BATCH_PAUSE_S = 3.0
 FORMATION_GRID = os.path.join("public", "data", "formation", "grid.json")
 WIND_LOW = os.path.join("public", "data", "wind", "low.json")
 WIND_MAX_AGE_MIN = 10
 FORMATION_FOR_WIND_MAX_AGE_MIN = 15
+
+
+def domain_matches(path: str) -> bool:
+    if not os.path.isfile(path):
+        return False
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        return (
+            abs(float(data.get("west", 0)) - WEST) < 0.05
+            and abs(float(data.get("south", 0)) - SOUTH) < 0.05
+            and abs(float(data.get("east", 0)) - EAST) < 0.05
+            and abs(float(data.get("north", 0)) - NORTH) < 0.05
+        )
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return False
 
 
 def lat_lons() -> tuple[list[float], list[float]]:
@@ -244,7 +260,9 @@ def main() -> int:
         return 0
 
     formation_ok = is_fresh_path(FORMATION_GRID, FORMATION_FOR_WIND_MAX_AGE_MIN)
-    wind_fresh = is_fresh_path(WIND_LOW, WIND_MAX_AGE_MIN)
+    wind_fresh = is_fresh_path(WIND_LOW, WIND_MAX_AGE_MIN) and domain_matches(
+        WIND_LOW
+    )
 
     if not args.force and wind_fresh and not args.live:
         age = age_minutes(read_valid_at(WIND_LOW), now)
@@ -254,10 +272,17 @@ def main() -> int:
         )
         return 0
 
+    if os.path.isfile(WIND_LOW) and not domain_matches(WIND_LOW):
+        print(
+            "Wind grid má starý bbox — vynucuji refresh na DE–PL–CZ–SK–AT–HU.",
+            flush=True,
+        )
+
     use_formation = (
         not args.live
         and formation_ok
         and os.path.isfile(FORMATION_GRID)
+        and domain_matches(FORMATION_GRID)
     )
     if use_formation:
         age = age_minutes(read_valid_at(FORMATION_GRID), now)
