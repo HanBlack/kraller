@@ -266,6 +266,8 @@ def blend_layers(
 ) -> tuple[np.ndarray, dict[str, Any]]:
     """nationals: (source, dbz, weight_mask, time_iso)"""
     h, width = lon_g.shape
+    # Visible rain on OPERA — national clear-air must not dilute these below 18 dBZ
+    opera_echo = np.isfinite(opera) & (opera >= 18.0)
     base = np.where(np.isfinite(opera), opera, 0.0)
     base_w = np.where(np.isfinite(opera), OPERA_BASE_WEIGHT, 0.0)
     acc = base * base_w
@@ -289,8 +291,8 @@ def blend_layers(
         valid = np.isfinite(dbz)
         # i slabý déšť / coverage — weight jen kde má národní data nebo uvnitř bbox
         layer_w = fw * np.where(valid, 1.0, 0.0)
-        # mírná váha i na „clear air“ uvnitř státu (přepíše OPERA díry)
-        clear = fw * np.where((~valid) & (fw > 0.4), 0.35, 0.0)
+        # clear air fills OPERA holes only — never wipe real OPERA echoes
+        clear = fw * np.where((~valid) & (fw > 0.4) & ~opera_echo, 0.35, 0.0)
         layer_w = np.maximum(layer_w, clear)
         nat_vals = np.where(valid, dbz, 0.0)
         acc += nat_vals * layer_w
@@ -310,6 +312,12 @@ def blend_layers(
         where=wsum > 1e-6,
     )
     out = np.where(wsum > 1e-6, out, np.nan)
+    # Preserve OPERA rain diluted by weak/clear national returns
+    out = np.where(
+        opera_echo & (~np.isfinite(out) | (opera > out)),
+        opera,
+        out,
+    )
     mosaic_time = None
     if times:
         mosaic_time = max(times)
