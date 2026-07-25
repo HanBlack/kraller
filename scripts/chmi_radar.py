@@ -323,27 +323,30 @@ def apply_enrichment(
     chmi_dbz = sample_grid_max(maxz, lon, lat, maxz_meta, maxz_geo, radius_px=2)
     echo_m = sample_grid(echotop, lon, lat, echotop_meta, echotop_geo)
 
+    opera = float(props.get("maxDbz") or 0)
+
     if chmi_dbz is not None and chmi_dbz >= 20:
         props["chmiDbz"] = round(chmi_dbz, 1)
-        opera = float(props.get("maxDbz") or 0)
-        # ČHMÚ je lokální pravda nad ČR — když OPERA hlásí Silnou a ČHMÚ skoro nic,
-        # seřízni (opakovaný falešný alarm). Jinak ber max.
-        if opera >= 45 and chmi_dbz + 12 < opera:
-            peak = chmi_dbz
+        # ČHMÚ = lokální pravda nad ČR. OPERA ghosty seřízni / drop.
+        if opera >= 35 and chmi_dbz + 5 < opera:
             props["maxDbz"] = round(chmi_dbz, 1)
+            props["peakDbz"] = round(chmi_dbz, 1)
             props["dbzCappedByChmi"] = True
             props["dbzSource"] = "CHMI"
+            if chmi_dbz < 30:
+                props["dropByChmi"] = True
         else:
             peak = max(chmi_dbz, opera) if opera > 0 else chmi_dbz
+            props["peakDbz"] = round(peak, 1)
             props["dbzSource"] = "CHMI" if chmi_dbz >= opera else "OPERA-ORD"
-        props["peakDbz"] = round(peak, 1)
         touched = True
-    elif chmi_dbz is not None and chmi_dbz < 20:
-        # ČHMÚ v místě skoro clear — OPERA buňka nad ČR je podezřelá
-        opera = float(props.get("maxDbz") or 0)
+    elif chmi_dbz is not None:
+        # ČHMÚ clear — OPERA buňka nad ČR je falešná
         props["chmiDbz"] = round(chmi_dbz, 1)
-        if opera >= 40:
-            props["maxDbz"] = round(min(opera, max(chmi_dbz, 32.0)), 1)
+        if opera >= 35:
+            props["dropByChmi"] = True
+            props["maxDbz"] = round(chmi_dbz, 1)
+            props["peakDbz"] = round(chmi_dbz, 1)
             props["dbzCappedByChmi"] = True
             props["dbzSource"] = "CHMI"
             touched = True
@@ -357,9 +360,16 @@ def apply_enrichment(
         surf = sample_grid_max(
             surface, lon, lat, surface_meta, surface_geo, radius_px=2
         )
-        if surf is not None and surf >= 15:
+        if surf is not None:
             props["chmiSurfaceDbz"] = round(surf, 1)
             touched = True
+            # U země skoro nic, OPERA hlásí silné echo → drop
+            if surf < 15 and opera >= 40:
+                props["dropByChmi"] = True
+                props["dbzCappedByChmi"] = True
+                props["maxDbz"] = round(min(float(props.get("maxDbz") or opera), max(surf, 0.0)), 1)
+                props["peakDbz"] = props["maxDbz"]
+                props["dbzSource"] = "CHMI"
 
     if fct is not None and fct_meta is not None and fct_geo is not None:
         our_h = props.get("trackHeadingDeg")
@@ -507,6 +517,33 @@ def enrich_cells(
         ):
             enriched += 1
         feat["properties"] = props
+
+    dropped_ids: set[str] = set()
+    for feat in fc.get("features") or []:
+        props = feat.get("properties") or {}
+        if not props.get("dropByChmi"):
+            continue
+        cid = str(props.get("cellId") or props.get("id") or "")
+        if cid:
+            dropped_ids.add(cid)
+
+    if dropped_ids:
+        before = len(fc.get("features") or [])
+        fc["features"] = [
+            feat
+            for feat in (fc.get("features") or [])
+            if str(
+                (feat.get("properties") or {}).get("cellId")
+                or (feat.get("properties") or {}).get("id")
+                or ""
+            )
+            not in dropped_ids
+        ]
+        print(
+            f"CHMI: dropped {len(dropped_ids)} ghost cell(s) "
+            f"({before} → {len(fc['features'])} features)",
+            flush=True,
+        )
 
     with open(cells_path, "w", encoding="utf-8") as f:
         json.dump(fc, f)

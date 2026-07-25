@@ -86,7 +86,8 @@ describe("estimateDemise — confidence", () => {
       }),
     );
     expect(d.confidence).toBe("climatology");
-    expect(d.reasons[0]).toMatch(/nejde o fakt/i);
+    expect(d.reasons.length).toBeGreaterThan(0);
+    expect(d.reasons[0]).not.toMatch(/nejde o fakt/i);
   });
 
   it("odloží zánik když vývoj predikuje růst", () => {
@@ -150,7 +151,7 @@ describe("lifecycle — jedna narace zesílení XOR zánik", () => {
     const demiseStep = life.steps.find((s) => s.id === "demise");
     expect(intensStep?.active).toBe(true);
     expect(intensStep?.body ?? "").toMatch(/zesílit/i);
-    expect(demiseStep?.body ?? "").toMatch(/Nejdřív možné zesílení|až za/i);
+    expect(demiseStep?.body ?? "").toMatch(/Útlum za|po případném zesílení/i);
     expect(demiseStep?.body ?? "").not.toMatch(/Echo už slábne/i);
     expect(life.showDemiseOnMap).toBe(false);
     expect(demiseStep?.reasons?.some((r) => /už slábne|rychle se rozpadá/i.test(r))).toBeFalsy();

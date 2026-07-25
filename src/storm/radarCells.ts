@@ -339,15 +339,18 @@ function echoTopKmEstimate(dbz: number): number {
 export function effectivePeakDbz(
   cell: Pick<TrackedCell, "peakDbz" | "chmiDbz" | "maxDbz">,
 ): number {
-  // Nikdy nenechat nižší ČHMÚ sample přepsat silnější OPERA max (Windy vs naše label).
-  const vals = [cell.maxDbz];
-  if (typeof cell.peakDbz === "number" && Number.isFinite(cell.peakDbz)) {
-    vals.push(cell.peakDbz);
-  }
+  const opera = cell.maxDbz;
+  // ČHMÚ = lokální pravda: nepřepisovat ghost OPERA nahoru.
   if (typeof cell.chmiDbz === "number" && Number.isFinite(cell.chmiDbz)) {
-    vals.push(cell.chmiDbz);
+    if (cell.chmiDbz + 5 < opera) return cell.chmiDbz;
+    return Math.max(opera, cell.chmiDbz);
   }
-  return Math.max(...vals);
+  if (typeof cell.peakDbz === "number" && Number.isFinite(cell.peakDbz)) {
+    // Po national/CHMI cap je peakDbz ≤ maxDbz — ber nižší když se liší.
+    if (cell.peakDbz + 5 < opera) return cell.peakDbz;
+    return Math.max(opera, cell.peakDbz);
+  }
+  return opera;
 }
 
 function effectiveEchoTopKm(cell: Pick<TrackedCell, "echoTopKm" | "peakDbz" | "chmiDbz" | "maxDbz">): number {
@@ -627,7 +630,8 @@ export function cellMotion(
 
 /** Všechny smysluplné buňky — i v budoucnosti musí jet. */
 const MAX_MAP_CELLS = 80;
-const MIN_MAP_DBZ = 30;
+/** Pod tímto neukazuj pin (méně clutteru / ghostů). */
+const MIN_MAP_DBZ = 38;
 
 export function buildRadarProgressFeatures(
   cells: TrackedCell[],
@@ -638,20 +642,19 @@ export function buildRadarProgressFeatures(
   locale: Locale = getLocale(),
   satelliteGrid: SatelliteCoolingGrid | null = null,
 ): RadarProgressFeature[] {
-  const ranked = [...cells].sort((a, b) => b.maxDbz - a.maxDbz);
-  const strong = ranked.filter((c) => c.maxDbz >= MIN_MAP_DBZ);
-  let picked =
-    strong.length > 0
-      ? strong.slice(0, MAX_MAP_CELLS)
-      : ranked.slice(0, Math.min(4, ranked.length));
+  const ranked = [...cells]
+    .map((c) => ({ ...c, maxDbz: effectivePeakDbz(c) }))
+    .filter((c) => c.maxDbz >= MIN_MAP_DBZ)
+    .sort((a, b) => b.maxDbz - a.maxDbz);
+  let picked = ranked.slice(0, MAX_MAP_CELLS);
 
-  // Vždy nech buňky blízké uživateli (i když jsou slabší)
+  // Vždy nech buňky blízké uživateli (i když jsou slabší, ale ≥ práh)
   if (user) {
     const nearIds = new Set(
       ranked
         .filter((c) => {
           const d = distanceKm(c.peak[1], c.peak[0], user.lat, user.lon);
-          return d <= 90 && c.maxDbz >= 30;
+          return d <= 90 && c.maxDbz >= MIN_MAP_DBZ;
         })
         .slice(0, 3)
         .map((c) => c.id),

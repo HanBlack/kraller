@@ -169,7 +169,7 @@ export function explainBirthWhy(
       sortKey: "shear",
       key: "shear",
       label: "Vítr s výškou",
-      detail: "mění se dost — pomáhá vzniku a vydržení buňky",
+      detail: `střih ~${shear.toFixed(0)} m/s`,
       weight: 16 + Math.min(20, shear),
     });
   } else if (shear >= 7) {
@@ -177,7 +177,7 @@ export function explainBirthWhy(
       sortKey: "shear",
       key: "shear",
       label: "Vítr s výškou",
-      detail: "mírná změna — buňka může krátce vydržet",
+      detail: `mírný střih ~${shear.toFixed(0)} m/s`,
       weight: 11,
     });
   } else if (shear > 0 && shear < 6) {
@@ -185,7 +185,7 @@ export function explainBirthWhy(
       sortKey: "shear-weak",
       key: "shear",
       label: "Vítr s výškou",
-      detail: "málo se mění — typicky krátký život buňky",
+      detail: `slabý střih ~${shear.toFixed(0)} m/s`,
       weight: 5,
     });
   }
@@ -203,8 +203,8 @@ export function explainBirthWhy(
       detail: longDetail
         ? longDetail
         : fromSat
-          ? "satelit u jádra — bouřka nahoře ještě roste"
-          : "model — může zesílit (ne přímý satelit)",
+          ? "vrchol chladne"
+          : "model — rostoucí nestabilita",
       weight: 30 + Math.min(25, cooling * 4),
     });
   } else if (sat?.towerRising) {
@@ -333,24 +333,17 @@ export function explainBirthWhy(
 
   if (factors.length === 0) {
     uncertain = true;
-    headline =
-      "Model neukazuje výrazný signál. Pravděpodobné je lokální zvednutí vzduchu (terén nebo denní ohřev).";
+    headline = "Bez výrazného modelového signálu.";
   } else {
     const top = factors[0];
-    const shearFactor = factors.find((f) => f.key === "shear" && f.weight >= 11);
     if (top.key === "shear") {
-      headline =
-        "Zrod podporuje změna větru s výškou — pomáhá buňce vzniknout a vydržet.";
+      headline = `Vítr s výškou · ${top.detail}.`;
     } else if (top.key === "cooling" && coolingFromSat) {
-      headline = `Satelit u jádra: ${explainSatelliteGrowth(sat!)}`;
+      headline = explainSatelliteGrowth(sat!);
     } else if (sat && satelliteReasonLines(sat).length > 0) {
-      headline = `Satelit u jádra: ${satelliteReasonLines(sat)[0]}`;
-    } else if (shearFactor) {
-      headline = `Hlavní faktor: ${top.label.toLowerCase()}. Doplňuje ho změna větru s výškou.`;
-    } else if (a.score >= 35 || env.capeJkg >= 250 || cooling >= 3) {
-      headline = `Podmínky vzniku: ${top.label.toLowerCase()} — ${top.detail}.`;
+      headline = satelliteReasonLines(sat)[0];
     } else {
-      headline = `V místě zrodu: ${top.label.toLowerCase()} — ${top.detail}.`;
+      headline = `${top.label}: ${top.detail}`;
     }
   }
 

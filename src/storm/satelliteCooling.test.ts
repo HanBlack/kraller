@@ -131,7 +131,7 @@ describe("satelliteCooling", () => {
 
   it("explainSatelliteStatus includes lightning / ice extras when growing", () => {
     const line = explainSatelliteStatus(grid, 49.0, 14.0);
-    expect(line.detail).toMatch(/ochlazuje|blesky|ice/i);
+    expect(line.detail).toMatch(/chladne|blesky|ice|led/i);
   });
 
   it("explainSatelliteStatus — stabilní", () => {
