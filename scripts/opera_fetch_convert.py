@@ -523,7 +523,15 @@ def write_radar_raster(
     if base == "latest.png":
         try:
             npy_path = os.path.join(os.path.dirname(png_path) or ".", "latest-dbz.npy")
-            np.save(npy_path, dbz_ll.astype(np.float32))
+            # Ostrý dBZ pro mozaiku — gaussian blur by zředil peaky (56→~34 dBZ)
+            dbz_sharp, _ = warp_crop_to_web_mercator(frame, blur_sigma=0.0)
+            np.save(npy_path, dbz_sharp.astype(np.float32))
+            sharp_max = float(np.nanmax(dbz_sharp)) if np.isfinite(dbz_sharp).any() else float("nan")
+            print(
+                f"OPERA latest-dbz.npy sharp maxDbz={sharp_max:.1f} "
+                f"(png blurσ={blur_sigma})",
+                flush=True,
+            )
         except OSError as exc:
             print(f"WARN: could not write latest-dbz.npy ({exc})", flush=True)
 
