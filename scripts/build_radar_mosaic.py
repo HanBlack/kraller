@@ -38,7 +38,8 @@ COUNTRY_BBOX: dict[str, tuple[float, float, float, float]] = {
 # Feather šířka ve stupních (~40 km)
 FEATHER_DEG = 0.45
 MAX_NATIONAL_AGE_MIN = 10.0
-OPERA_BASE_WEIGHT = 0.18
+# National rain below this is treated as non-echo (no wipe / no paint)
+NATIONAL_RAIN_MIN_DBZ = 15.0
 
 DEFAULT_BBOX = (5.5, 45.5, 24.5, 55.2)  # DE–PL–CH–SK + CZ
 # Širší bbox potřebuje víc pixelů — jinak jádra zůstanou 1 px a na zoomu zmizí
@@ -225,8 +226,9 @@ def load_opera_base(
     return np.full(lon_g.shape, np.nan, dtype=np.float64)
 
 
-def save_opera_dbz_sidecar(dbz: np.ndarray) -> None:
-    path = ROOT / "public" / "data" / "opera" / "latest-dbz.npy"
+def save_mosaic_dbz_sidecar(dbz: np.ndarray) -> None:
+    """Mozaikový dBZ — nesmí přepsat OPERA latest-dbz.npy (zdroj pro další blend)."""
+    path = ROOT / "public" / "data" / "opera" / "mosaic-dbz.npy"
     path.parent.mkdir(parents=True, exist_ok=True)
     np.save(path, dbz.astype(np.float32))
 
@@ -270,14 +272,14 @@ def blend_layers(
     lat_g: np.ndarray,
     now: dt.datetime,
 ) -> tuple[np.ndarray, dict[str, Any]]:
-    """nationals: (source, dbz, weight_mask, time_iso)"""
-    h, width = lon_g.shape
-    # Visible rain on OPERA — national clear-air must not dilute these below 18 dBZ
-    opera_echo = np.isfinite(opera) & (opera >= 18.0)
-    base = np.where(np.isfinite(opera), opera, 0.0)
-    base_w = np.where(np.isfinite(opera), OPERA_BASE_WEIGHT, 0.0)
-    acc = base * base_w
-    wsum = base_w.copy()
+    """Max-composite: silnější echo vyhrává. Žádné ředění průměrem / clear-air."""
+    out = np.where(np.isfinite(opera), opera.astype(np.float64), np.nan)
+    opera_rain = int(np.sum(np.isfinite(out) & (out >= 18.0)))
+    opera_max = float(np.nanmax(out)) if np.isfinite(out).any() else float("nan")
+    print(
+        f"mosaic: OPERA base rain>={18}: {opera_rain} maxDbz={opera_max:.1f}",
+        flush=True,
+    )
     used: dict[str, Any] = {"opera": True}
     times: list[str] = []
 
@@ -294,36 +296,28 @@ def blend_layers(
         if not bbox:
             continue
         fw = feather_weight(lon_g, lat_g, bbox)
-        valid = np.isfinite(dbz)
-        # i slabý déšť / coverage — weight jen kde má národní data nebo uvnitř bbox
-        layer_w = fw * np.where(valid, 1.0, 0.0)
-        # clear air fills OPERA holes only — never wipe real OPERA echoes
-        clear = fw * np.where((~valid) & (fw > 0.4) & ~opera_echo, 0.35, 0.0)
-        layer_w = np.maximum(layer_w, clear)
-        nat_vals = np.where(valid, dbz, 0.0)
-        acc += nat_vals * layer_w
-        wsum += layer_w
+        # Jen skutečný déšť uvnitř státu — clear/nodata OPERA nepřepisuje
+        nat_rain = (
+            np.isfinite(dbz)
+            & (dbz >= NATIONAL_RAIN_MIN_DBZ)
+            & (fw > 0.15)
+        )
+        take = nat_rain & (~np.isfinite(out) | (dbz > out))
+        out = np.where(take, dbz, out)
         used[source] = {
             "ok": True,
             "time": time_iso or None,
             "ageMin": age,
+            "painted": int(np.sum(take)),
         }
         if time_iso:
             times.append(time_iso)
+        print(
+            f"mosaic: {source} painted={int(np.sum(take))} "
+            f"(rain pixels in feather)",
+            flush=True,
+        )
 
-    out = np.divide(
-        acc,
-        wsum,
-        out=np.zeros((h, width), dtype=np.float64),
-        where=wsum > 1e-6,
-    )
-    out = np.where(wsum > 1e-6, out, np.nan)
-    # Preserve OPERA rain diluted by weak/clear national returns
-    out = np.where(
-        opera_echo & (~np.isfinite(out) | (opera > out)),
-        opera,
-        out,
-    )
     mosaic_time = None
     if times:
         mosaic_time = max(times)
@@ -382,7 +376,13 @@ def main() -> int:
         return 0
 
     blended, info = blend_layers(opera, nationals, lon_g, lat_g, now)
-    save_opera_dbz_sidecar(np.where(np.isfinite(blended), blended, 0.0))
+    save_mosaic_dbz_sidecar(np.where(np.isfinite(blended), blended, 0.0))
+    rain_n = int(np.sum(np.isfinite(blended) & (blended >= 18.0)))
+    print(
+        f"mosaic: blended rain>={18}: {rain_n} "
+        f"maxDbz={float(np.nanmax(blended)) if np.isfinite(blended).any() else float('nan'):.1f}",
+        flush=True,
+    )
 
     rgba = _dbz_to_rgba(np.nan_to_num(blended, nan=0.0))
     png_path.parent.mkdir(parents=True, exist_ok=True)
