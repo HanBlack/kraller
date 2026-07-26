@@ -588,48 +588,6 @@
       "dbzDelta5": null,
       "dbzDelta15": null
     },
-    "t:20260726040500:55.49:16.03": {
-      "lat": 55.572717868042275,
-      "lon": 16.51992213357197,
-      "maxDbz": 45.0,
-      "lastTs": "20260726043500",
-      "cellId": "cell-8",
-      "firstTs": "20260726043500",
-      "preds": {
-        "15": {
-          "predLat": 55.5644,
-          "predLon": 16.6859,
-          "fromTs": "20260726043500",
-          "fromLat": 55.5727,
-          "fromLon": 16.5199,
-          "heading": 95.0,
-          "speed": 41.9,
-          "motionSource": "wind-fallback",
-          "windAlignDeg": null
-        },
-        "30": {
-          "predLat": 55.5558,
-          "predLon": 16.8518,
-          "fromTs": "20260726043500",
-          "fromLat": 55.5727,
-          "fromLon": 16.5199,
-          "heading": 95.0,
-          "speed": 41.9,
-          "motionSource": "wind-fallback",
-          "windAlignDeg": null
-        }
-      },
-      "dbzSlopePer15": 1.5,
-      "areaPx": 22,
-      "growthDbz": -0.5,
-      "surfaceDbz": null,
-      "fctAgree": null,
-      "fctAngleDiffDeg": null,
-      "hailCmProxy": null,
-      "purpleCandidate": false,
-      "dbzDelta5": 0.0,
-      "dbzDelta15": 2.0
-    },
     "t:20260726043500:54.81:14.46": {
       "lat": 54.81265522954752,
       "lon": 14.46439479242885,
@@ -756,48 +714,6 @@
       "dbzDelta5": null,
       "dbzDelta15": null
     },
-    "t:20260726040500:46.00:6.77": {
-      "lat": 45.98868644965982,
-      "lon": 7.159366856981757,
-      "maxDbz": 38.2,
-      "lastTs": "20260726043500",
-      "cellId": "cell-193",
-      "firstTs": "20260726043500",
-      "preds": {
-        "15": {
-          "predLat": 45.9959,
-          "predLon": 7.1645,
-          "fromTs": "20260726043500",
-          "fromLat": 45.9887,
-          "fromLon": 7.1594,
-          "heading": 26.2,
-          "speed": 3.6,
-          "motionSource": "wind-fallback",
-          "windAlignDeg": 26.2
-        },
-        "30": {
-          "predLat": 46.0031,
-          "predLon": 7.1696,
-          "fromTs": "20260726043500",
-          "fromLat": 45.9887,
-          "fromLon": 7.1594,
-          "heading": 26.2,
-          "speed": 3.6,
-          "motionSource": "wind-fallback",
-          "windAlignDeg": 26.2
-        }
-      },
-      "dbzSlopePer15": -4.72,
-      "areaPx": 21,
-      "growthDbz": -1.0,
-      "surfaceDbz": null,
-      "fctAgree": null,
-      "fctAngleDiffDeg": null,
-      "hailCmProxy": null,
-      "purpleCandidate": false,
-      "dbzDelta5": -6.3,
-      "dbzDelta15": -6.3
-    },
     "t:20260726042000:54.34:4.96": {
       "lat": 54.33357076545455,
       "lon": 5.151274762172708,
@@ -881,48 +797,6 @@
       "purpleCandidate": false,
       "dbzDelta5": null,
       "dbzDelta15": null
-    },
-    "t:20260726040500:55.04:14.44": {
-      "lat": 54.81265522954752,
-      "lon": 14.46439479242885,
-      "maxDbz": 34.3,
-      "lastTs": "20260726043500",
-      "cellId": "cell-25",
-      "firstTs": "20260726043500",
-      "preds": {
-        "15": {
-          "predLat": 54.8448,
-          "predLon": 14.6965,
-          "fromTs": "20260726043500",
-          "fromLat": 54.8127,
-          "fromLon": 14.4644,
-          "heading": 76.4,
-          "speed": 61.2,
-          "motionSource": "wind-fallback",
-          "windAlignDeg": 87.3
-        },
-        "30": {
-          "predLat": 54.8764,
-          "predLon": 14.929,
-          "fromTs": "20260726043500",
-          "fromLat": 54.8127,
-          "fromLon": 14.4644,
-          "heading": 76.4,
-          "speed": 61.2,
-          "motionSource": "wind-fallback",
-          "windAlignDeg": 87.3
-        }
-      },
-      "dbzSlopePer15": -16.8,
-      "areaPx": 35,
-      "growthDbz": -3.5,
-      "surfaceDbz": null,
-      "fctAgree": null,
-      "fctAngleDiffDeg": null,
-      "hailCmProxy": null,
-      "purpleCandidate": false,
-      "dbzDelta5": -7.7,
-      "dbzDelta15": -11.2
     }
   },
   "formationPending": {
@@ -10377,5 +10251,5 @@
     "EVOLVE_FOOTPRINT_PER_DBZ": 0.01
   },
   "schemaVersion": 2,
-  "updatedAt": "2026-07-26T04:44:38Z"
+  "updatedAt": "2026-07-26T04:46:59Z"
 }
