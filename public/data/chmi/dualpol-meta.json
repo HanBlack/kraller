@@ -1,8 +1,8 @@
 {
   "ok": true,
-  "enriched": 13,
-  "peaks": 102,
+  "enriched": 9,
+  "peaks": 77,
   "volumes": 2,
-  "time": "20260801130410",
+  "time": "20260801132912",
   "source": "CHMI-dualpol"
 }
