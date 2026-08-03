@@ -40,9 +40,9 @@ META = ROOT / "public" / "data" / "meta.json"
 # Konstanty zrcadlí frontend — ukládají se do každého běhu (reprodukovatelnost)
 ACTIVE_CONSTANTS = {
     "MAX_TRUSTED_TRACK_KMH": 70,
-    "MAX_WIND_ALIGN_DEG": 35,
+    "MAX_WIND_ALIGN_DEG": 30,
     "MAX_SEGMENT_JITTER_DEG": 55,
-    "TRUE_BIRTH_MAX_DBZ": 39,
+    "TRUE_BIRTH_MAX_DBZ": 41,
     "TRUE_BIRTH_MAX_AGE_MIN": 10,
     "HISTORY_WINDOW_MIN": 25,
     "MIN_ZONE_SCORE": 28,
@@ -55,16 +55,16 @@ ACTIVE_CONSTANTS = {
     "HAIL_LIKELY_ECHO_TOP_KM": 10,
     "HAIL_MIN_ABOVE_FZL_KM": 1.5,
     "FCT_AGREE_MAX_DEG": 35,
-    # Zrcadlo stormConfig.intensification (kalibrace 2026-07-23 — nový produkt)
-    "INTENSIFY_ALERT_SCORE_MIN": 50,
+    # Zrcadlo stormConfig.intensification (kalibrace 2026-08-03)
+    "INTENSIFY_ALERT_SCORE_MIN": 54,
     "INTENSIFY_SUPPRESS_GROWTH_DBZ": 2,
     "INTENSIFY_HIT_DBZ": 3.0,  # act − from ≥ 3 = hit po purple candidate
     # stormConfig.evolution — zrcadlo UI živého / forecast vývoje
     "EVOLVE_BLEND_PRED": 0.55,
     "EVOLVE_BLEND_TREND": 0.45,
-    "EVOLVE_TREND_GAIN": 0.55,
+    "EVOLVE_TREND_GAIN": 0.65,
     "EVOLVE_GROWTH_DBZ_PER_15": 6.0,  # když purple / willIntensify
-    "EVOLVE_FOOTPRINT_PER_DBZ": 0.01,
+    "EVOLVE_FOOTPRINT_PER_DBZ": 0.013,
 }
 
 

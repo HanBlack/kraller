@@ -161,7 +161,7 @@ export const stormConfig = {
     /** Od kdy kreslit segment koridoru. */
     segmentScoreMin: 38,
     /** Od kdy hlásit zesílení u buňky (vyšší = méně falešných). */
-    alertScoreMin: 50,
+    alertScoreMin: 54,
     /** Růst dBZ po vstupu do zóny (~dBZ za 15 min). */
     growthDbzPer15Min: 6,
     /** Pokles dBZ v nepřátelském prostředí (~dBZ za 15 min). */
@@ -181,11 +181,11 @@ export const stormConfig = {
     blendPred: 0.55,
     blendTrend: 0.45,
     /** Kolik growthDbz se propsat do trendu (0–1). */
-    trendGain: 0.55,
+    trendGain: 0.65,
     /** raster-opacity = base + meanDeltaDbz * k */
     opacityPerDbz: 0.025,
     /** footprintScale = 1 + meanDeltaDbz * k */
-    footprintPerDbz: 0.01,
+    footprintPerDbz: 0.013,
     footprintMin: 0.94,
     footprintMax: 1.08,
   },

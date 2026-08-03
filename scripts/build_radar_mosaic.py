@@ -252,8 +252,10 @@ def load_national(source: str) -> tuple[np.ndarray, dict, str] | None:
         return None
     try:
         qty = None
+        # MeteoSwiss compositý často RATE (mm/h) — ne dBZ; míchání by dělalo ghosty
         if source == "mch":
-            qty = "RATE"
+            print(f"mosaic: {source} skipped (RATE mm/h ≠ dBZ)", flush=True)
+            return None
         grid, meta = read_odim_grid(str(h5_path), qty)
         if "projdef" not in meta or "UL_lon" not in meta:
             print(f"mosaic: {source} missing georef — skip", flush=True)
@@ -509,8 +511,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Build national+OPERA radar mosaic PNG")
     ap.add_argument(
         "--sources",
-        default="chmi,dwd,shmu,imgw,mch",
-        help="National sources to blend",
+        default="chmi,dwd,shmu,imgw",
+        help="National sources to blend (mch RATE skipped)",
     )
     ap.add_argument("--width", type=int, default=DEFAULT_WIDTH)
     ap.add_argument("--height", type=int, default=DEFAULT_HEIGHT)
@@ -574,6 +576,25 @@ def main() -> int:
             f"(opera_rain={opera_rain} blended={rain_n})",
             flush=True,
         )
+        keep_meta = {
+            "url": "data/opera/latest.png",
+            "radarSource": "opera",
+            "note": "mosaic blend too empty vs OPERA — kept OPERA PNG",
+            "layers": info.get("layers"),
+            "operaRain": opera_rain,
+            "blendedRain": rain_n,
+        }
+        if raster_path.is_file():
+            try:
+                prev = json.loads(raster_path.read_text(encoding="utf-8"))
+                for k in ("coordinates", "time", "minDbz", "blurSigma", "crs", "uv"):
+                    if k in prev:
+                        keep_meta[k] = prev[k]
+            except (OSError, json.JSONDecodeError):
+                pass
+        mosaic_meta_path = ROOT / "public" / "data" / "opera" / "mosaic-meta.json"
+        with open(mosaic_meta_path, "w", encoding="utf-8") as f:
+            json.dump(keep_meta, f, indent=2)
         return 0
 
     rgba = _dbz_to_rgba(np.nan_to_num(blended, nan=0.0))

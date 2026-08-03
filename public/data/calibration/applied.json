@@ -1,49 +1,75 @@
 {
-  "appliedAt": "2026-07-23T06:32:00Z",
-  "label": "rebaseline-new-product-sat-env",
-  "note": "Learning sync na live UI; MAX_WIND_ALIGN nechat 35 (proposal 55 = šum). Dnešní bouřkový den sbírá baseline se sat+env.",
+  "appliedAt": "2026-08-03T06:50:00Z",
+  "label": "apply-2026-08-03-learning",
+  "note": "Proposal 2026-08-03 (122k samples, readyForApply). High-confidence motion/purple/evolution + medium birthDbz. MIN_ZONE/hail/FCT hold.",
+  "sourceProposal": "2026-08-03T00:18:03Z",
   "applied": [
     {
-      "param": "INTENSIFY_ALERT_SCORE_MIN",
-      "from": 46,
-      "to": 50,
+      "param": "MAX_WIND_ALIGN_DEG",
+      "from": 35,
+      "to": 30,
+      "confidence": "high",
       "files": [
+        "src/storm/stormTrackRules.ts",
         "scripts/emit_learning.py",
-        "scripts/propose_calibration.py",
-        "src/storm/config.ts (už 50)"
+        "scripts/propose_calibration.py"
       ]
     },
     {
-      "param": "INTENSIFY_SUPPRESS_GROWTH_DBZ",
-      "from": 0,
-      "to": 2,
+      "param": "TRUE_BIRTH_MAX_DBZ",
+      "from": 39,
+      "to": 41,
+      "confidence": "medium",
       "files": [
+        "src/storm/stormTrackRules.ts",
         "scripts/emit_learning.py",
-        "scripts/propose_calibration.py",
-        "src/storm/config.ts (už 2)"
+        "scripts/propose_calibration.py"
       ]
     },
     {
-      "param": "formation samples coolingSource",
-      "from": null,
-      "to": "satellite|model",
+      "param": "intensification.alertScoreMin",
+      "from": 50,
+      "to": 54,
+      "confidence": "high",
       "files": [
-        "scripts/emit_learning.py"
+        "src/storm/config.ts",
+        "scripts/emit_learning.py",
+        "scripts/propose_calibration.py"
+      ]
+    },
+    {
+      "param": "evolution.trendGain",
+      "from": 0.55,
+      "to": 0.65,
+      "confidence": "high",
+      "files": [
+        "src/storm/config.ts",
+        "scripts/emit_learning.py",
+        "scripts/propose_calibration.py"
+      ]
+    },
+    {
+      "param": "evolution.footprintPerDbz",
+      "from": 0.01,
+      "to": 0.013,
+      "confidence": "high",
+      "files": [
+        "src/storm/config.ts",
+        "scripts/emit_learning.py",
+        "scripts/propose_calibration.py"
       ]
     }
   ],
   "held": [
-    "MAX_WIND_ALIGN_DEG=35 (skip proposed 55)",
-    "intensification.alertScoreMin stay 50 (proposal 54 z starých samples při prahu 46 — nebrat)",
-    "TRUE_BIRTH_MAX_DBZ=39",
     "MIN_ZONE_SCORE=28",
-    "evolution.trendGain=0.55",
-    "hail / FCT / speed bias"
+    "MAX_SEGMENT_JITTER_DEG=55",
+    "SPEED_BIAS_KMH",
+    "FCT_AGREE_MAX_DEG=35",
+    "active.hail.minAboveFreezingKm=1.5",
+    "INTENSIFY_SUPPRESS_GROWTH_DBZ=2"
   ],
-  "nextProposeAfter": "1–2 dny se live sat + mesoscale 6 min (ideálně s bouřkou)",
-  "wipedAt": "2026-07-23T06:43:23Z",
-  "wiped": [
-    "samples-2026-07.jsonl:28714",
-    "events-2026-07.jsonl:191477"
-  ]
+  "previous": {
+    "appliedAt": "2026-07-23T06:32:00Z",
+    "label": "rebaseline-new-product-sat-env"
+  }
 }

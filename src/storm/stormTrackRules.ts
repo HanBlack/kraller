@@ -10,7 +10,7 @@ import { stormSteeringMotion, type WindGrid } from "../lib/windField";
 /** Max. důvěryhodná rychlost buňky z OPERA matchingu (km/h). */
 export const MAX_TRUSTED_TRACK_KMH = 70;
 /** Max. úhel radar vs vítr, aby se brala radarová rychlost. */
-export const MAX_WIND_ALIGN_DEG = 35;
+export const MAX_WIND_ALIGN_DEG = 30;
 /** Max. nesoulad dvou po sobě jdoucích radarových segmentů. */
 export const MAX_SEGMENT_JITTER_DEG = 55;
 
@@ -22,7 +22,7 @@ export const MAX_WIND_CONFLICT_DEG = 55;
 export const SOFT_WIND_CONFLICT_DEG = 28;
 
 /** První detekce se smí jmenovat „zrod“ jen pokud byla slabá. */
-export const TRUE_BIRTH_MAX_DBZ = 39;
+export const TRUE_BIRTH_MAX_DBZ = 41;
 export const TRUE_BIRTH_MAX_AGE_MIN = 10;
 /** Historické okno OPERA — věk == okno ⇒ spíš příjezd než zrod. */
 export const HISTORY_WINDOW_MIN = 25;
