@@ -276,7 +276,7 @@ def blend_layers(
 ) -> tuple[np.ndarray, dict[str, Any]]:
     """
     OPERA first — to je produkt, který umí ukázat bouřky.
-    Národní compositý jen doplní / zostří, nikdy OPERA nevymažou.
+    Národní compositý jen zostří existující OPERA déšť — nikdy nevytvářejí echo z clear-air.
     """
     out = np.where(np.isfinite(opera), opera.astype(np.float64), np.nan)
     opera_rain = int(np.sum(np.isfinite(out) & (out >= 18.0)))
@@ -302,9 +302,11 @@ def blend_layers(
             continue
         fw = feather_weight(lon_g, lat_g, bbox)
         valid = np.isfinite(dbz)
-        # Doplň / zostři — nepřepisuj OPERA clear-air ani undetectem
+        # Jen zostři existující OPERA déšť — nikdy nevytvářej echo z clear-air
+        # (to dělalo prťavé falešné Silná mimo realitu).
+        opera_rain_px = np.isfinite(out) & (out >= NATIONAL_RAIN_MIN_DBZ)
         nat_rain = valid & (dbz >= NATIONAL_RAIN_MIN_DBZ) & (fw > 0.15)
-        take = nat_rain & (~np.isfinite(out) | (dbz > out))
+        take = nat_rain & opera_rain_px & (dbz > out)
         out = np.where(take, dbz, out)
         used[source] = {
             "ok": True,
@@ -516,7 +518,24 @@ def main() -> int:
     )
     ap.add_argument("--width", type=int, default=DEFAULT_WIDTH)
     ap.add_argument("--height", type=int, default=DEFAULT_HEIGHT)
+    ap.add_argument(
+        "--enable",
+        action="store_true",
+        help="Overwrite map PNG with national blend (off by default — ghost Silná)",
+    )
     args = ap.parse_args()
+
+    mosaic_meta_path = ROOT / "public" / "data" / "opera" / "mosaic-meta.json"
+    if not args.enable:
+        mosaic_meta_path.parent.mkdir(parents=True, exist_ok=True)
+        stub = {
+            "radarSource": "opera",
+            "note": "mosaic disabled — OPERA PNG is map source of truth",
+        }
+        with open(mosaic_meta_path, "w", encoding="utf-8") as f:
+            json.dump(stub, f, indent=2)
+        print("mosaic: disabled (pass --enable to blend national onto PNG)", flush=True)
+        return 0
 
     now = dt.datetime.now(dt.timezone.utc)
     raster_path = ROOT / "public" / "data" / "opera" / "latest-raster.json"
