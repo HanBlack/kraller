@@ -4,10 +4,10 @@ GitHub Actions `schedule` **sám o sobě nestačí** — běhy se vynechávají 
 Cíl **~3–5 min** od snímku (limit zdroje ~5 min) — **Cloudflare Cron Worker** každých 2 min spustí **Live radar** (debounce ~4 min).
 
 ```
-Cloudflare Cron (*/2) → Live radar (meta ≤ ~7 min; fast-path PNG dřív)
-                     → Live sat když cooling.json > ~22 min
-Live sat schedule (*/20)  → záloha (nespolehlivé stejně jako dřív u radaru)
-Radar watchdog (*/3)      → meta > 7 min → Live radar; cooling > 25 min → Live sat
+Cloudflare Cron (*/2) → Live radar (meta ≤ ~5 min; fast-path PNG dřív)
+                     → Live sat když cooling.validAt > ~12 min
+Live sat schedule (*/10)  → záloha
+Radar watchdog (*/3)      → frame > 6 min → Live radar; cooling > 15 min → Live sat
 ```
 
 Záloha: workflow **Radar watchdog** (každé 3 min) — když `operaTime` na R2 > 8 min, spustí Live radar znovu.

@@ -24,7 +24,7 @@ def write_output(key: str, value: str) -> None:
 
 def main() -> int:
     force = os.environ.get("FORCE", "").lower() in ("1", "true", "yes")
-    max_age = float(os.environ.get("MAX_AGE_MIN", "6"))
+    max_age = float(os.environ.get("MAX_AGE_MIN", "4"))
     base = (os.environ.get("R2_PUBLIC_URL") or "").strip().rstrip("/")
 
     if force:

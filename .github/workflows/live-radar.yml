@@ -32,7 +32,7 @@ jobs:
         id: gate
         env:
           R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
-          MAX_AGE_MIN: "6"
+          MAX_AGE_MIN: "4"
           FORCE: ${{ github.event_name == 'workflow_dispatch' }}
         run: python scripts/check_r2_fresh.py
 

@@ -10,15 +10,15 @@ on:
   repository_dispatch:
     types: [live-sat]
   schedule:
-    # Záloha — primární trigger: Cloudflare Worker + Radar watchdog
-    - cron: "*/20 * * * *"
+    # Záloha — primární trigger: Cloudflare Worker (SAT_FRESH_MIN ~12) + watchdog
+    - cron: "*/10 * * * *"
 
 permissions:
   contents: write
 
 concurrency:
   group: live-sat
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   update:
