@@ -10417,6 +10417,20 @@
       "coolingSource": "model",
       "freezingLevelM": 4050.0,
       "cinJkg": 0.0
+    },
+    "z:45.70:8.43": {
+      "lat": 45.7,
+      "lon": 8.4286,
+      "score": 60.4,
+      "fromTs": "20260803044000",
+      "cape": 950.0,
+      "shear": 4.3,
+      "dew": 16.5,
+      "li": null,
+      "cooling": 0.0,
+      "coolingSource": "satellite",
+      "freezingLevelM": 4240.0,
+      "cinJkg": 240.0
     }
   },
   "intensityPending": {
@@ -11340,5 +11354,5 @@
     "EVOLVE_FOOTPRINT_PER_DBZ": 0.01
   },
   "schemaVersion": 2,
-  "updatedAt": "2026-08-03T04:49:35Z"
+  "updatedAt": "2026-08-03T04:51:06Z"
 }
