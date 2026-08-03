@@ -25,8 +25,9 @@ from odim_io import build_geo, sample_grid_max  # noqa: E402
 DROP_BELOW_DBZ = 22.0
 # OPERA smí být max o tolik dBZ nad národní
 CAP_MARGIN_DBZ = 6.0
-# Mimo národní pokrytí ber jen silnější OPERA (méně clutteru)
-OUTSIDE_MIN_DBZ = 42.0
+# Mimo národní pokrytí: jen větší jádra (prťavé 64 dBZ / ~20 px = clutter)
+OUTSIDE_MIN_DBZ = 48.0
+OUTSIDE_MIN_AREA_PX = 36
 
 
 def _in_bbox(lon: float, lat: float, bbox: tuple[float, float, float, float]) -> bool:
@@ -73,6 +74,19 @@ def reconcile(
     fc = json.loads(cells_path.read_text(encoding="utf-8"))
     features: list[dict[str, Any]] = list(fc.get("features") or [])
 
+    area_by_id: dict[str, int] = {}
+    for feat in features:
+        props = feat.get("properties") or {}
+        if props.get("kind") not in (None, "cell"):
+            continue
+        cid = str(props.get("id") or props.get("cellId") or "")
+        area = props.get("areaPx")
+        if cid and area is not None:
+            try:
+                area_by_id[cid] = int(area)
+            except (TypeError, ValueError):
+                pass
+
     # cellId → (lon, lat, national max dBZ or None if outside coverage)
     support: dict[str, tuple[float, float, float | None, str | None]] = {}
     for feat in features:
@@ -114,10 +128,12 @@ def reconcile(
             continue
         _lon, _lat, nat_z, nat_src = support[cid]
         opera = float(props.get("maxDbz") or 0)
+        area_px = area_by_id.get(cid)
 
         if nat_z is None:
-            # Mimo národní bbox — drž jen silnější OPERA
-            if opera < OUTSIDE_MIN_DBZ:
+            # Mimo národní bbox — drž jen větší jádra (ne 18–21 px clutter)
+            too_small = area_px is not None and area_px < OUTSIDE_MIN_AREA_PX
+            if opera < OUTSIDE_MIN_DBZ or too_small:
                 drop_ids.add(cid)
             continue
 

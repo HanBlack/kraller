@@ -36,7 +36,7 @@ FULL_STEPS = [
     ),
     (
         "mosaic",
-        "mozaika mapy",
+        "mozaika (disabled stub)",
         [sys.executable, "scripts/build_radar_mosaic.py"],
     ),
     ("sat", "sat cooling", [sys.executable, "scripts/fetch_sat_cooling.py"]),
@@ -63,13 +63,18 @@ RADAR_ONLY_STEPS = [
     ),
     (
         "mosaic",
-        "mozaika mapy",
+        "mozaika (disabled stub)",
         [sys.executable, "scripts/build_radar_mosaic.py"],
     ),
     (
         "chmi",
         "ČHMÚ",
         [sys.executable, "scripts/chmi_radar.py"],
+    ),
+    (
+        "reconcile",
+        "ghost cells",
+        [sys.executable, "scripts/reconcile_cells_national.py"],
     ),
     (
         "dualpol",
