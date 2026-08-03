@@ -65,9 +65,8 @@ jobs:
       - name: Fetch OPERA + national mosaics
         if: steps.gate.outputs.skip != 'true'
         run: |
-          # OPERA = mapa + tracking (stabilní produkt).
-          # Národní compositý jen pro enrich (ČHMÚ) — NEpřepisují latest.png.
-          # build_radar_mosaic dřív střídavě mazal bouřky / vyráběl ghosty = opakovaný chaos.
+          # OPERA = tracking + base map; národní compositý zostří PNG (OPERA-first blend).
+          # Mozaika má guard: při ztrátě OPERA deště nechá OPERA PNG.
           python scripts/opera_fetch_convert.py --frames 7 &
           pid_opera=$!
           python scripts/fetch_national_radar.py --sources chmi,dwd,shmu,imgw,mch &
@@ -75,9 +74,13 @@ jobs:
           wait $pid_opera || { echo "ERROR: opera_fetch failed"; exit 1; }
           wait $pid_nat || echo "WARN: national fetch partial/failed"
           mkdir -p public/data/opera
-          printf '%s\n' '{"radarSource":"opera","note":"mosaic disabled — OPERA PNG is map source of truth"}' \
-            > public/data/opera/mosaic-meta.json
-          # Ghost cells pryč PŘED uploadem pinů (PNG zůstává OPERA).
+          python scripts/build_radar_mosaic.py --sources chmi,dwd,shmu,imgw \
+            || echo "WARN: mosaic failed — keeping OPERA PNG"
+          if [ ! -f public/data/opera/mosaic-meta.json ]; then
+            printf '%s\n' '{"radarSource":"opera","note":"mosaic did not write meta"}' \
+              > public/data/opera/mosaic-meta.json
+          fi
+          # Ghost cells pryč PŘED uploadem pinů.
           python scripts/chmi_radar.py \
             || echo "WARN: chmi_radar failed"
           python scripts/reconcile_cells_national.py \

@@ -22,22 +22,22 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "public" / "data" / "calibration" / "proposal.json"
 
 CURRENT = {
-    "MAX_WIND_ALIGN_DEG": 35,
+    "MAX_WIND_ALIGN_DEG": 30,
     "MAX_SEGMENT_JITTER_DEG": 55,
-    "TRUE_BIRTH_MAX_DBZ": 39,
+    "TRUE_BIRTH_MAX_DBZ": 41,
     "TRUE_BIRTH_MAX_AGE_MIN": 10,
     "MIN_ZONE_SCORE": 28,
     "FORMATION_HIT_KM": 35,
     "FORMATION_TIMEOUT_MIN": 90,
     "FCT_AGREE_MAX_DEG": 35,
-    # Baseline po apply 2026-07-23 (live UI + learning sync)
-    "INTENSIFY_ALERT_SCORE_MIN": 50,
+    # Baseline po apply 2026-08-03 (learning proposal)
+    "INTENSIFY_ALERT_SCORE_MIN": 54,
     "INTENSIFY_SUPPRESS_GROWTH_DBZ": 2,
     "HAIL_LIKELY_DBZ": 55,
     "HAIL_MIN_ABOVE_FZL_KM": 1.5,
-    "EVOLVE_TREND_GAIN": 0.55,
+    "EVOLVE_TREND_GAIN": 0.65,
     "EVOLVE_BLEND_TREND": 0.45,
-    "EVOLVE_FOOTPRINT_PER_DBZ": 0.01,
+    "EVOLVE_FOOTPRINT_PER_DBZ": 0.013,
 }
 
 
