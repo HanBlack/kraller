@@ -1,5 +1,5 @@
-# Záloha: pokud mapový snímek (mosaicTime/radarTime) na R2 starší než 8 min → Live radar;
-# pokud sat cooling starší než 25 min → Live sat.
+# Záloha: pokud mapový snímek (mosaicTime/radarTime) na R2 starší než 6 min → Live radar;
+# pokud sat cooling starší než 15 min → Live sat.
 # Primární spolehlivý trigger: workers/radar-trigger (Cloudflare Cron).
 
 name: Radar watchdog
@@ -26,8 +26,8 @@ jobs:
         id: age
         env:
           R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
-          MAX_AGE_MIN: "8"
-          SAT_MAX_AGE_MIN: "25"
+          MAX_AGE_MIN: "6"
+          SAT_MAX_AGE_MIN: "15"
         run: |
           python3 <<'PY'
           import json
@@ -39,7 +39,7 @@ jobs:
 
           base = (os.environ.get("R2_PUBLIC_URL") or "").strip().rstrip("/")
           max_age = float(os.environ.get("MAX_AGE_MIN", "8"))
-          sat_max = float(os.environ.get("SAT_MAX_AGE_MIN", "25"))
+          sat_max = float(os.environ.get("SAT_MAX_AGE_MIN", "15"))
           out = os.environ["GITHUB_OUTPUT"]
 
           def write(**kwargs):
@@ -121,7 +121,7 @@ jobs:
           script: |
             const age = '${{ steps.age.outputs.age_min }}';
             // Ghost queued runs stuck for hours must not block forever
-            const BUSY_MAX_AGE_MIN = 25;
+            const BUSY_MAX_AGE_MIN = 15;
             const cutoff = Date.now() - BUSY_MAX_AGE_MIN * 60_000;
 
             async function hasRecentBusy(status) {
@@ -184,7 +184,7 @@ jobs:
         with:
           script: |
             const age = '${{ steps.age.outputs.sat_age_min }}';
-            const BUSY_MAX_AGE_MIN = 25;
+            const BUSY_MAX_AGE_MIN = 15;
             const cutoff = Date.now() - BUSY_MAX_AGE_MIN * 60_000;
 
             async function hasRecentBusy(status) {

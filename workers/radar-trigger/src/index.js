@@ -51,62 +51,78 @@ async function operaFrameAgeMin(env) {
 
 async function coolingAgeMin(env) {
   const base = await r2Base(env);
-  return jsonAgeMin(`${base}/data/satellite/cooling.json`);
+  // Product time (CTT slot), ne file mtime — keep-last-good drží staré validAt
+  return jsonFieldAgeMin(`${base}/data/satellite/cooling.json`, "validAt");
 }
 
-/** Ignore ghost queued/in_progress runs older than this (minutes). */
+/** Ignore ghost in_progress runs older than this (minutes). */
 function busyMaxAgeMin(env) {
-  const n = Number(env.BUSY_MAX_AGE_MIN || "25");
-  return Number.isFinite(n) && n > 0 ? n : 25;
+  const n = Number(env.BUSY_MAX_AGE_MIN || "15");
+  return Number.isFinite(n) && n > 0 ? n : 15;
+}
+
+async function cancelRun(token, repo, runId) {
+  try {
+    const cancelUrl = `https://api.github.com/repos/${repo}/actions/runs/${runId}/cancel`;
+    const cancelRes = await fetch(cancelUrl, {
+      method: "POST",
+      headers: GH_HEADERS(token),
+    });
+    if (!cancelRes.ok) {
+      const forceUrl = `https://api.github.com/repos/${repo}/actions/runs/${runId}/force-cancel`;
+      await fetch(forceUrl, { method: "POST", headers: GH_HEADERS(token) });
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 /**
- * True if a recent run is in_progress or queued.
- * Ghost "queued" runs stuck for hours must not block forever.
+ * Queued runs: cancel them (cron every 2 min makes them redundant).
+ * Block only on fresh in_progress — otherwise the queue stalls radar 20+ min.
  */
 async function workflowBusy(env, token, workflow) {
   const repo = env.GITHUB_REPO || "HanBlack/kraller";
   const maxAgeMs = busyMaxAgeMin(env) * 60_000;
   const now = Date.now();
 
-  for (const status of ["in_progress", "queued"]) {
+  // Zruš frontu — stačí jeden in_progress / nový dispatch
+  {
     const url =
       `https://api.github.com/repos/${repo}/actions/workflows/${workflow}/runs` +
-      `?status=${status}&per_page=5`;
+      `?status=queued&per_page=10`;
     const res = await fetch(url, { headers: GH_HEADERS(token) });
-    if (!res.ok) continue;
-    const data = await res.json();
-    const runs = data.workflow_runs || [];
-    for (const run of runs) {
-      const created = Date.parse(run.created_at || "");
-      if (!Number.isFinite(created)) continue;
-      const ageMs = now - created;
-      if (ageMs <= maxAgeMs) return true;
-      console.log(
-        `ignore stale ${status} run ${run.id} age=${(ageMs / 60_000).toFixed(0)} min`,
-      );
-      // Best-effort: clear ghost so GitHub UI / future checks recover
-      try {
-        const cancelUrl = `https://api.github.com/repos/${repo}/actions/runs/${run.id}/cancel`;
-        const cancelRes = await fetch(cancelUrl, {
-          method: "POST",
-          headers: GH_HEADERS(token),
-        });
-        if (!cancelRes.ok) {
-          const forceUrl = `https://api.github.com/repos/${repo}/actions/runs/${run.id}/force-cancel`;
-          await fetch(forceUrl, { method: "POST", headers: GH_HEADERS(token) });
-        }
-      } catch {
-        /* ignore cancel failures */
+    if (res.ok) {
+      const data = await res.json();
+      for (const run of data.workflow_runs || []) {
+        console.log(`cancel queued ${workflow} run ${run.id}`);
+        await cancelRun(token, repo, run.id);
       }
     }
+  }
+
+  const url =
+    `https://api.github.com/repos/${repo}/actions/workflows/${workflow}/runs` +
+    `?status=in_progress&per_page=5`;
+  const res = await fetch(url, { headers: GH_HEADERS(token) });
+  if (!res.ok) return false;
+  const data = await res.json();
+  for (const run of data.workflow_runs || []) {
+    const created = Date.parse(run.created_at || "");
+    if (!Number.isFinite(created)) continue;
+    const ageMs = now - created;
+    if (ageMs <= maxAgeMs) return true;
+    console.log(
+      `ignore/cancel stale in_progress ${workflow} run ${run.id} age=${(ageMs / 60_000).toFixed(0)} min`,
+    );
+    await cancelRun(token, repo, run.id);
   }
   return false;
 }
 
 async function shouldDispatchRadar(env) {
   // Debounce podle stáří snímku, ne updatedAt (fast-path jinak blokuje nový OPERA)
-  const freshMin = Number(env.FRESH_MIN || "6");
+  const freshMin = Number(env.FRESH_MIN || "4");
   const age = await operaFrameAgeMin(env);
   if (age != null && age < freshMin) {
     console.log(`skip radar: map frame fresh (${age.toFixed(1)} min)`);
@@ -121,14 +137,14 @@ async function shouldDispatchRadar(env) {
   if (!token) throw new Error("GITHUB_TOKEN secret missing");
   const workflow = env.WORKFLOW_FILE || "live-radar.yml";
   if (await workflowBusy(env, token, workflow)) {
-    console.log("skip radar: Live radar already running or queued");
+    console.log("skip radar: Live radar already in progress");
     return false;
   }
   return true;
 }
 
 async function shouldDispatchSat(env) {
-  const freshMin = Number(env.SAT_FRESH_MIN || "22");
+  const freshMin = Number(env.SAT_FRESH_MIN || "12");
   const age = await coolingAgeMin(env);
   if (age != null && age < freshMin) {
     console.log(`skip sat: cooling fresh (${age.toFixed(1)} min)`);
@@ -143,7 +159,7 @@ async function shouldDispatchSat(env) {
   if (!token) throw new Error("GITHUB_TOKEN secret missing");
   const workflow = env.SAT_WORKFLOW_FILE || "live-sat.yml";
   if (await workflowBusy(env, token, workflow)) {
-    console.log("skip sat: Live sat already running or queued");
+    console.log("skip sat: Live sat already in progress");
     return false;
   }
   return true;

@@ -120,6 +120,12 @@ def write_cooling(
                 "failedAt": payload["validAt"],
             }
             LAST_ERROR_PATH.write_text(json.dumps(diag), encoding="utf-8")
+            # Označ pokus o fetch — validAt produktu zůstává (Worker debounce)
+            patched = dict(existing)
+            patched["lastFetchAt"] = payload["validAt"]
+            patched["lastFetchStatus"] = status
+            patched["lastFetchMessage"] = message
+            OUT_PATH.write_text(json.dumps(patched), encoding="utf-8")
             print(
                 f"Keep last-good {OUT_PATH} (status={existing.get('status')} "
                 f"points={len(existing.get('points') or [])} validAt={existing.get('validAt')}) "

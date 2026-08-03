@@ -3,7 +3,7 @@ main = "src/index.js"
 compatibility_date = "2024-12-01"
 
 # Spolehlivější než GitHub Actions schedule — každých 2 min
-# Debounce FRESH_MIN (~4) brání zbytečným běhům; Live sat dle SAT_FRESH_MIN
+# Debounce FRESH_MIN (~4) brání zbytečným běhům; Live sat dle SAT_FRESH_MIN (~12)
 [triggers]
 crons = ["*/2 * * * *"]
 
@@ -12,8 +12,8 @@ GITHUB_REPO = "HanBlack/kraller"
 WORKFLOW_FILE = "live-radar.yml"
 SAT_WORKFLOW_FILE = "live-sat.yml"
 GITHUB_REF = "main"
+FRESH_MIN = "4"
+SAT_FRESH_MIN = "12"
+BUSY_MAX_AGE_MIN = "15"
 # Volitelně — stejná URL jako GitHub secret R2_PUBLIC_URL (debounce triggeru)
 # R2_PUBLIC_URL = "https://pub-....r2.dev"
-# FRESH_MIN = "6"   # skip jen když operaTime mladší než toto (ne updatedAt)
-# SAT_FRESH_MIN = "22"
-# BUSY_MAX_AGE_MIN = "25"  # ghost queued/in_progress starší než toto neblokují trigger
