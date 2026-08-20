@@ -22,7 +22,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 14
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -68,7 +68,7 @@ jobs:
           # Mapa = OPERA PNG (source of truth). Národní compositý jen pro
           # reconcile ghost pinů — nepřepisovat latest.png mozaikou
           # (vymýšlela prťavé Silná mimo realitu, např. SI/AT clutter).
-          python scripts/opera_fetch_convert.py --frames 7 &
+          python scripts/opera_fetch_convert.py --frames 4 &
           pid_opera=$!
           python scripts/fetch_national_radar.py --sources chmi,dwd,shmu,imgw,mch &
           pid_nat=$!
@@ -107,6 +107,7 @@ jobs:
             --files data/opera/latest.geojson \
             --files data/opera/cells.geojson \
             --only data/opera/history/ \
+            --only data/opera/archive/ \
             --only data/national/
 
       - name: Enrich (env + dual-pol retry) + full meta
