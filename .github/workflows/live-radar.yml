@@ -86,6 +86,48 @@ jobs:
             || echo "WARN: chmi_dualpol failed"
           python scripts/write_meta.py
 
+          # Fallback do 7 min: když OPERA composite stagnuje (zdroj nevydává),
+          # mapa by „stárla", ačkoli ČHMÚ má čerstvý snímek. Pak přepni mapu
+          # na národní mozaiku — frontend ukáže ČHMÚ čas místo mrtvé OPERY.
+          OPERA_FALLBACK_MAX_MIN=8
+          python - <<'PY'
+          import datetime as dt, json, os, subprocess, sys
+          from pathlib import Path
+          p = Path("public/data/opera/latest-raster.json")
+          max_age = float(os.environ.get("OPERA_FALLBACK_MAX_MIN", "8"))
+          if not p.is_file():
+              sys.exit(0)
+          try:
+              d = json.loads(p.read_text(encoding="utf-8"))
+          except (OSError, json.JSONDecodeError):
+              sys.exit(0)
+          raw = d.get("time") or d.get("mosaicTime")
+          if not raw:
+              sys.exit(0)
+          digits = "".join(ch for ch in str(raw) if ch.isdigit())[:14]
+          if len(digits) < 12:
+              sys.exit(0)
+          digits = (digits + "000000")[:14]
+          try:
+              shot = dt.datetime.strptime(digits, "%Y%m%d%H%M%S").replace(tzinfo=dt.timezone.utc)
+          except ValueError:
+              sys.exit(0)
+          age = (dt.datetime.now(dt.timezone.utc) - shot).total_seconds() / 60.0
+          print(f"fallback: OPERA snímek {age:.1f} min (threshold {max_age})", flush=True)
+          if age < max_age:
+              print("fallback: OPERA čerstvý — mozaiku necháme vypnutou", flush=True)
+              sys.exit(0)
+          print("fallback: OPERA stagnuje → přepínám mapu na národní mozaiku", flush=True)
+          rc = subprocess.call(
+              [sys.executable, "scripts/build_radar_mosaic.py",
+               "--enable", "--sources", "chmi,dwd,shmu,imgw"]
+          )
+          if rc == 0:
+              subprocess.call([sys.executable, "scripts/write_meta.py"])
+          else:
+              print("fallback: mosaic selhala — nechávám OPERA PNG", flush=True)
+          PY
+
       - name: Fast-path upload (PNG + cells + meta)
         if: steps.gate.outputs.skip != 'true'
         env:

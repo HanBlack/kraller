@@ -221,8 +221,11 @@ def write_meta(run_results: dict[str, dict[str, Any]] | None = None) -> dict[str
     mosaic_t = mosaic_product_time(prev)
     opera_t = opera_product_time(prev)
     chmi_t = chmi_product_time(prev)
-    # Mapa = OPERA (mozaika vypnutá) — radarTime z opera/chmi
-    radar_t = opera_t or chmi_t or mosaic_t
+    # radarTime = nejmladší dostupný snímek (ISO UTC "Z" je lexikograficky seřaditelné).
+    # Nedáváme přednost mrtvé OPEŘe před čerstvou ČHMÚ mozaikou — jinak mapa
+    # "stárne" (zobrazí 10:10 i když ČHMÚ má 10:20) a gate běží pořád dokola.
+    radar_cands = [x for x in (opera_t, chmi_t, mosaic_t) if x]
+    radar_t = max(radar_cands) if radar_cands else None
 
     attribution: list[str] = []
     radar_source = "opera"
