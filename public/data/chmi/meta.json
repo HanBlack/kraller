@@ -1,6 +1,6 @@
 {
-  "validAt": "2026-09-01T00:00:00Z",
-  "productTime": "20260901000000",
+  "validAt": "2026-09-01T00:30:00Z",
+  "productTime": "20260901003000",
   "source": "CHMI",
   "products": [
     "maxz",
