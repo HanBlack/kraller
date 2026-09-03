@@ -7645,6 +7645,76 @@
       "coolingSource": "satellite",
       "freezingLevelM": 3380.0,
       "cinJkg": 0.0
+    },
+    "z:46.51:15.26": {
+      "lat": 46.5087,
+      "lon": 15.2629,
+      "score": 54.599999999999994,
+      "fromTs": "20260903004500",
+      "cape": 540.0,
+      "shear": 9.2,
+      "dew": 12.1,
+      "li": null,
+      "cooling": -8.0,
+      "coolingSource": "satellite",
+      "freezingLevelM": 3460.0,
+      "cinJkg": 27.0
+    },
+    "z:46.91:15.26": {
+      "lat": 46.913,
+      "lon": 15.2629,
+      "score": 53.2,
+      "fromTs": "20260903004500",
+      "cape": 380.0,
+      "shear": 11.4,
+      "dew": 15.3,
+      "li": null,
+      "cooling": -1.12,
+      "coolingSource": "satellite",
+      "freezingLevelM": 3410.0,
+      "cinJkg": 145.0
+    },
+    "z:48.53:17.89": {
+      "lat": 48.5304,
+      "lon": 17.8914,
+      "score": 41.099999999999994,
+      "fromTs": "20260903004500",
+      "cape": 0.0,
+      "shear": 13.7,
+      "dew": 8.3,
+      "li": null,
+      "cooling": 4.0,
+      "coolingSource": "satellite",
+      "freezingLevelM": 3200.0,
+      "cinJkg": 0.0
+    },
+    "z:48.53:18.42": {
+      "lat": 48.5304,
+      "lon": 18.4171,
+      "score": 34.2,
+      "fromTs": "20260903004500",
+      "cape": 0.0,
+      "shear": 11.4,
+      "dew": 7.6,
+      "li": null,
+      "cooling": 4.0,
+      "coolingSource": "satellite",
+      "freezingLevelM": 3120.0,
+      "cinJkg": 0.0
+    },
+    "z:49.34:18.42": {
+      "lat": 49.3391,
+      "lon": 18.4171,
+      "score": 32.400000000000006,
+      "fromTs": "20260903004500",
+      "cape": 30.0,
+      "shear": 10.3,
+      "dew": 7.8,
+      "li": null,
+      "cooling": 0.89,
+      "coolingSource": "satellite",
+      "freezingLevelM": 2990.0,
+      "cinJkg": 53.0
     }
   },
   "intensityPending": {
@@ -9826,5 +9896,5 @@
     "EVOLVE_FOOTPRINT_PER_DBZ": 0.013
   },
   "schemaVersion": 2,
-  "updatedAt": "2026-09-03T00:55:22Z"
+  "updatedAt": "2026-09-03T01:09:51Z"
 }
