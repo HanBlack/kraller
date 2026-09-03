@@ -18,37 +18,37 @@
       45.7
     ]
   ],
-  "time": "20260903184000",
+  "time": "20260903193500",
   "minDbz": 18,
   "blurSigma": 0.0,
   "crs": "EPSG:3857",
   "uv": "web-mercator",
   "radarSource": "mosaic",
-  "mosaicTime": "2026-09-03T18:40:00Z",
+  "mosaicTime": "2026-09-03T19:35:00Z",
   "layers": {
     "opera": true,
     "chmi": {
       "ok": true,
-      "time": "2026-09-03T18:40:00Z",
-      "ageMin": 3.60488875,
-      "painted": 784
+      "time": "2026-09-03T19:35:00Z",
+      "ageMin": 4.390437783333334,
+      "painted": 565
     },
     "dwd": {
       "ok": false,
       "reason": "stale",
-      "ageMin": 20634.471555416665
+      "ageMin": 30.25710445
     },
     "shmu": {
       "ok": true,
-      "time": "2026-09-03T18:30:00Z",
-      "ageMin": 13.604888749999999,
+      "time": "2026-09-03T19:30:00Z",
+      "ageMin": 9.390437783333335,
       "painted": 0
     },
     "imgw": {
       "ok": true,
-      "time": "2026-09-03T18:40:00Z",
-      "ageMin": 3.60488875,
-      "painted": 9766
+      "time": "2026-09-03T19:35:00Z",
+      "ageMin": 4.390437783333334,
+      "painted": 7540
     }
   },
   "attribution": [
