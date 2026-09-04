@@ -4,28 +4,28 @@
     {
       "index": 0,
       "offsetMinutes": -15,
-      "time": "20260904204500",
+      "time": "20260904205500",
       "path": "data/opera/history/frame-0.geojson",
       "rasterPath": "data/opera/history/frame-0-raster.json"
     },
     {
       "index": 1,
       "offsetMinutes": -10,
-      "time": "20260904205000",
+      "time": "20260904210000",
       "path": "data/opera/history/frame-1.geojson",
       "rasterPath": "data/opera/history/frame-1-raster.json"
     },
     {
       "index": 2,
       "offsetMinutes": -5,
-      "time": "20260904205500",
+      "time": "20260904210500",
       "path": "data/opera/history/frame-2.geojson",
       "rasterPath": "data/opera/history/frame-2-raster.json"
     },
     {
       "index": 3,
       "offsetMinutes": 0,
-      "time": "20260904210000",
+      "time": "20260904211000",
       "path": "data/opera/history/frame-3.geojson",
       "rasterPath": "data/opera/history/frame-3-raster.json"
     }
