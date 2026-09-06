@@ -1,1 +1,59 @@
-{"radarSource":"opera","note":"mosaic disabled — OPERA PNG is map source of truth"}
+{
+  "url": "data/opera/latest.png",
+  "coordinates": [
+    [
+      5.8,
+      55.0
+    ],
+    [
+      24.2,
+      55.0
+    ],
+    [
+      24.2,
+      45.7
+    ],
+    [
+      5.8,
+      45.7
+    ]
+  ],
+  "time": "20260906075000",
+  "minDbz": 18,
+  "blurSigma": 0.0,
+  "crs": "EPSG:3857",
+  "uv": "web-mercator",
+  "radarSource": "mosaic",
+  "mosaicTime": "2026-09-06T07:50:00Z",
+  "layers": {
+    "opera": true,
+    "chmi": {
+      "ok": true,
+      "time": "2026-09-06T07:50:00Z",
+      "ageMin": 3.9611585833333334,
+      "painted": 0
+    },
+    "dwd": {
+      "ok": false,
+      "reason": "stale",
+      "ageMin": 3644.82782525
+    },
+    "shmu": {
+      "ok": true,
+      "time": "2026-09-06T07:45:00Z",
+      "ageMin": 8.961158583333335,
+      "painted": 0
+    },
+    "imgw": {
+      "ok": true,
+      "time": "2026-09-06T07:50:00Z",
+      "ageMin": 3.9611585833333334,
+      "painted": 549
+    }
+  },
+  "attribution": [
+    "chmi",
+    "shmu",
+    "imgw"
+  ]
+}
