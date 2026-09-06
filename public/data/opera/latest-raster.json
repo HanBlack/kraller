@@ -2,58 +2,25 @@
   "url": "data/opera/latest.png",
   "coordinates": [
     [
-      5.8,
-      55.0
+      4.257910956214522,
+      55.981594859688464
     ],
     [
-      24.2,
-      55.0
+      27.92809887691651,
+      55.981594859688464
     ],
     [
-      24.2,
-      45.7
+      27.92809887691651,
+      44.32129440049897
     ],
     [
-      5.8,
-      45.7
+      4.257910956214522,
+      44.32129440049897
     ]
   ],
-  "time": "20260906224000",
+  "time": "20260906230000",
   "minDbz": 18,
-  "blurSigma": 0.0,
+  "blurSigma": 0.9,
   "crs": "EPSG:3857",
-  "uv": "web-mercator",
-  "radarSource": "mosaic",
-  "mosaicTime": "2026-09-06T22:40:00Z",
-  "layers": {
-    "opera": true,
-    "chmi": {
-      "ok": true,
-      "time": "2026-09-06T22:40:00Z",
-      "ageMin": 4.537039066666667,
-      "painted": 0
-    },
-    "dwd": {
-      "ok": false,
-      "reason": "stale",
-      "ageMin": 4535.4037057333335
-    },
-    "shmu": {
-      "ok": true,
-      "time": "2026-09-06T22:35:00Z",
-      "ageMin": 9.537039066666667,
-      "painted": 0
-    },
-    "imgw": {
-      "ok": true,
-      "time": "2026-09-06T22:40:00Z",
-      "ageMin": 4.537039066666667,
-      "painted": 10
-    }
-  },
-  "attribution": [
-    "chmi",
-    "shmu",
-    "imgw"
-  ]
+  "uv": "web-mercator"
 }
