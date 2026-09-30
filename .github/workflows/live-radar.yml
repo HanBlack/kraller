@@ -182,7 +182,7 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
-        run: python scripts/r2_learning.py pull --month "$(date -u +%Y-%m)"
+        run: python scripts/r2_learning.py pull
 
       - name: Learning emit (kalibrace — T+15/30 ověření)
         if: steps.gate.outputs.skip != 'true'
@@ -196,7 +196,7 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
-        run: python scripts/r2_learning.py push --month "$(date -u +%Y-%m)"
+        run: python scripts/r2_learning.py push
 
       - name: Git backup (meta + radar)
         if: steps.gate.outputs.skip != 'true'
