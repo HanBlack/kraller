@@ -16,6 +16,12 @@ __pycache__
 public/data/opera/latest-dbz.npy
 public/data/opera/history/**/latest-dbz.npy
 public/data/opera/history/latest-dbz.npy
+# Generované a serví se z R2 — nedržet v gitu (bobtnalo repo ~GB).
+# Mění se každý běh radaru; git historie jinak roste o MB/binárky za běh.
+public/data/opera/mosaic-dbz.npy
+public/data/opera/history/
+public/data/opera/archive/
+public/data/opera/latest.geojson
 public/data/national/*.json
 !public/data/national/.gitkeep.json
 *.local
