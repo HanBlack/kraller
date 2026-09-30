@@ -175,18 +175,36 @@ jobs:
             --exclude data/opera/ \
             --exclude data/national/
 
+      - name: Pull learning from R2 (gzip, bez gitu)
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: python scripts/r2_learning.py pull --month "$(date -u +%Y-%m)"
+
       - name: Learning emit (kalibrace — T+15/30 ověření)
         if: steps.gate.outputs.skip != 'true'
         run: python scripts/emit_learning.py
         continue-on-error: true
 
-      - name: Git backup (meta + radar + learning)
+      - name: Push learning to R2 (gzip, bez gitu)
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: python scripts/r2_learning.py push --month "$(date -u +%Y-%m)"
+
+      - name: Git backup (meta + radar)
         if: steps.gate.outputs.skip != 'true'
         continue-on-error: true
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/data/meta.json public/data/opera public/data/chmi public/data/national public/data/learning
+          git add public/data/meta.json public/data/opera public/data/chmi public/data/national
           if git diff --staged --quiet; then
             echo "No git backup changes."
           else
