@@ -26,7 +26,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          # Repo má ~5 GB historie kvůli datovým commitům — plný klon (depth 0)
+          # trval 4–5 min. Mělký klon (depth 1) potřebujeme jen kvůli zápisu
+          # nových souborů; R2 je source of truth, historie není potřeba.
+          fetch-depth: 1
 
       - name: Skip if R2 already fresh
         id: gate
@@ -232,8 +235,12 @@ jobs:
             echo "No git backup changes."
           else
             git commit -m "chore: refresh radar + learning"
-            git pull --rebase origin main || true
-            git push origin main || echo "WARN: git backup push failed (non-fatal, R2 already updated)"
+            # Shallow-safe: nehluboký fetch tipu (neplést s --unshallow, které
+            # by stáhlo 5 GB historie). Rebase může na shallow selhat — R2 je
+            # source of truth, proto non-fatal.
+            git fetch --depth=1 origin main || true
+            git rebase FETCH_HEAD || { echo "WARN: shallow rebase failed — backup skipped"; exit 0; }
+            git push origin HEAD:main || echo "WARN: git backup push failed (non-fatal, R2 already updated)"
           fi
 
       - name: Skipped (R2 fresh)

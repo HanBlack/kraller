@@ -27,7 +27,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          # ~5 GB historie → plný klon trval 4–5 min; stačí mělký (R2 je source of truth)
+          fetch-depth: 1
 
       - uses: actions/setup-python@v5
         with:
@@ -63,6 +64,8 @@ jobs:
             echo "No sat git backup changes."
           else
             git commit -m "chore: refresh satellite cooling"
-            git pull --rebase origin main || true
-            git push origin main || echo "WARN: sat git backup push failed (non-fatal, R2 already updated)"
+            # Shallow-safe fetch tipu (ne --unshallow s 5 GB historií)
+            git fetch --depth=1 origin main || true
+            git rebase FETCH_HEAD || { echo "WARN: shallow rebase failed — backup skipped"; exit 0; }
+            git push origin HEAD:main || echo "WARN: sat git backup push failed (non-fatal, R2 already updated)"
           fi
