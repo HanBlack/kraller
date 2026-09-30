@@ -66,6 +66,22 @@ jobs:
         if: steps.gate.outputs.skip != 'true'
         run: pip install -r requirements.txt
 
+      - name: Pull env (formation/wind) from R2 — jen pro meta.sources
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+        run: |
+          # formation/wind už nejsou v gitu (žijí v R2) — stáhneme malý soubor,
+          # aby write_meta nehlásil zdroje jako missing.
+          base="${R2_PUBLIC_URL%/}"
+          mkdir -p public/data/formation public/data/wind
+          curl -fsS "$base/data/formation/grid.json" -o public/data/formation/grid.json \
+            || echo "WARN: formation pull failed"
+          curl -fsS "$base/data/wind/low.json" -o public/data/wind/low.json \
+            || echo "WARN: wind low pull failed"
+          curl -fsS "$base/data/wind/upper.json" -o public/data/wind/upper.json \
+            || echo "WARN: wind upper pull failed"
+
       - name: Fetch OPERA + national mosaics
         if: steps.gate.outputs.skip != 'true'
         run: |
@@ -204,7 +220,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/data/meta.json public/data/opera public/data/chmi public/data/national
+          git add public/data/meta.json
           if git diff --staged --quiet; then
             echo "No git backup changes."
           else

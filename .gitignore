@@ -13,21 +13,8 @@ dist-ssr
 .cache
 __pycache__
 *.pyc
-public/data/opera/latest-dbz.npy
-public/data/opera/history/**/latest-dbz.npy
-public/data/opera/history/latest-dbz.npy
-# Generované a serví se z R2 — nedržet v gitu (bobtnalo repo ~GB).
-# Mění se každý běh radaru; git historie jinak roste o MB/binárky za běh.
-public/data/opera/mosaic-dbz.npy
-public/data/opera/history/
-public/data/opera/archive/
-public/data/opera/latest.geojson
-# Learning žije v R2 (gzip) — viz scripts/r2_learning.py. V gitu jen README/.gitkeep.
-public/data/learning/*.jsonl
-public/data/learning/state.json
-public/data/national/*.json
-!public/data/national/.gitkeep.json
 *.local
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -38,3 +25,17 @@ public/data/national/*.json
 *.njsproj
 *.sln
 *.sw?
+
+# --- Generovaná data žijí v R2 (Cloudflare), ne v gitu ---
+# V gitu držíme jen malý public/data/meta.json, public/data/calibration a
+# learning README/.gitkeep. Committing těchto dat bobtnalo repo o GB
+# (learning ~390 MB, opera ~16 MB za běh, formation/wind každých ~6 min).
+public/data/opera/
+public/data/chmi/
+public/data/satellite/
+public/data/formation/
+public/data/wind/
+public/data/learning/*.jsonl
+public/data/learning/state.json
+public/data/national/*.json
+!public/data/national/.gitkeep.json
