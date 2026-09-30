@@ -22,6 +22,9 @@ public/data/opera/mosaic-dbz.npy
 public/data/opera/history/
 public/data/opera/archive/
 public/data/opera/latest.geojson
+# Learning žije v R2 (gzip) — viz scripts/r2_learning.py. V gitu jen README/.gitkeep.
+public/data/learning/*.jsonl
+public/data/learning/state.json
 public/data/national/*.json
 !public/data/national/.gitkeep.json
 *.local
