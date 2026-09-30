@@ -18,8 +18,10 @@ permissions:
   contents: write
 
 concurrency:
+  # Radar dispatchuje env každé ~4 min; env běh je delší. cancel-in-progress by
+  # běh ukončil uprostřed (formation by se neobnovil) → řadíme, ne rušíme.
   group: live-env
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   update:
