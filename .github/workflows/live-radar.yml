@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: write
+  actions: write  # dispatch Live env (formation/wind) mimo kritickou cestu
 
 concurrency:
   group: live-radar
@@ -155,60 +156,6 @@ jobs:
             --only data/opera/archive/ \
             --only data/national/
 
-      - name: Enrich (env + dual-pol retry) + full meta
-        if: steps.gate.outputs.skip != 'true'
-        env:
-          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
-        run: |
-          # Cells už vyčištěné výše; dual-pol znovu soft-fail pokud dřív selhal
-          python scripts/chmi_dualpol.py \
-            || echo "WARN: chmi_dualpol failed"
-
-          if [ -n "${R2_PUBLIC_URL:-}" ]; then
-            base="${R2_PUBLIC_URL%/}"
-            mkdir -p public/data/satellite public/data/formation public/data/wind
-            curl -fsS "$base/data/satellite/cooling.json" \
-              -o public/data/satellite/cooling.json \
-              && echo "pulled cooling.json from R2" \
-              || echo "WARN: could not pull cooling from R2 — merge uses checkout"
-            curl -fsS "$base/data/formation/grid.json" \
-              -o public/data/formation/grid.json \
-              && echo "pulled formation/grid.json from R2" \
-              || echo "WARN: could not pull formation from R2"
-            curl -fsS "$base/data/wind/low.json" \
-              -o public/data/wind/low.json \
-              && curl -fsS "$base/data/wind/upper.json" \
-              -o public/data/wind/upper.json \
-              && echo "pulled wind from R2" \
-              || echo "WARN: could not pull wind from R2"
-          fi
-          # Nový bbox: formation/wind se samy přegenerují při starém pásu (domain check)
-          python scripts/refresh_env_if_stale.py --skip-sat \
-            || echo "WARN: env refresh failed — keep previous formation/wind"
-          # Když R2 stáhlo starý bbox, vynutit formation (zapíše i wind)
-          python - <<'PY'
-          import json, os, subprocess, sys
-          p = "public/data/formation/grid.json"
-          need = True
-          if os.path.isfile(p):
-              try:
-                  d = json.load(open(p, encoding="utf-8"))
-                  need = not (
-                      abs(float(d.get("west", 0)) - 5.8) < 0.05
-                      and abs(float(d.get("east", 0)) - 24.2) < 0.05
-                      and abs(float(d.get("south", 0)) - 45.7) < 0.05
-                      and abs(float(d.get("north", 0)) - 55.0) < 0.05
-                  )
-              except Exception:
-                  need = True
-          if need:
-              print("domain mismatch — fetch_formation --force", flush=True)
-              sys.exit(subprocess.call([sys.executable, "scripts/fetch_formation.py", "--force"]))
-          print("formation domain OK", flush=True)
-          PY
-          python scripts/merge_sat_cooling.py
-          python scripts/write_meta.py
-
       - name: Upload full radar tree to R2
         if: steps.gate.outputs.skip != 'true'
         env:
@@ -217,7 +164,13 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
-        run: python scripts/upload_data_r2.py --exclude data/satellite/
+        run: |
+          # formation/wind vlastní Live env (mimo kritickou cestu) — neuploadovat,
+          # ať radar neklobrne čerstvý env starším stavem z checkoutu.
+          python scripts/upload_data_r2.py \
+            --exclude data/satellite/ \
+            --exclude data/formation/ \
+            --exclude data/wind/
 
       - name: Learning emit (kalibrace — T+15/30 ověření)
         if: steps.gate.outputs.skip != 'true'
@@ -230,7 +183,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/data/meta.json public/data/opera public/data/chmi public/data/national public/data/wind public/data/formation public/data/learning
+          git add public/data/meta.json public/data/opera public/data/chmi public/data/national public/data/learning
           if git diff --staged --quiet; then
             echo "No git backup changes."
           else
@@ -242,6 +195,15 @@ jobs:
             git rebase FETCH_HEAD || { echo "WARN: shallow rebase failed — backup skipped"; exit 0; }
             git push origin HEAD:main || echo "WARN: git backup push failed (non-fatal, R2 already updated)"
           fi
+
+      - name: Dispatch Live env (formation/wind mimo kritickou cestu)
+        if: steps.gate.outputs.skip != 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run live-env.yml --ref main \
+            || echo "WARN: env dispatch failed (non-fatal)"
 
       - name: Skipped (R2 fresh)
         if: steps.gate.outputs.skip == 'true'

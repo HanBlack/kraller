@@ -1,0 +1,116 @@
+# Formation/vítr (Open-Meteo) + merge satelitního coolingu — odděleně od Live radar,
+# aby radar zůstal rychlý (~4 min). Live radar po doběhnutí tento workflow dispatchne
+# (mimo kritickou cestu); schedule je jen záloha. R2 je source of truth.
+# Na R2 sahá JEN do data/formation/, data/wind/ a data/satellite/ (čtení) — meta.json
+# vlastní Live radar, aby se nepřepisoval radarTime starším stavem.
+
+name: Live env
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [live-env]
+  schedule:
+    # Záloha — primární trigger: dispatch z Live radar + Cloudflare Worker
+    - cron: "*/10 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: live-env
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install Python deps
+        run: pip install -r requirements.txt
+
+      - name: Refresh formation/wind + merge cooling
+        env:
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+        run: |
+          mkdir -p public/data/satellite public/data/formation public/data/wind
+          if [ -n "${R2_PUBLIC_URL:-}" ]; then
+            base="${R2_PUBLIC_URL%/}"
+            curl -fsS "$base/data/satellite/cooling.json" \
+              -o public/data/satellite/cooling.json \
+              && echo "pulled cooling.json from R2" \
+              || echo "WARN: could not pull cooling from R2"
+            curl -fsS "$base/data/formation/grid.json" \
+              -o public/data/formation/grid.json \
+              && echo "pulled formation/grid.json from R2" \
+              || echo "WARN: could not pull formation from R2"
+            curl -fsS "$base/data/wind/low.json" \
+              -o public/data/wind/low.json \
+              && curl -fsS "$base/data/wind/upper.json" \
+              -o public/data/wind/upper.json \
+              && echo "pulled wind from R2" \
+              || echo "WARN: could not pull wind from R2"
+          fi
+          # Nový bbox: formation/wind se samy přegenerují při starém pásu (domain check)
+          python scripts/refresh_env_if_stale.py --skip-sat \
+            || echo "WARN: env refresh failed — keep previous formation/wind"
+          # Když R2 stáhlo starý bbox, vynutit formation (zapíše i wind)
+          python - <<'PY'
+          import json, os, subprocess, sys
+          p = "public/data/formation/grid.json"
+          need = True
+          if os.path.isfile(p):
+              try:
+                  d = json.load(open(p, encoding="utf-8"))
+                  need = not (
+                      abs(float(d.get("west", 0)) - 5.8) < 0.05
+                      and abs(float(d.get("east", 0)) - 24.2) < 0.05
+                      and abs(float(d.get("south", 0)) - 45.7) < 0.05
+                      and abs(float(d.get("north", 0)) - 55.0) < 0.05
+                  )
+              except Exception:
+                  need = True
+          if need:
+              print("domain mismatch — fetch_formation --force", flush=True)
+              sys.exit(subprocess.call([sys.executable, "scripts/fetch_formation.py", "--force"]))
+          print("formation domain OK", flush=True)
+          PY
+          python scripts/merge_sat_cooling.py
+
+      - name: Upload env to R2
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+        run: |
+          python scripts/upload_data_r2.py \
+            --files data/formation/grid.json \
+            --files data/wind/low.json \
+            --files data/wind/upper.json
+
+      - name: Git backup (formation + wind)
+        continue-on-error: true
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data/formation public/data/wind
+          if git diff --staged --quiet; then
+            echo "No env git backup changes."
+          else
+            git commit -m "chore: refresh formation + wind"
+            git fetch --depth=1 origin main || true
+            git rebase FETCH_HEAD || { echo "WARN: shallow rebase failed — backup skipped"; exit 0; }
+            git push origin HEAD:main || echo "WARN: env git backup push failed (non-fatal, R2 already updated)"
+          fi
