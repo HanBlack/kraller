@@ -193,6 +193,7 @@ jobs:
 
       - name: Pull learning from R2 (gzip, bez gitu)
         if: steps.gate.outputs.skip != 'true'
+        timeout-minutes: 3
         env:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -202,11 +203,13 @@ jobs:
 
       - name: Learning emit (kalibrace — T+15/30 ověření)
         if: steps.gate.outputs.skip != 'true'
+        timeout-minutes: 3
         run: python scripts/emit_learning.py
         continue-on-error: true
 
       - name: Push learning to R2 (gzip, bez gitu)
         if: steps.gate.outputs.skip != 'true'
+        timeout-minutes: 3
         env:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}

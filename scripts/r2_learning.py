@@ -45,12 +45,22 @@ def _client():
         return None, None
     import boto3
 
+    try:
+        from botocore.config import Config as BotoConfig
+
+        config = BotoConfig(
+            connect_timeout=15, read_timeout=120, retries={"max_attempts": 2}
+        )
+    except Exception:  # pragma: no cover
+        config = None
+
     s3 = boto3.client(
         "s3",
         endpoint_url=f"https://{account}.r2.cloudflarestorage.com",
         aws_access_key_id=access,
         aws_secret_access_key=secret,
         region_name="auto",
+        **({"config": config} if config is not None else {}),
     )
     return s3, bucket
 
