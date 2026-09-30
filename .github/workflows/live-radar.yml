@@ -156,7 +156,7 @@ jobs:
             --only data/opera/archive/ \
             --only data/national/
 
-      - name: Upload full radar tree to R2
+      - name: Upload remaining radar data to R2
         if: steps.gate.outputs.skip != 'true'
         env:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
@@ -165,12 +165,15 @@ jobs:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
         run: |
-          # formation/wind vlastní Live env (mimo kritickou cestu) — neuploadovat,
-          # ať radar neklobrne čerstvý env starším stavem z checkoutu.
+          # Fast-path už nahrál opera + national + meta. Tady jen zbytek (chmi/map).
+          # opera/national vyloučené → neuploaduje se 27 MB podruhé.
+          # formation/wind vlastní Live env; satellite Live sat.
           python scripts/upload_data_r2.py \
             --exclude data/satellite/ \
             --exclude data/formation/ \
-            --exclude data/wind/
+            --exclude data/wind/ \
+            --exclude data/opera/ \
+            --exclude data/national/
 
       - name: Learning emit (kalibrace — T+15/30 ověření)
         if: steps.gate.outputs.skip != 'true'
