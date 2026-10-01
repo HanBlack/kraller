@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-10-01T11:06:20Z",
-  "operaTime": "2026-10-01T11:00:00Z",
+  "updatedAt": "2026-10-01T11:10:21Z",
+  "operaTime": "2026-10-01T11:05:00Z",
   "chmiTime": "2026-10-01T11:05:00Z",
   "mosaicTime": null,
   "radarTime": "2026-10-01T11:05:00Z",
@@ -15,7 +15,7 @@
   "sources": {
     "opera": {
       "ok": true,
-      "updatedAt": "2026-10-01T11:05:51Z",
+      "updatedAt": "2026-10-01T11:09:52Z",
       "error": null
     },
     "chmi": {
