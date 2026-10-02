@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-10-02T18:29:09Z",
+  "generatedAt": "2026-10-02T23:01:44Z",
   "sampleCounts": {
     "track": 20401,
-    "formation": 105185,
+    "formation": 105488,
     "birth_features": 12845,
     "intensity": 44376,
     "intensify": 11420,
@@ -12,7 +12,7 @@
     "withFct": 6813,
     "withFreezingLevel": 62014,
     "withHailProxy": 504,
-    "total": 223101
+    "total": 223404
   },
   "readyForApply": true,
   "proposals": [
@@ -112,7 +112,7 @@
       "current": 28,
       "proposed": 28,
       "confidence": "low",
-      "n": 105185,
+      "n": 105488,
       "nUsable": 4086,
       "nHit": 4086,
       "nMiss": 0,
