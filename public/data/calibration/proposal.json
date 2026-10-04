@@ -1,18 +1,18 @@
 {
-  "generatedAt": "2026-10-04T07:00:23Z",
+  "generatedAt": "2026-10-04T13:16:18Z",
   "sampleCounts": {
     "track": 20401,
-    "formation": 108402,
+    "formation": 109131,
     "birth_features": 12854,
     "intensity": 44386,
-    "intensify": 11420,
+    "intensify": 11422,
     "demise": 28886,
     "track_sample_events": 68962,
     "withSurfaceDbz": 18008,
     "withFct": 6813,
     "withFreezingLevel": 62032,
     "withHailProxy": 504,
-    "total": 226349
+    "total": 227080
   },
   "readyForApply": true,
   "proposals": [
@@ -112,7 +112,7 @@
       "current": 28,
       "proposed": 28,
       "confidence": "low",
-      "n": 108402,
+      "n": 109131,
       "nUsable": 4086,
       "nHit": 4086,
       "nMiss": 0,
@@ -140,10 +140,10 @@
       "current": 54,
       "proposed": 58,
       "confidence": "high",
-      "n": 11420,
+      "n": 11422,
       "hitRate": 0.248,
       "nHit": 2832,
-      "nMiss": 8588,
+      "nMiss": 8590,
       "file": "src/storm/config.ts",
       "reason": "hit rate 25% — příliš false positive, zpřísnit",
       "alsoReview": {
@@ -200,7 +200,7 @@
     "hint": "errEvolveDbz ladí stormConfig.evolution; slope errDbz je baseline"
   },
   "intensifyPurple": {
-    "n": 11420,
+    "n": 11422,
     "hitRate": 0.248,
     "hint": "upřímná fialová — nízký hitRate → vyšší alertScoreMin / suppress"
   },
