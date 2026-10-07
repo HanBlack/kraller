@@ -18,13 +18,16 @@ import numpy as np
 from scipy.ndimage import label, median_filter
 
 # Vysoký pixel musí být aspoň o tolik dBZ nad mediánem okolí, aby byl špička.
-SPIKE_DELTA_DBZ = 14.0
+SPIKE_DELTA_DBZ = 12.0
 # Mediánové okno (px). Větší = agresivnější proti malým kompaktním skvrnám.
-SPIKE_SIZE = 5
+SPIKE_SIZE = 7
 # Pod touto hladinou špičky neřešíme (slabý déšť necháme).
 SPIKE_MIN_DBZ = 35.0
+# Minimální plocha komponenty na nízké hladině — zahodí osamocené skvrnky.
+BASE_DBZ = 18.0
+BASE_MIN_AREA = 12
 # (hladina dBZ, minimální plocha px) pro vysoká jádra.
-HIGH_MIN_AREA = ((40.0, 4), (45.0, 3), (50.0, 3), (55.0, 2), (60.0, 2))
+HIGH_MIN_AREA = ((40.0, 6), (45.0, 5), (50.0, 4), (55.0, 3), (60.0, 2))
 
 
 def despeckle_dbz(
@@ -33,10 +36,24 @@ def despeckle_dbz(
     spike_size: int = SPIKE_SIZE,
     spike_delta: float = SPIKE_DELTA_DBZ,
     spike_min_dbz: float = SPIKE_MIN_DBZ,
+    base_dbz: float = BASE_DBZ,
+    base_min_area: int = BASE_MIN_AREA,
     high_min_area=HIGH_MIN_AREA,
 ) -> np.ndarray:
     """Vrátí kopii dBZ pole bez drobných vysoce-intenzních špiček (NaN místo šumu)."""
     out = np.array(dbz, dtype=np.float64, copy=True)
+
+    # 0) osamocené drobné komponenty na nízké hladině (bodový šum)
+    if base_min_area > 1:
+        mask = np.isfinite(out) & (out >= base_dbz)
+        if mask.any():
+            lab, n = label(mask)
+            if n:
+                sizes = np.bincount(lab.ravel())
+                small = np.where((sizes > 0) & (sizes < base_min_area))[0]
+                small = small[small != 0]
+                if small.size:
+                    out[np.isin(lab, small)] = np.nan
 
     # 1) kompaktní vysoká jádra pod min. plochou
     for lvl, min_area in high_min_area:
