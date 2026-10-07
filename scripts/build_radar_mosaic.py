@@ -18,7 +18,7 @@ from typing import Any
 import numpy as np
 from PIL import Image
 from pyproj import Transformer
-from scipy.ndimage import map_coordinates
+from scipy.ndimage import gaussian_filter, map_coordinates
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -38,6 +38,9 @@ COUNTRY_BBOX: dict[str, tuple[float, float, float, float]] = {
 
 # Feather šířka ve stupních (~40 km)
 FEATHER_DEG = 0.45
+# Vyhlazení mozaikového PNG — stejné jako OPERA cesta (jinak hranaté bloky
+# z nearest převzorkování). Drž v souladu s opera_fetch_convert blur_sigma.
+MOSAIC_BLUR_SIGMA = 0.9
 MAX_NATIONAL_AGE_MIN = 15.0
 # Národní může doplnit / zostřit jádra; OPERA zůstává základ (ukazuje bouřky)
 NATIONAL_RAIN_MIN_DBZ = 18.0
@@ -121,6 +124,22 @@ def feather_weight(
     return w
 
 
+def _sample_nan_aware(
+    src: np.ndarray, row: np.ndarray, col: np.ndarray, order: int = 1
+) -> np.ndarray:
+    """Bilineární převzorkování odolné vůči NaN — bez ředění jader 0-fillem."""
+    finite = np.isfinite(src)
+    val = np.where(finite, src, 0.0).astype(np.float64)
+    msk = finite.astype(np.float64)
+    v = map_coordinates(
+        val, [row, col], order=order, mode="constant", cval=0.0, prefilter=False
+    )
+    m = map_coordinates(
+        msk, [row, col], order=order, mode="constant", cval=0.0, prefilter=False
+    )
+    return np.where(m > 1e-6, v / np.maximum(m, 1e-6), np.nan)
+
+
 def sample_layer_to_grid(
     grid: np.ndarray,
     meta: dict,
@@ -139,25 +158,9 @@ def sample_layer_to_grid(
     row = (ul_y - np.asarray(y, dtype=np.float64)) / geo["yscale"] - 0.5
     row_2d = row.reshape(lon_g.shape)
     col_2d = col.reshape(lon_g.shape)
-    filled = np.where(np.isfinite(grid), grid, np.nan).astype(np.float64)
-    nan_fill = np.nan_to_num(filled, nan=-999.0)
-    sampled = map_coordinates(
-        nan_fill,
-        [row_2d, col_2d],
-        order=0,
-        mode="constant",
-        cval=-999.0,
-        prefilter=False,
-    )
-    row_i = np.floor(row_2d + 0.5).astype(int)
-    col_i = np.floor(col_2d + 0.5).astype(int)
-    inb = (row_i >= 0) & (row_i < h) & (col_i >= 0) & (col_i < w)
-    src_ok = np.zeros(lon_g.shape, dtype=bool)
-    ri = np.clip(row_i, 0, h - 1)
-    ci = np.clip(col_i, 0, w - 1)
-    src_ok[inb] = np.isfinite(grid[ri[inb], ci[inb]])
-    ok = src_ok & (sampled > -900.0)
-    return np.where(ok, sampled, np.nan).astype(np.float64)
+    sampled = _sample_nan_aware(grid, row_2d, col_2d, order=1)
+    inb = (row_2d >= 0) & (row_2d <= h - 1) & (col_2d >= 0) & (col_2d <= w - 1)
+    return np.where(inb & np.isfinite(sampled), sampled, np.nan).astype(np.float64)
 
 
 def resample_dbz_onto_grid(
@@ -179,25 +182,14 @@ def resample_dbz_onto_grid(
     row = (my1 - np.asarray(my)) / max(1e-9, my1 - my0) * h - 0.5
     row_2d = row.reshape(lon_g.shape)
     col_2d = col.reshape(lon_g.shape)
-    # Nearest + NaN mimo echo: bilineár přes 0-fill ředí jádra (56→~30 dBZ)
-    filled = np.where(np.isfinite(src), src, np.nan).astype(np.float64)
-    nan_fill = np.nan_to_num(filled, nan=-999.0)
-    sampled = map_coordinates(
-        nan_fill,
-        [row_2d, col_2d],
-        order=0,
-        mode="constant",
-        cval=-999.0,
-        prefilter=False,
-    )
+    sampled = _sample_nan_aware(src, row_2d, col_2d, order=1)
     inb = (
         (row_2d >= 0)
         & (row_2d <= h - 1)
         & (col_2d >= 0)
         & (col_2d <= w - 1)
     )
-    ok = inb & (sampled > -900.0) & np.isfinite(sampled)
-    return np.where(ok, sampled, np.nan).astype(np.float64)
+    return np.where(inb & np.isfinite(sampled), sampled, np.nan).astype(np.float64)
 
 
 def load_opera_base(
@@ -619,7 +611,11 @@ def main() -> int:
             json.dump(keep_meta, f, indent=2)
         return 0
 
-    rgba = _dbz_to_rgba(np.nan_to_num(blended, nan=0.0))
+    # Vyhlazení jako OPERA cesta — jinak hranaté bloky z převzorkování nároďáků.
+    smooth = np.where(np.isfinite(blended), blended, 0.0)
+    smooth = gaussian_filter(smooth, sigma=MOSAIC_BLUR_SIGMA, mode="nearest")
+    smooth = np.where(np.isfinite(blended) & (blended >= 15.0), smooth, 0.0)
+    rgba = _dbz_to_rgba(smooth)
     png_path.parent.mkdir(parents=True, exist_ok=True)
     Image.fromarray(rgba, mode="RGBA").save(png_path, optimize=True)
 
@@ -633,7 +629,7 @@ def main() -> int:
         "coordinates": coordinates,
         "time": _time_str_compact(mosaic_time),
         "minDbz": 18,
-        "blurSigma": 0.0,
+        "blurSigma": MOSAIC_BLUR_SIGMA,
         "crs": "EPSG:3857",
         "uv": "web-mercator",
         "radarSource": "mosaic",
