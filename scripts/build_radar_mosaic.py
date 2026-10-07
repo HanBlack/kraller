@@ -25,6 +25,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from odim_io import build_geo, nominal_time_iso, read_odim_grid  # noqa: E402
 from opera_fetch_convert import _dbz_to_rgba  # noqa: E402
+from radar_qc import despeckle_dbz  # noqa: E402
 
 # Přibližné bboxy (W, S, E, N) — feather uvnitř
 COUNTRY_BBOX: dict[str, tuple[float, float, float, float]] = {
@@ -578,6 +579,8 @@ def main() -> int:
         return 0
 
     blended, info = blend_layers(opera, nationals, lon_g, lat_g, now)
+    # QC: zahoď drobná vysoce-intenzní zrna (šum/clutter z nacional/OPERA).
+    blended = despeckle_dbz(blended)
     # Buňky zůstávají z OPERA tracking — nesmazávat podle národní mozaiky
     save_mosaic_dbz_sidecar(np.where(np.isfinite(blended), blended, 0.0))
     rain_n = int(np.sum(np.isfinite(blended) & (blended >= 18.0)))

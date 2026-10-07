@@ -18,6 +18,7 @@ S3_ENDPOINT = "https://s3.waw3-1.cloudferro.com"
 BUCKET = "openradar-24h"
 
 from central_europe import BBOX as MAP_BBOX
+from radar_qc import despeckle_dbz
 
 
 def s3_list(prefix: str) -> list[str]:
@@ -514,6 +515,8 @@ def write_radar_raster(
     dbz_ll, coordinates = warp_crop_to_web_mercator(
         frame, blur_sigma=blur_sigma
     )
+    # QC i na zobrazené mřížce (to je přesně to, co uživatel vidí jako „oblačky").
+    dbz_ll = despeckle_dbz(dbz_ll)
     rgba = _dbz_to_rgba(dbz_ll)
     os.makedirs(os.path.dirname(png_path) or ".", exist_ok=True)
     Image.fromarray(rgba, mode="RGBA").save(png_path, optimize=True)
@@ -524,6 +527,7 @@ def write_radar_raster(
             npy_path = os.path.join(os.path.dirname(png_path) or ".", "latest-dbz.npy")
             # Ostrý dBZ pro mozaiku — gaussian blur by zředil peaky (56→~34 dBZ)
             dbz_sharp, _ = warp_crop_to_web_mercator(frame, blur_sigma=0.0)
+            dbz_sharp = despeckle_dbz(dbz_sharp)
             np.save(npy_path, dbz_sharp.astype(np.float32))
             sharp_max = float(np.nanmax(dbz_sharp)) if np.isfinite(dbz_sharp).any() else float("nan")
             print(
@@ -619,6 +623,9 @@ def build_frame(dbz: np.ndarray, meta: dict) -> dict:
     _, geo = _build_geo(meta)
     r0, r1, c0, c1 = find_cz_pixel_bounds(meta, geo)
     crop = dbz[r0 : r1 + 1, c0 : c1 + 1]
+    # QC: zahoď drobná vysoce-intenzní zrna (šum/clutter) — jinak je mapa
+    # kreslí jako „malé obláčky s velkou intenzitou", které v reálu nejsou.
+    crop = despeckle_dbz(crop)
     cells = track_cells(crop, r0, c0, meta, geo)
     return {
         "meta": meta,

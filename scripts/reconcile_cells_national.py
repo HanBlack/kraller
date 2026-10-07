@@ -131,8 +131,11 @@ def reconcile(
         area_px = area_by_id.get(cid)
 
         if nat_z is None:
-            # Mimo národní bbox — drž jen větší jádra (ne 18–21 px clutter)
-            too_small = area_px is not None and area_px < OUTSIDE_MIN_AREA_PX
+            # Mimo národní bbox: vyžaduj plochu rostoucí s intenzitou. Drobná
+            # 55+ dBZ jádra (desítky px) jsou typicky clutter/šum — reálné
+            # jádro má v okolí rozsáhlejší echo.
+            need_area = max(OUTSIDE_MIN_AREA_PX, int(round((opera - 42.0) * 10.0)))
+            too_small = area_px is not None and area_px < need_area
             if opera < OUTSIDE_MIN_DBZ or too_small:
                 drop_ids.add(cid)
             continue
