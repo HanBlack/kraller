@@ -795,6 +795,35 @@ def track_cells_over_time(frames: list[dict]) -> list[dict]:
     return latest_cells
 
 
+# Minimální plocha kontury (km²) — pod tím se polygon nekreslí. Chrání proti
+# „malým obláčkům s velkou intenzitou" (drobná falešná jádra ze šumu/clutteru),
+# která se do rozmazaného PNG ani nezobrazí. Vyšší hladina = přísnější.
+CONTOUR_MIN_AREA_KM2 = {
+    30.0: 0.0,
+    35.0: 0.0,
+    40.0: 3.0,
+    45.0: 12.0,
+    50.0: 18.0,
+    55.0: 25.0,
+    60.0: 35.0,
+}
+
+
+def _ring_area_km2(coords: list) -> float:
+    if len(coords) < 3:
+        return 0.0
+    lat0 = sum(p[1] for p in coords) / len(coords)
+    kx = 111.32 * math.cos(math.radians(lat0))
+    ky = 110.57
+    area = 0.0
+    n = len(coords)
+    for i in range(n):
+        x1, y1 = coords[i][0] * kx, coords[i][1] * ky
+        x2, y2 = coords[(i + 1) % n][0] * kx, coords[(i + 1) % n][1] * ky
+        area += x1 * y2 - x2 * y1
+    return abs(area) / 2.0
+
+
 def build_radar_contour_features(frame: dict) -> list[dict]:
     """Echo kontury — nested ≥ prahy (celistvá skvrna), ne prstence.
 
@@ -828,6 +857,9 @@ def build_radar_contour_features(frame: dict) -> list[dict]:
                 continue
             coords = contour_coords(c, r0, c0, meta, geo, scale=1.0)
             if len(coords) < 4:
+                continue
+            min_km2 = CONTOUR_MIN_AREA_KM2.get(lvl, 0.0)
+            if min_km2 > 0 and _ring_area_km2(coords) < min_km2:
                 continue
             features.append(
                 {
