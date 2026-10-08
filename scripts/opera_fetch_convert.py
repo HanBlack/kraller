@@ -18,7 +18,7 @@ S3_ENDPOINT = "https://s3.waw3-1.cloudferro.com"
 BUCKET = "openradar-24h"
 
 from central_europe import BBOX as MAP_BBOX
-from radar_qc import despeckle_dbz
+from radar_qc import despeckle_dbz, suppress_ringing
 
 
 def s3_list(prefix: str) -> list[str]:
@@ -517,6 +517,8 @@ def write_radar_raster(
     )
     # QC i na zobrazené mřížce (to je přesně to, co uživatel vidí jako „oblačky").
     dbz_ll = despeckle_dbz(dbz_ll)
+    # Potlač periodické „kruhy" (artefakt ve zdrojovém composite).
+    dbz_ll = suppress_ringing(dbz_ll)
     rgba = _dbz_to_rgba(dbz_ll)
     os.makedirs(os.path.dirname(png_path) or ".", exist_ok=True)
     Image.fromarray(rgba, mode="RGBA").save(png_path, optimize=True)
@@ -528,6 +530,7 @@ def write_radar_raster(
             # Ostrý dBZ pro mozaiku — gaussian blur by zředil peaky (56→~34 dBZ)
             dbz_sharp, _ = warp_crop_to_web_mercator(frame, blur_sigma=0.0)
             dbz_sharp = despeckle_dbz(dbz_sharp)
+            dbz_sharp = suppress_ringing(dbz_sharp)
             np.save(npy_path, dbz_sharp.astype(np.float32))
             sharp_max = float(np.nanmax(dbz_sharp)) if np.isfinite(dbz_sharp).any() else float("nan")
             print(

@@ -84,3 +84,15 @@ def despeckle_dbz(
         _cap(strong & ((out - med) >= spike_delta))
 
     return out
+
+
+def suppress_ringing(dbz: np.ndarray, size: int = 5) -> np.ndarray:
+    """Potlačí periodické „kruhy" (interferenční/spline artefakt ve zdrojovém
+    composite). Medián zachová hrany, ale smaže drobné vlnění. Aplikuj na
+    zobrazovanou vrstvu (PNG/sidecar), ne na detekci buněk.
+    """
+    finite = np.isfinite(dbz)
+    filled = np.nan_to_num(dbz, nan=-40.0)
+    med = median_filter(filled, size=size, mode="nearest")
+    return np.where(finite, med, dbz)
+
