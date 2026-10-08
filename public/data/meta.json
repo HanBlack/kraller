@@ -1,12 +1,14 @@
 {
-  "updatedAt": "2026-10-08T20:15:43Z",
+  "updatedAt": "2026-10-08T20:19:43Z",
   "operaTime": "2026-10-08T20:10:00Z",
   "chmiTime": "2026-10-08T20:15:00Z",
-  "mosaicTime": null,
+  "mosaicTime": "2026-10-08T20:15:00Z",
   "radarTime": "2026-10-08T20:15:00Z",
-  "radarSource": "opera",
+  "radarSource": "mosaic",
   "radarAttribution": [
-    "opera"
+    "chmi",
+    "shmu",
+    "imgw"
   ],
   "opera": true,
   "chmi": true,
@@ -15,7 +17,7 @@
   "sources": {
     "opera": {
       "ok": true,
-      "updatedAt": "2026-10-08T20:15:11Z",
+      "updatedAt": "2026-10-08T20:19:13Z",
       "error": null
     },
     "chmi": {
