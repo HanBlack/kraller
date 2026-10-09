@@ -6,10 +6,13 @@ type Props = {
   history: CellHistoryPoint[];
   currentDbz: number;
   ageMinutes: number;
+  trueBirth: boolean;
   /** ETA zesílení (min od teď) — projected tick. */
   intensifyEtaMin?: number | null;
   /** ETA útlumu (min od teď). */
   demiseEtaMin?: number | null;
+  demiseEtaMinLo?: number | null;
+  demiseEtaMinHi?: number | null;
   demiseConfidence?: DemiseConfidence | null;
   willIntensify?: boolean;
 };
@@ -39,9 +42,12 @@ export function BirthTimeline({
   history,
   currentDbz,
   ageMinutes,
+  trueBirth,
   intensifyEtaMin = null,
   demiseEtaMin = null,
-  demiseConfidence: _demiseConfidence = null,
+  demiseEtaMinLo = null,
+  demiseEtaMinHi = null,
+  demiseConfidence = null,
   willIntensify = false,
 }: Props) {
   const { t } = useI18n();
@@ -99,7 +105,9 @@ export function BirthTimeline({
               />
               <span className="birth-step-label">
                 {isBirth
-                  ? t("storm.birth")
+                  ? trueBirth
+                    ? t("storm.birth")
+                    : t("storm.firstDetection")
                   : isNow
                     ? ageMinutes > 0
                       ? t("storm.nowAge", { min: ageMinutes })
@@ -121,8 +129,15 @@ export function BirthTimeline({
           <li className="birth-step projected demise">
             <span className="birth-blob projected light sm" />
             <span className="birth-step-label">
-              {t("storm.timelineDemise", {
-                min: Math.round(demiseEtaMin!),
+              {t("storm.timelineDemiseRange", {
+                lo: Math.round(demiseEtaMinLo ?? demiseEtaMin!),
+                hi: Math.round(demiseEtaMinHi ?? demiseEtaMin!),
+                confidence:
+                  demiseConfidence === "observed"
+                    ? t("storm.timelineDemiseObserved")
+                    : demiseConfidence === "trending"
+                      ? t("storm.timelineDemiseTrend")
+                      : t("storm.timelineDemiseEstimate"),
               })}
             </span>
           </li>

@@ -2,16 +2,16 @@ import { useEffect, useState } from "react";
 import { useI18n } from "../i18n";
 import type { DataSourceStatus } from "../lib/loadStormData";
 import { useStormDataContext } from "../providers/StormDataProvider";
+import {
+  minutesSince,
+  radarFreshness,
+} from "../lib/radarFreshness";
 
 /** Prahy pro UI — formation ~6–15 min, wind ~6–10, sat ~20–25. */
 const ENV_WARN_MIN = 18;
 const ENV_STALE_MIN = 28;
 const SAT_WARN_MIN = 30;
 const SAT_STALE_MIN = 50;
-
-function ageMinutes(iso: string, nowMs: number): number {
-  return Math.max(0, Math.round((nowMs - new Date(iso).getTime()) / 60_000));
-}
 
 function formatClock(iso: string, dateLocale: string): string {
   try {
@@ -56,8 +56,7 @@ function sourceAge(
   nowMs: number,
 ): number | null {
   const iso = sources?.[key]?.updatedAt ?? undefined;
-  if (!iso) return null;
-  return ageMinutes(iso, nowMs);
+  return minutesSince(iso, nowMs);
 }
 
 /** Kompaktní čas poslední synchronizace dat — viditelný i při sbaleném panelu. */
@@ -71,6 +70,8 @@ export function SyncStatus() {
     radarAttribution,
     dataSources,
     loading,
+    refreshError,
+    radarAvailable,
     satelliteCooling,
   } = useStormDataContext();
   const [now, setNow] = useState(() => Date.now());
@@ -80,15 +81,15 @@ export function SyncStatus() {
     return () => window.clearInterval(id);
   }, []);
 
-  if (!lastUpdated && !loading) return null;
-
-  const age = lastUpdated ? ageMinutes(lastUpdated, now) : null;
+  const age = minutesSince(lastUpdated, now);
   const radarIso = radarTime ?? operaTime ?? chmiTime;
-  const radarAge = radarIso ? ageMinutes(radarIso, now) : null;
+  const radarAge = minutesSince(radarIso, now);
+  const freshness = radarFreshness(radarIso, radarAvailable, now);
+  const radarUnavailable = freshness === "unavailable";
   const windAge = sourceAge(dataSources, "wind", now);
   const formAge = sourceAge(dataSources, "formation", now);
   const satIso = satelliteCooling?.validAt ?? null;
-  const satAge = satIso ? ageMinutes(satIso, now) : null;
+  const satAge = minutesSince(satIso, now);
   const satOk = satelliteCooling?.status === "ok";
   const satSource =
     satOk && (satelliteCooling?.points?.length ?? 0) > 0
@@ -97,7 +98,7 @@ export function SyncStatus() {
 
   const stale = age != null && age >= 10;
   const warn = !stale && age != null && age >= 6;
-  const radarStale = radarAge != null && radarAge >= 10;
+  const radarStale = freshness === "stale";
   const radarWarn = !radarStale && radarAge != null && radarAge >= 6;
   const envStale =
     (windAge != null && windAge >= ENV_STALE_MIN) ||
@@ -109,16 +110,32 @@ export function SyncStatus() {
       (formAge != null && formAge >= ENV_WARN_MIN) ||
       (satAge != null && satAge >= SAT_WARN_MIN));
 
-  const when =
-    loading && !lastUpdated
-      ? t("sync.updating")
-      : loading
-        ? t("sync.refreshing")
-        : age == null
-          ? t("sync.updating")
-          : age <= 1
-            ? t("sync.justNow")
-            : t("sync.agoMin", { min: age });
+  const when = loading
+    ? lastUpdated
+      ? t("sync.refreshing")
+      : t("sync.updating")
+    : refreshError && age == null
+      ? t("sync.refreshFailed")
+      : age == null
+        ? t("sync.unavailable")
+        : age <= 1
+          ? t("sync.justNow")
+          : t("sync.agoMin", { min: age });
+  const statusTone =
+    stale || radarStale || envStale
+      ? " is-stale"
+      : warn || radarWarn || envWarn || refreshError || radarUnavailable
+        ? " is-warn"
+        : "";
+  const statusHint = refreshError
+    ? t("sync.refreshFailed")
+    : radarUnavailable
+      ? t("sync.radarUnavailable")
+      : radarStale && !stale && !envStale
+        ? t("sync.radarStale")
+        : envStale && !stale
+          ? t("sync.envStale")
+          : t("sync.stale");
 
   const titleParts = [
     lastUpdated
@@ -137,13 +154,7 @@ export function SyncStatus() {
 
   return (
     <div
-      className={`sync-status${
-        stale || radarStale || envStale
-          ? " is-stale"
-          : warn || radarWarn || envWarn
-            ? " is-warn"
-            : ""
-      }${loading ? " is-loading" : ""}`}
+      className={`sync-status${statusTone}${loading ? " is-loading" : ""}`}
       role="status"
       aria-live="polite"
       title={titleParts.join(" · ")}
@@ -181,13 +192,9 @@ export function SyncStatus() {
               : t("sync.satModel"))}
         </span>
       )}
-      {(stale || radarStale || envStale) && (
+      {(stale || radarStale || envStale || refreshError || radarUnavailable) && (
         <span className="sync-status-hint">
-          {radarStale && !stale && !envStale
-            ? t("sync.radarStale")
-            : envStale && !stale
-              ? t("sync.envStale")
-              : t("sync.stale")}
+          {statusHint}
         </span>
       )}
     </div>

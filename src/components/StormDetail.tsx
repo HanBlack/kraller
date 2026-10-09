@@ -4,7 +4,6 @@ import { BirthTimeline } from "./BirthTimeline";
 
 import {
   formatStormAlert,
-  formatStormAlertDetail,
   formatStormAlertHero,
 } from "../lib/formatAlert";
 
@@ -23,10 +22,6 @@ import {
   alertFromActive,
 
 } from "../storm/buildAlert";
-
-import { estimateHailCm, showSupercellEnvBadge } from "../storm/scoreActive";
-
-import type { ActiveStormAssessment } from "../storm/types";
 
 import type { ScoredFormationPoint } from "../storm/formationData";
 
@@ -60,21 +55,10 @@ import type { RadarProgressFeature } from "../storm/radarCells";
 
 import type { UserLocation } from "../types";
 
-import { nearestFormationPoint } from "../storm/birthEnv";
-import { explainSatelliteStatus } from "../storm/satelliteCooling";
-import {
-  formatCloudHeightKm,
-  resolveCloudHeight,
-  type CloudHeightReading,
-} from "../storm/stormCloudHeight";
 import {
   buildStormStrengthFacts,
   type StormStrengthFacts,
 } from "../storm/stormStrengthFacts";
-import {
-  formatStormWindDetail,
-  stormWindAtCell,
-} from "../storm/stormWindAtCell";
 
 
 
@@ -125,134 +109,12 @@ function SeverityBadge({
   return <span className={`severity-badge ${tone}`}>{label}</span>;
 }
 
-/** Upřímné riziko — ne „kroupy padají“ / „vidíme rotaci“. */
-function HazardBadges({
-  assessment,
-  dualpolHailLikely,
-  dualpolLabel,
-  maxDbz,
-  echoTopKm,
-  freezingLevelM,
-  shearMs,
-}: {
-  assessment: ActiveStormAssessment | null | undefined;
-  dualpolHailLikely?: boolean;
-  dualpolLabel?: string;
-  maxDbz?: number | null;
-  echoTopKm?: number | null;
-  freezingLevelM?: number | null;
-  shearMs?: number | null;
-}) {
-  const { t } = useI18n();
-
-  const dbz = maxDbz ?? assessment?.maxDbz ?? null;
-  const hailCm =
-    assessment?.hailCmMax ??
-    (dbz != null && echoTopKm != null
-      ? estimateHailCm(echoTopKm, dbz, freezingLevelM)
-      : null);
-  const hailFromScore =
-    hailCm != null && hailCm >= 1 && dbz != null && dbz >= 55;
-  const hail = hailFromScore || Boolean(dualpolHailLikely);
-  const updraft = dualpolLabel === "strong_updraft";
-  const supercell = assessment ? showSupercellEnvBadge(assessment) : false;
-  const gustRisk =
-    !hail &&
-    dbz != null &&
-    dbz >= 55 &&
-    ((shearMs != null && shearMs >= 12) || dbz >= 58);
-
-  if (!hail && !supercell && !updraft && !gustRisk) return null;
-
-  return (
-    <div className="hazard-badges" role="group" aria-label={t("alert.expect")}>
-      {hail ? (
-        <span className="hazard-badge hail">
-          {hailFromScore && hailCm != null
-            ? t("alert.hailRiskCm", { cm: hailCm })
-            : t("alert.hailRisk")}
-        </span>
-      ) : null}
-      {gustRisk ? (
-        <span className="hazard-badge supercell">{t("alert.gustRisk")}</span>
-      ) : null}
-      {updraft && !hail ? (
-        <span className="hazard-badge supercell">
-          {t("alert.strongUpdraft")}
-        </span>
-      ) : null}
-      {supercell ? (
-        <span className="hazard-badge supercell">
-          {t("alert.supercellEnv")}
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
-function CloudHeightBlock({ height }: { height: CloudHeightReading | null }) {
-  const { t } = useI18n();
-  if (!height) return null;
-  const source =
-    height.source === "satellite"
-      ? t("storm.cloudTopSourceSat")
-      : t("storm.cloudTopSourceRadar");
-  return (
-    <div className="storm-cloud-height">
-      <p className="storm-cloud-height-label">{t("storm.cloudTopTitle")}</p>
-      <p className="storm-cloud-height-value">
-        {formatCloudHeightKm(height.km)}
-        <span className="storm-cloud-height-source"> · {source}</span>
-      </p>
-    </div>
-  );
-}
-
-function dualpolLine(
-  facts: StormStrengthFacts,
-  t: (key: string) => string,
-): string | null {
-  if (facts.dualpolHailLikely || facts.dualpolLabel === "possible_hail") {
-    return t("storm.strengthDualpolHail");
-  }
-  if (facts.dualpolLabel === "strong_updraft") {
-    return t("storm.strengthDualpolUpdraft");
-  }
-  // U silné/střední buňky neříkat „slabé/mělké“ — rozpor s peak dBZ / barvou radaru.
-  if (
-    facts.dualpolLabel === "weakening_or_shallow" &&
-    facts.severity !== "strong" &&
-    facts.severity !== "moderate"
-  ) {
-    return t("storm.strengthDualpolWeak");
-  }
-  return null;
-}
-
 function StormStrengthPanel({ facts }: { facts: StormStrengthFacts }) {
   const { t, locale } = useI18n();
   const lines: string[] = [];
 
   if (facts.severity != null && facts.maxDbz != null) {
     lines.push(formatCoreStrengthLabel(facts.maxDbz, facts.severity, locale));
-  }
-  if (facts.lightningActivity) {
-    const la = facts.lightningActivity;
-    if (la.level === "none") {
-      lines.push(t("storm.strengthLightningNone"));
-    } else if (la.level === "occasional") {
-      lines.push(
-        t("storm.strengthLightningOccasional", { rate: la.ratePerMin }),
-      );
-    } else if (la.level === "frequent") {
-      lines.push(
-        t("storm.strengthLightningFrequent", { rate: la.ratePerMin }),
-      );
-    } else {
-      lines.push(
-        t("storm.strengthLightningVeryFrequent", { rate: la.ratePerMin }),
-      );
-    }
   }
   if (facts.dbzTrend) {
     const d = facts.dbzTrend.deltaDbz;
@@ -268,16 +130,6 @@ function StormStrengthPanel({ facts }: { facts: StormStrengthFacts }) {
       );
     }
   }
-  if (facts.cloudHeight) {
-    lines.push(
-      t("storm.strengthHeight", {
-        height: formatCloudHeightKm(facts.cloudHeight.km),
-      }),
-    );
-  }
-  if (facts.cloudTopTempC != null) {
-    lines.push(t("storm.strengthCtt", { temp: facts.cloudTopTempC }));
-  }
   if (facts.ageMinutes != null && facts.ageMinutes > 0) {
     lines.push(t("storm.strengthAge", { min: facts.ageMinutes }));
   }
@@ -286,9 +138,6 @@ function StormStrengthPanel({ facts }: { facts: StormStrengthFacts }) {
   } else if (facts.growthDbz != null && facts.growthDbz <= -2) {
     lines.push(t("storm.strengthGrowthDown"));
   }
-  const dual = dualpolLine(facts, t);
-  if (dual) lines.push(dual);
-
   if (lines.length === 0) return null;
 
   return (
@@ -330,7 +179,7 @@ function RadarLifecycleDetail({
 }) {
 
   const { t, locale } = useI18n();
-  const { operaTime, chmiTime, radarTime, windLow, windUpper, satelliteCooling } =
+  const { operaTime, chmiTime, radarTime, satelliteCooling } =
     useStormDataContext();
   const motionMinutes = motionMinutesForView({
     timeOffsetMinutes: forecastMinutes,
@@ -356,10 +205,6 @@ function RadarLifecycleDetail({
 
 
 
-  const factors = (feature.birthEnv?.whyFactors ?? []).filter(
-    (f) => f.key !== "cooling" && f.key !== "other",
-  );
-
   const cellKey = feature.id;
 
   const toYou =
@@ -370,24 +215,6 @@ function RadarLifecycleDetail({
 
       : null;
 
-  const toYouDetail = toYou ? formatStormAlertDetail(toYou, locale) : null;
-
-  const windAt =
-    feature.windAtCell ??
-    stormWindAtCell(
-      feature.peak,
-      feature.speedKmh,
-      windLow,
-      windUpper,
-      nearestFormationPoint(feature.peak[1], feature.peak[0], formationPoints ?? [])
-        ?.environment ?? null,
-    );
-  const windLines = formatStormWindDetail(windAt, locale);
-  const satStatus = explainSatelliteStatus(
-    satelliteCooling,
-    feature.peak[1],
-    feature.peak[0],
-  );
   const strengthFacts = buildStormStrengthFacts({
     maxDbz: feature.maxDbz,
     severity: feature.severity,
@@ -472,26 +299,6 @@ function RadarLifecycleDetail({
 
         <StormStrengthPanel facts={strengthFacts} />
 
-        {windLines.length > 0 && (
-          <div className="storm-wind-at-cell">
-            <p className="storm-wind-title">{t("storm.windNearTitle")}</p>
-            <ul className="storm-wind-list">
-              {windLines.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        <div
-          className={`storm-wind-at-cell storm-sat-at-cell${
-            satelliteCooling?.status === "ok" ? " is-sat-live" : ""
-          }`}
-        >
-          <p className="storm-wind-title">{satStatus.title}</p>
-          <p className="lifecycle-step-body">{satStatus.detail}</p>
-        </div>
-
       </section>
 
     );
@@ -534,41 +341,7 @@ function RadarLifecycleDetail({
 
       <p className="alert-message">{life.summary}</p>
 
-      <HazardBadges
-        assessment={feature.assessment}
-        dualpolHailLikely={feature.dualpolHailLikely}
-        dualpolLabel={feature.dualpolLabel}
-        maxDbz={feature.maxDbz}
-        echoTopKm={feature.echoTopKm}
-        freezingLevelM={feature.birthEnv?.environment?.freezingLevelM}
-        shearMs={
-          feature.birthEnv?.shearMs ??
-          feature.birthEnv?.environment?.shear0to6Ms ??
-          null
-        }
-      />
-
       <StormStrengthPanel facts={strengthFacts} />
-
-      {windLines.length > 0 && (
-        <div className="storm-wind-at-cell">
-          <p className="storm-wind-title">{t("storm.windNearTitle")}</p>
-          <ul className="storm-wind-list">
-            {windLines.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <div
-        className={`storm-wind-at-cell storm-sat-at-cell${
-          satelliteCooling?.status === "ok" ? " is-sat-live" : ""
-        }`}
-      >
-        <p className="storm-wind-title">{satStatus.title}</p>
-        <p className="lifecycle-step-body">{satStatus.detail}</p>
-      </div>
 
       {toYou && feature.threatens === 1 && (
 
@@ -583,8 +356,6 @@ function RadarLifecycleDetail({
           <p className="to-you-hero">{formatStormAlertHero(toYou, locale)}</p>
 
           <p className="to-you-body">{formatStormAlert(toYou, locale)}</p>
-
-          {toYouDetail && <p className="to-you-expect">{toYouDetail}</p>}
 
         </div>
 
@@ -642,11 +413,9 @@ function RadarLifecycleDetail({
                     {step.badge ? (
                       <span
                         className={`lifecycle-badge confidence-${
-                          step.badge === "z radaru"
-                            ? "observed"
-                            : step.badge === "trend"
-                              ? "trending"
-                              : "climatology"
+                          step.id === "demise"
+                            ? (life.demiseConfidence ?? "climatology")
+                            : "climatology"
                         }`}
                       >
                         {step.badge}
@@ -704,20 +473,6 @@ function RadarLifecycleDetail({
                       </ul>
                     )}
 
-                  {step.id === "factors" && factors.length > 0 && (
-                    <ul className="birth-factor-list compact">
-                      {factors.map((f) => (
-                        <li
-                          key={`${f.key}-${f.label}`}
-                          className={`birth-factor birth-factor-${f.key}`}
-                        >
-                          <span className="birth-factor-label">{f.label}</span>
-                          <span className="birth-factor-detail">{f.detail}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
                   {step.id !== "factors" &&
                     step.id !== "birth" &&
                     step.id !== "path" &&
@@ -748,8 +503,11 @@ function RadarLifecycleDetail({
         history={feature.history}
         currentDbz={feature.maxDbz}
         ageMinutes={feature.ageMinutes}
+        trueBirth={feature.trueBirth}
         intensifyEtaMin={life.intensifyEtaMin}
         demiseEtaMin={life.demiseEtaMin}
+        demiseEtaMinLo={life.demiseEtaMinLo}
+        demiseEtaMinHi={life.demiseEtaMinHi}
         demiseConfidence={life.demiseConfidence}
         willIntensify={Boolean(
           life.intensifyEtaMin != null && life.intensifyAt,
@@ -806,10 +564,6 @@ export function StormDetail({
     const zonePlace = feature.zone.placeName ?? feature.zone.name;
     const showForecast = formationShowsForecast(feature.assessment.score);
     const cooling = formationCoolingSignal(feature.zone.environment, locale);
-    const cloudHeight = resolveCloudHeight({
-      cloudTopHeightM: feature.zone.environment?.cloudTopHeightM,
-    });
-
     return (
       <section className="panel storm-detail">
         <div className="storm-detail-head">
@@ -839,8 +593,6 @@ export function StormDetail({
             feature.zone.environment,
           )}
         </p>
-
-        {cloudHeight ? <CloudHeightBlock height={cloudHeight} /> : null}
 
         <div
           className={`formation-signal${
@@ -932,8 +684,6 @@ export function StormDetail({
 
   const dir = headingLabel(feature.storm.headingDeg, locale);
 
-  const alertDetail = alert ? formatStormAlertDetail(alert, locale) : null;
-
 
 
   return (
@@ -990,15 +740,8 @@ export function StormDetail({
 
       </p>
 
-      <HazardBadges assessment={feature.assessment} />
-
-      {alertDetail ? (
-        <p className="to-you-expect">{alertDetail}</p>
-      ) : null}
-
     </section>
 
   );
 
 }
-

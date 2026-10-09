@@ -3,9 +3,10 @@ import { etaClockLabel, formatStormAlertHero } from "../lib/formatAlert";
 import type { ThreatBannerItem } from "../storm/userThreats";
 import {
   formatThreatBannerMessage,
-  formatThreatExpect,
 } from "../storm/userThreats";
 import type { UserLocation } from "../types";
+import { useStormDataContext } from "../providers/StormDataProvider";
+import { radarFreshness } from "../lib/radarFreshness";
 
 type Props = {
   location: UserLocation;
@@ -20,7 +21,28 @@ export function LocationWatch({
   onSelectThreat,
 }: Props) {
   const { t, locale } = useI18n();
+  const { radarAvailable, radarTime, operaTime, chmiTime } =
+    useStormDataContext();
+  const dataFreshness = radarFreshness(
+    radarTime ?? operaTime ?? chmiTime,
+    radarAvailable,
+  );
   const primary = threats[0] ?? null;
+
+  if (dataFreshness !== "current") {
+    return (
+      <section className="panel location-watch data-warning" role="status">
+        <p className="location-watch-title">
+          {t("watch.title", { place: location.placeName })}
+        </p>
+        <p className="location-watch-body">
+          {dataFreshness === "stale"
+            ? t("watch.radarStale")
+            : t("watch.radarUnavailable")}
+        </p>
+      </section>
+    );
+  }
 
   if (!primary) {
     return (
@@ -33,7 +55,6 @@ export function LocationWatch({
     );
   }
 
-  const expect = formatThreatExpect(primary, locale);
   const strengthLine = formatStormAlertHero(primary.alert, locale);
   const etaLine = t("watch.etaLine", {
     eta: primary.alert.etaMinutes,
@@ -52,7 +73,6 @@ export function LocationWatch({
       <p className="location-watch-body">
         {formatThreatBannerMessage(primary, locale)}
       </p>
-      {expect && <p className="location-watch-expect">{expect}</p>}
       {onSelectThreat && (
         <button
           type="button"

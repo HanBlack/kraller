@@ -46,6 +46,7 @@ export type StormDataBundle = {
   radarData: FeatureCollection;
   /** Spojitý PNG radar (preferovaný display); null = fallback na kontury. */
   radarRaster: RadarRasterMeta | null;
+  radarAvailable: boolean;
   cellsData: FeatureCollection;
   trackedCells: TrackedCell[];
   windLow: WindGrid;
@@ -126,6 +127,10 @@ export async function loadStormData(
   return {
     radarData: radarFc,
     radarRaster,
+    radarAvailable:
+      radarData !== null ||
+      chmiRadar !== null ||
+      radarRaster !== null,
     cellsData: cellsFc,
     trackedCells: parseTrackedCells(cellsFc),
     windLow: wind.low,

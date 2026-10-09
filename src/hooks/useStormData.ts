@@ -25,6 +25,7 @@ export type BootPhase = "data" | "fetch" | "history" | "map" | "refresh" | "done
 export type StormDataState = {
   radarData: FeatureCollection;
   radarRaster: RadarRasterMeta | null;
+  radarAvailable: boolean;
   trackedCells: TrackedCell[];
   windLow: WindGrid | null;
   windUpper: WindGrid | null;
@@ -50,6 +51,7 @@ export type StormDataState = {
   bootPhase: BootPhase;
   /** Tišší obnovení na pozadí (interval). */
   loading: boolean;
+  refreshError: boolean;
   refresh: () => void;
 };
 
@@ -61,6 +63,7 @@ export function useStormData(
     features: [],
   });
   const [radarRaster, setRadarRaster] = useState<RadarRasterMeta | null>(null);
+  const [radarAvailable, setRadarAvailable] = useState(false);
   const [trackedCells, setTrackedCells] = useState<TrackedCell[]>([]);
   const [windLow, setWindLow] = useState<WindGrid | null>(null);
   const [windUpper, setWindUpper] = useState<WindGrid | null>(null);
@@ -87,6 +90,7 @@ export function useStormData(
   const [booting, setBooting] = useState(true);
   const [bootPhase, setBootPhase] = useState<BootPhase>("data");
   const [loading, setLoading] = useState(false);
+  const [refreshError, setRefreshError] = useState(false);
   const busyRef = useRef(false);
   const bootedRef = useRef(false);
   /** Živá aktivita → kratší poll (15 s). */
@@ -126,6 +130,7 @@ export function useStormData(
       }
 
       setRadarData(data.radarData);
+      setRadarAvailable(data.radarAvailable);
       if (rasterReady?.url) commitLiveRasterBlobSwap(rasterReady.url);
       setRadarRaster(rasterReady);
       setTrackedCells(data.trackedCells);
@@ -149,12 +154,13 @@ export function useStormData(
       setDataSources(data.dataSources ?? null);
       setRadarHistory(data.radarHistory);
       setSatelliteCooling(data.satelliteCooling);
+      setRefreshError(false);
       stormActiveRef.current =
         data.trackedCells.length > 0 ||
         (data.radarData.features?.length ?? 0) > 0;
       bootedRef.current = true;
     } catch {
-      /* ponechat poslední známá data */
+      setRefreshError(true);
     } finally {
       busyRef.current = false;
       setBooting(false);
@@ -185,6 +191,7 @@ export function useStormData(
   return {
     radarData,
     radarRaster,
+    radarAvailable,
     trackedCells,
     windLow,
     windUpper,
@@ -203,6 +210,7 @@ export function useStormData(
     booting,
     bootPhase,
     loading,
+    refreshError,
     refresh,
   };
 }
