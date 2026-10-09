@@ -2272,3 +2272,31 @@
     left: max(0.5rem, env(safe-area-inset-left));
   }
 }
+
+@media (max-width: 900px) and (orientation: portrait) {
+  .sidebar.is-open.has-detail {
+    top: auto;
+    bottom: max(0.5rem, env(safe-area-inset-bottom));
+    left: 50%;
+    right: auto;
+    width: min(34rem, calc(100vw - 1rem));
+    max-height: min(
+      62dvh,
+      calc(
+        100dvh - 1rem - env(safe-area-inset-top, 0px) -
+          env(safe-area-inset-bottom, 0px)
+      )
+    );
+    transform: translateX(-50%);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.48);
+  }
+
+  .sidebar.is-open.has-detail .sidebar-chrome {
+    border-radius: 16px 16px 0 0;
+  }
+
+  .sidebar.is-open.has-detail .sidebar-body {
+    background: rgba(9, 15, 22, 0.94);
+    border-radius: 0 0 16px 16px;
+  }
+}
