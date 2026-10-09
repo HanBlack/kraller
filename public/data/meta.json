@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-10-09T06:15:43Z",
-  "operaTime": "2026-10-09T06:10:00Z",
+  "updatedAt": "2026-10-09T06:19:44Z",
+  "operaTime": "2026-10-09T06:15:00Z",
   "chmiTime": "2026-10-09T06:15:00Z",
   "mosaicTime": null,
   "radarTime": "2026-10-09T06:15:00Z",
@@ -15,7 +15,7 @@
   "sources": {
     "opera": {
       "ok": true,
-      "updatedAt": "2026-10-09T06:15:17Z",
+      "updatedAt": "2026-10-09T06:19:23Z",
       "error": null
     },
     "chmi": {
@@ -25,12 +25,12 @@
     },
     "wind": {
       "ok": true,
-      "updatedAt": "2026-10-09T06:00:39Z",
+      "updatedAt": "2026-10-09T06:17:17Z",
       "error": null
     },
     "formation": {
       "ok": true,
-      "updatedAt": "2026-10-09T06:00:39Z",
+      "updatedAt": "2026-10-09T06:17:17Z",
       "error": null
     }
   }
