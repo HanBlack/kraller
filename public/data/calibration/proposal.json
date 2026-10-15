@@ -1,18 +1,18 @@
 {
-  "generatedAt": "2026-10-15T01:32:42Z",
+  "generatedAt": "2026-10-15T13:30:35Z",
   "sampleCounts": {
     "track": 20917,
-    "formation": 181255,
-    "birth_features": 17437,
+    "formation": 186705,
+    "birth_features": 17441,
     "intensity": 64344,
-    "intensify": 14206,
-    "demise": 38388,
-    "track_sample_events": 89244,
+    "intensify": 14210,
+    "demise": 38393,
+    "track_sample_events": 89252,
     "withSurfaceDbz": 23529,
     "withFct": 8551,
-    "withFreezingLevel": 79998,
+    "withFreezingLevel": 80002,
     "withHailProxy": 548,
-    "total": 336547
+    "total": 342010
   },
   "readyForApply": true,
   "proposals": [
@@ -87,7 +87,7 @@
       "current": 55,
       "proposed": 55,
       "confidence": "medium",
-      "n": 19057,
+      "n": 19058,
       "p85Jitter": 137.5,
       "reason": "p85 segmentJitter u rozumných rychlostí"
     },
@@ -102,7 +102,7 @@
         }
       },
       "confidence": "medium",
-      "n": 17437,
+      "n": 17441,
       "medianBirthDbzTrue": 37.0,
       "medianBirthDbzFalse": 47.5,
       "reason": "oddělení trueBirth vs příjezd podle birthDbz"
@@ -112,7 +112,7 @@
       "current": 28,
       "proposed": 28,
       "confidence": "low",
-      "n": 181255,
+      "n": 186705,
       "nUsable": 6148,
       "nHit": 6148,
       "nMiss": 0,
@@ -140,10 +140,10 @@
       "current": 54,
       "proposed": 58,
       "confidence": "high",
-      "n": 14206,
+      "n": 14210,
       "hitRate": 0.222,
       "nHit": 3152,
-      "nMiss": 11054,
+      "nMiss": 11058,
       "file": "src/storm/config.ts",
       "reason": "hit rate 22% — příliš false positive, zpřísnit",
       "alsoReview": {
@@ -200,23 +200,23 @@
     "hint": "errEvolveDbz ladí stormConfig.evolution; slope errDbz je baseline"
   },
   "intensifyPurple": {
-    "n": 14206,
+    "n": 14210,
     "hitRate": 0.222,
     "hint": "upřímná fialová — nízký hitRate → vyšší alertScoreMin / suppress"
   },
   "demise": {
-    "n": 38388,
+    "n": 38393,
     "reasons": {
       "merge_or_jump": 32068,
       "fade": 5449,
-      "exit": 443,
+      "exit": 448,
       "unknown": 428
     },
     "medianLifeMin": 0.0,
     "medianFadeLifeMin": 0.0,
     "nFade": 5449,
     "nWithHailProxy": 148,
-    "nAfterPurple": 3608,
+    "nAfterPurple": 3609,
     "hint": "medianLifeMin je zkreslené merge_or_jump — ber medianFadeLifeMin"
   },
   "applyHint": "Po review propsat: src/storm/stormTrackRules.ts (motion/birth), src/storm/formationData.ts (MIN_ZONE_SCORE), src/storm/config.ts (hail / intensification / evolution), scripts/chmi_radar.py (FCT_AGREE_MAX_DEG), ACTIVE_CONSTANTS v scripts/emit_learning.py",
