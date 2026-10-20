@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-10-20T07:42:05Z",
+  "generatedAt": "2026-10-20T13:38:00Z",
   "sampleCounts": {
     "track": 21001,
-    "formation": 222593,
+    "formation": 224605,
     "birth_features": 17806,
-    "intensity": 65895,
+    "intensity": 65899,
     "intensify": 14380,
     "demise": 39164,
     "track_sample_events": 90960,
@@ -12,7 +12,7 @@
     "withFct": 8571,
     "withFreezingLevel": 81632,
     "withHailProxy": 548,
-    "total": 380839
+    "total": 382855
   },
   "readyForApply": true,
   "proposals": [
@@ -112,7 +112,7 @@
       "current": 28,
       "proposed": 28,
       "confidence": "low",
-      "n": 222593,
+      "n": 224605,
       "nUsable": 6406,
       "nHit": 6406,
       "nMiss": 0,
@@ -172,7 +172,7 @@
       "current": 0.65,
       "proposed": 0.65,
       "confidence": "high",
-      "n": 65895,
+      "n": 65899,
       "medianBiasDbz": 0.6,
       "medianAbsErrDbz": 5.0,
       "file": "src/storm/config.ts (evolution) + ACTIVE_CONSTANTS emit_learning",
@@ -193,10 +193,10 @@
     }
   ],
   "intensity": {
-    "n": 65895,
+    "n": 65899,
     "medianAbsErrDbz": 5.2,
     "medianAbsErrEvolveDbz": 5.0,
-    "nWithEvolve": 65895,
+    "nWithEvolve": 65899,
     "hint": "errEvolveDbz ladí stormConfig.evolution; slope errDbz je baseline"
   },
   "intensifyPurple": {
