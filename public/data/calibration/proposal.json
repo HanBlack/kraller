@@ -1,18 +1,18 @@
 {
-  "generatedAt": "2026-10-28T23:17:43Z",
+  "generatedAt": "2026-10-29T02:32:38Z",
   "sampleCounts": {
     "track": 21970,
-    "formation": 296263,
-    "birth_features": 22695,
+    "formation": 296858,
+    "birth_features": 22697,
     "intensity": 85068,
     "intensify": 16226,
-    "demise": 48359,
-    "track_sample_events": 111100,
+    "demise": 48362,
+    "track_sample_events": 111106,
     "withSurfaceDbz": 30916,
     "withFct": 10837,
-    "withFreezingLevel": 100066,
+    "withFreezingLevel": 100070,
     "withHailProxy": 548,
-    "total": 490581
+    "total": 491181
   },
   "readyForApply": true,
   "proposals": [
@@ -87,7 +87,7 @@
       "current": 55,
       "proposed": 55,
       "confidence": "medium",
-      "n": 22494,
+      "n": 22496,
       "p85Jitter": 138.4,
       "reason": "p85 segmentJitter u rozumných rychlostí"
     },
@@ -102,7 +102,7 @@
         }
       },
       "confidence": "medium",
-      "n": 22695,
+      "n": 22697,
       "medianBirthDbzTrue": 37.0,
       "medianBirthDbzFalse": 47.0,
       "reason": "oddělení trueBirth vs příjezd podle birthDbz"
@@ -112,7 +112,7 @@
       "current": 28,
       "proposed": 28,
       "confidence": "low",
-      "n": 296263,
+      "n": 296858,
       "nUsable": 8591,
       "nHit": 8591,
       "nMiss": 0,
@@ -205,18 +205,18 @@
     "hint": "upřímná fialová — nízký hitRate → vyšší alertScoreMin / suppress"
   },
   "demise": {
-    "n": 48359,
+    "n": 48362,
     "reasons": {
-      "merge_or_jump": 39223,
+      "merge_or_jump": 39225,
       "fade": 7547,
-      "exit": 639,
+      "exit": 640,
       "unknown": 950
     },
     "medianLifeMin": 0.0,
     "medianFadeLifeMin": 0.0,
     "nFade": 7547,
     "nWithHailProxy": 148,
-    "nAfterPurple": 3987,
+    "nAfterPurple": 3988,
     "hint": "medianLifeMin je zkreslené merge_or_jump — ber medianFadeLifeMin"
   },
   "applyHint": "Po review propsat: src/storm/stormTrackRules.ts (motion/birth), src/storm/formationData.ts (MIN_ZONE_SCORE), src/storm/config.ts (hail / intensification / evolution), scripts/chmi_radar.py (FCT_AGREE_MAX_DEG), ACTIVE_CONSTANTS v scripts/emit_learning.py",
