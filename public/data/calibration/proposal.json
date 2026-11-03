@@ -1,18 +1,18 @@
 {
-  "generatedAt": "2026-11-02T18:30:23Z",
+  "generatedAt": "2026-11-03T09:41:22Z",
   "sampleCounts": {
-    "track": 22009,
-    "formation": 323549,
-    "birth_features": 23115,
-    "intensity": 88302,
-    "intensify": 16694,
-    "demise": 49614,
-    "track_sample_events": 113588,
+    "track": 22010,
+    "formation": 325032,
+    "birth_features": 23117,
+    "intensity": 88336,
+    "intensify": 16700,
+    "demise": 49625,
+    "track_sample_events": 113612,
     "withSurfaceDbz": 31202,
     "withFct": 10939,
-    "withFreezingLevel": 101282,
+    "withFreezingLevel": 101306,
     "withHailProxy": 548,
-    "total": 523283
+    "total": 524820
   },
   "readyForApply": true,
   "proposals": [
@@ -87,7 +87,7 @@
       "current": 55,
       "proposed": 55,
       "confidence": "medium",
-      "n": 23246,
+      "n": 23255,
       "p85Jitter": 139.8,
       "reason": "p85 segmentJitter u rozumných rychlostí"
     },
@@ -102,7 +102,7 @@
         }
       },
       "confidence": "medium",
-      "n": 23115,
+      "n": 23117,
       "medianBirthDbzTrue": 37.0,
       "medianBirthDbzFalse": 47.0,
       "reason": "oddělení trueBirth vs příjezd podle birthDbz"
@@ -112,7 +112,7 @@
       "current": 28,
       "proposed": 28,
       "confidence": "low",
-      "n": 323549,
+      "n": 325032,
       "nUsable": 8662,
       "nHit": 8662,
       "nMiss": 0,
@@ -140,10 +140,10 @@
       "current": 54,
       "proposed": 58,
       "confidence": "high",
-      "n": 16694,
+      "n": 16700,
       "hitRate": 0.203,
       "nHit": 3394,
-      "nMiss": 13300,
+      "nMiss": 13306,
       "file": "src/storm/config.ts",
       "reason": "hit rate 20% — příliš false positive, zpřísnit",
       "alsoReview": {
@@ -172,7 +172,7 @@
       "current": 0.65,
       "proposed": 0.65,
       "confidence": "high",
-      "n": 88302,
+      "n": 88336,
       "medianBiasDbz": 0.5,
       "medianAbsErrDbz": 4.5,
       "file": "src/storm/config.ts (evolution) + ACTIVE_CONSTANTS emit_learning",
@@ -185,7 +185,7 @@
           "param": "evolution.footprintPerDbz",
           "current": 0.013,
           "proposed": 0.016,
-          "n": 31356,
+          "n": 31362,
           "medianScaleBias": 0.035,
           "hint": "kladný = stopa roste víc než predikce"
         }
@@ -193,21 +193,21 @@
     }
   ],
   "intensity": {
-    "n": 88302,
+    "n": 88336,
     "medianAbsErrDbz": 5.0,
     "medianAbsErrEvolveDbz": 4.5,
-    "nWithEvolve": 88302,
+    "nWithEvolve": 88336,
     "hint": "errEvolveDbz ladí stormConfig.evolution; slope errDbz je baseline"
   },
   "intensifyPurple": {
-    "n": 16694,
+    "n": 16700,
     "hitRate": 0.203,
     "hint": "upřímná fialová — nízký hitRate → vyšší alertScoreMin / suppress"
   },
   "demise": {
-    "n": 49614,
+    "n": 49625,
     "reasons": {
-      "merge_or_jump": 40345,
+      "merge_or_jump": 40356,
       "fade": 7596,
       "exit": 669,
       "unknown": 1004
