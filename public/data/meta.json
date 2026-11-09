@@ -1,9 +1,9 @@
 {
-  "updatedAt": "2026-11-09T14:01:18Z",
-  "operaTime": "2026-11-09T13:55:00Z",
-  "chmiTime": "2026-11-09T14:00:00Z",
+  "updatedAt": "2026-11-09T14:07:15Z",
+  "operaTime": "2026-11-09T14:00:00Z",
+  "chmiTime": "2026-11-09T14:05:00Z",
   "mosaicTime": null,
-  "radarTime": "2026-11-09T14:00:00Z",
+  "radarTime": "2026-11-09T14:05:00Z",
   "radarSource": "opera",
   "radarAttribution": [
     "opera"
@@ -15,22 +15,22 @@
   "sources": {
     "opera": {
       "ok": true,
-      "updatedAt": "2026-11-09T14:00:52Z",
+      "updatedAt": "2026-11-09T14:06:43Z",
       "error": null
     },
     "chmi": {
       "ok": true,
-      "updatedAt": "2026-11-09T14:00:00Z",
+      "updatedAt": "2026-11-09T14:05:00Z",
       "error": null
     },
     "wind": {
       "ok": true,
-      "updatedAt": "2026-11-09T13:57:47Z",
+      "updatedAt": "2026-11-09T14:03:48Z",
       "error": null
     },
     "formation": {
       "ok": true,
-      "updatedAt": "2026-11-09T13:57:47Z",
+      "updatedAt": "2026-11-09T14:03:48Z",
       "error": null
     }
   }
